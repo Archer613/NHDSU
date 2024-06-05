@@ -1,9 +1,10 @@
-package NHDSU
+package NHDSU.CPUSALVE
 
+import NHDSU._
+import NHDSU.CHI._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
-import chi._
 
 class ProtocolLayerCtrl()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {

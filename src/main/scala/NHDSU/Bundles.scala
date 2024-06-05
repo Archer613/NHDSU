@@ -1,10 +1,10 @@
 package NHDSU
 
+import NHDSU.CHI._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
 import scala.collection.immutable.ListMap
-import chi._
 import scala.math.{max, min}
 
 object Tag {

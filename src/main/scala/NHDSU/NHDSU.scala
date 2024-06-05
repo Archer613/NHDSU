@@ -1,9 +1,10 @@
 package NHDSU
 
+import NHDSU.CHI._
+import NHDSU.CPUSALVE._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
-import chi._
 import xs.utils.perf.{DebugOptions, DebugOptionsKey}
 import Utils.GenerateVerilog
 
@@ -41,6 +42,7 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
     if(dsuparam.nrBank == 1){
         // Modules declaration
         val cpuSalve = Module(new CpuSlave())
+
 
         // IO Connection
         cpuSalve.io.chi <> io.rnChi(0)

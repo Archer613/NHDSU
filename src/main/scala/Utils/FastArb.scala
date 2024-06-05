@@ -4,7 +4,6 @@ import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
 import xs.utils.FastArbiter
-import chi.CHIBundleParameters
 
 object FastArb {
     def fastArbDec[T <: Bundle](in: Seq[DecoupledIO[T]], out: DecoupledIO[T], name: Option[String] = None): Unit = {

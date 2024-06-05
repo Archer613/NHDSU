@@ -1,10 +1,10 @@
 package NHDSU
 
+import NHDSU.CHI._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
 import xs.utils.FastArbiter
-import chi.CHIBundleParameters
 
 case object DSUParamKey extends Field[DSUParam](DSUParam())
 

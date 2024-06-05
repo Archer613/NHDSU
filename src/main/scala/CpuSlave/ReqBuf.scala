@@ -1,6 +1,7 @@
-package NHDSU
+package NHDSU.CPUSALVE
 
-import chi._
+import NHDSU._
+import NHDSU.CHI._
 import chisel3._
 import org.chipsalliance.cde.config._
 import chisel3.util.{Decoupled, ValidIO}

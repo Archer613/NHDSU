@@ -1,13 +1,10 @@
-package chi
+package NHDSU.CHI
 
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
 import freechips.rocketchip.tilelink._
 import scala.collection.immutable.ListMap
-import chi._
-
-
 
 class CHIBundleREQ(params: CHIBundleParameters) extends Bundle {
     val channelName = "'REQ' channel"
