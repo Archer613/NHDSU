@@ -172,3 +172,16 @@ class CHILinkCtrlIO extends Bundle {
     val rxactivereq = Input(Bool())
     val rxactiveack = Output(Bool())
 }
+
+object LinkStates {
+    val width = 2
+
+    def STOP        = 0.U(width.W)
+    def ACTIVATE    = 1.U(width.W)
+    def RUN         = 2.U(width.W)
+    def DEACTIVATE  = 3.U(width.W)
+}
+
+class LinkState extends Bundle {
+    val state = UInt(LinkStates.width.W)
+}

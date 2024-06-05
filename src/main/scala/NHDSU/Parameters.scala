@@ -2,8 +2,6 @@ package NHDSU
 
 import chisel3._
 import chisel3.util._
-import freechips.rocketchip.tilelink._
-import freechips.rocketchip.tilelink.TLPermissions._
 import org.chipsalliance.cde.config._
 import xs.utils.FastArbiter
 import chi.CHIBundleParameters
@@ -11,8 +9,9 @@ import chi.CHIBundleParameters
 case object DSUParamKey extends Field[DSUParam](DSUParam())
 
 case class DSUParam(
-                    nrCores: Int = 1,
+                    nrCore: Int = 1,
                     nrReqBuf: Int = 16,
+                    nrSnoopCtl: Int = 16,
                     ways: Int = 8,
                     sets: Int = 256,
                     blockBytes: Int = 64,
@@ -23,6 +22,8 @@ case class DSUParam(
                     nrDataBufferEntry: Int = 16,
                     replacementPolicy: String = "plru"
                   ) {
+    require(nrCore > 0)
+    require(nrBank > 0)
     require(replacementPolicy == "random" || replacementPolicy == "plru" || replacementPolicy == "lru")
 }
 
@@ -30,13 +31,17 @@ trait HasDSUParam {
     val p: Parameters
     val dsuparam = p(DSUParamKey)
 
-    val addressBits = dsuparam.addressBits
-    val dataBits    = dsuparam.blockBytes * 8
-    val beatBits    = dsuparam.beatBytes * 8
-    val bankBits    = log2Ceil(dsuparam.nrBank)
-    val setBits     = log2Ceil(dsuparam.sets)
-    val offsetBits  = log2Ceil(dsuparam.blockBytes)
-    val tagBits     = dsuparam.addressBits - bankBits - setBits - offsetBits
+    val coreIdBits      = log2Ceil(dsuparam.nrCore)
+    val reqBufIdBits    = log2Ceil(dsuparam.nrReqBuf)
+    val snoopCtlIdBits  = log2Ceil(dsuparam.nrSnoopCtl)
+    val dbIdBits        = log2Ceil(dsuparam.nrDataBufferEntry)
+    val addressBits     = dsuparam.addressBits
+    val dataBits        = dsuparam.blockBytes * 8
+    val beatBits        = dsuparam.beatBytes * 8
+    val bankBits        = log2Ceil(dsuparam.nrBank)
+    val setBits         = log2Ceil(dsuparam.sets)
+    val offsetBits      = log2Ceil(dsuparam.blockBytes)
+    val tagBits         = dsuparam.addressBits - bankBits - setBits - offsetBits
 
 
     val chiBundleParams = CHIBundleParameters(

@@ -11,28 +11,52 @@ abstract class DSUModule(implicit val p: Parameters) extends Module with HasDSUP
 abstract class DSUBundle(implicit val p: Parameters) extends Bundle with HasDSUParam
 
 class NHDSU()(implicit p: Parameters) extends DSUModule {
-    //
-    // IO declaration
-    //
-    val io_in = IO(new Bundle {
-        val chi = CHIBundleUpstream(chiBundleParams)
-        val chiLinkCtrl = Flipped(new CHILinkCtrlIO())
-    })
-    val io_out = IO(new Bundle {
-        val chi = CHIBundleDownstream(chiBundleParams)
-        val chiLinkCtrl = new CHILinkCtrlIO()
+// ------------------------------------------ IO declaration ----------------------------------------------//
+    val io = IO(new Bundle {
+        val rnChi = Vec(dsuparam.nrCore, CHIBundleUpstream(chiBundleParams))
+        val rnChiLinkCtrl = Vec(dsuparam.nrCore, Flipped(new CHILinkCtrlIO()))
+        val snChi = Vec(dsuparam.nrBank, CHIBundleDownstream(chiBundleParams))
+        val snChiLinkCtrl = Vec(dsuparam.nrBank, new CHILinkCtrlIO())
     })
 
-    io_in.chi := DontCare
-    io_in.chiLinkCtrl := DontCare
-    io_out.chi := DontCare
-    io_out.chiLinkCtrl := DontCare
-    dontTouch(io_in)
-    dontTouch(io_out)
+    // TODO: Delete the following code when the coding is complete
+    io.rnChi.foreach(_ := DontCare)
+    io.rnChiLinkCtrl.foreach(_ := DontCare)
+    io.snChi.foreach(_ := DontCare)
+    io.snChiLinkCtrl.foreach(_ := DontCare)
+    dontTouch(io)
 
-    //
-    // TODO: Other modules
-    //
+//
+//    ------------        -----------------------------------------------------------
+//    | CPUSLAVE | <--->  |      |   Dir   |      |  SnpCtl  |                      |
+//    ------------        |      -----------      ------------      ----------      |        ----------
+//                        | ---> | Arbiter | ---> | MainPipe | ---> | TxReqQ | ---> |  <---> | Master |
+//    ------------        |      -----------      ------------      ----------      |        ----------
+//    | CPUSLAVE | <--->  |      |   DB    | <--> |    DS    |                      |
+//    ------------        -----------------------------------------------------------
+//                                                   Slice
+
+
+    // ------------------------------------------ Modules declaration And Connection ----------------------------------------------//
+    if(dsuparam.nrBank == 1){
+        // Modules declaration
+        val cpuSalve = Module(new CpuSlave())
+
+        // IO Connection
+        cpuSalve.io.chi <> io.rnChi(0)
+        cpuSalve.io.chiLinkCtrl <> io.rnChiLinkCtrl(0)
+        cpuSalve.io.snpTask <> DontCare
+        cpuSalve.io.snpResp <> DontCare
+        cpuSalve.io.mptask <> DontCare
+        cpuSalve.io.mpResp <> DontCare
+        cpuSalve.io.dbCrtl <> DontCare
+
+    } else {
+        //
+        // TODO: multi-bank
+        //
+        assert(false.B, "Now dont support multi-bank")
+    }
     
 }
 
