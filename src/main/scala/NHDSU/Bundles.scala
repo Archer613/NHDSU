@@ -7,7 +7,7 @@ import org.chipsalliance.cde.config._
 import scala.collection.immutable.ListMap
 import scala.math.{max, min}
 
-object Tag {
+object IdL1 {
     val width      = 3
     val SLICE      = "b000".U
     val CPU        = "b001".U
@@ -23,9 +23,10 @@ object Tag {
 //}
 
 class IdBundle(implicit p: Parameters) extends DSUBundle{
-    val l0 = UInt(Tag.width.W)
+    val l0 = UInt(IdL1.width.W)
     val l1 = UInt(max(coreIdBits, bankBits).W)
     val l2 = UInt(max(reqBufIdBits, snoopCtlIdBits).W)
+
 }
 
 class TaskBundle(implicit p: Parameters) extends DSUBundle{

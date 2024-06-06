@@ -37,11 +37,11 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
     val chiLinkCtrl = Flipped(new CHILinkCtrlIO())
     // mainpipe and snpCtrl
     val snpTask = Vec(dsuparam.nrBank, Flipped(Decoupled(new TaskBundle())))
-    val snpResp = Vec(dsuparam.nrBank, Decoupled(new TaskRespBundle()))
-    val mptask = Vec(dsuparam.nrBank, Decoupled(new TaskBundle()))
-    val mpResp = Vec(dsuparam.nrBank, Flipped(Decoupled(new TaskRespBundle())))
+    val snpResp = Vec(dsuparam.nrBank, ValidIO(new TaskRespBundle()))
+    val mpTask = Vec(dsuparam.nrBank, Decoupled(new TaskBundle()))
+    val mpResp = Vec(dsuparam.nrBank, Flipped(ValidIO(new TaskRespBundle())))
     // dataBuffer
-    val dbCrtl = Vec(dsuparam.nrBank, new DBCtrlBundle())
+    val dbCtrl = Vec(dsuparam.nrBank, new DBCtrlBundle())
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -49,9 +49,9 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   io.chiLinkCtrl <> DontCare
   io.snpTask <> DontCare
   io.snpResp <> DontCare
-  io.mptask <> DontCare
+  io.mpTask <> DontCare
   io.mpResp <> DontCare
-  io.dbCrtl <> DontCare
+  io.dbCtrl <> DontCare
   dontTouch(io)
 
 
@@ -102,13 +102,13 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
 
   if (dsuparam.nrBank == 1) {
     // mpTask ---[fastArb]---> mainPipe
-    fastArbDec(reqBufs.map(_.io.mptask), io.mptask(0), Some("mainPipeArb"))
+    fastArbDec(reqBufs.map(_.io.mpTask), io.mpTask(0), Some("mainPipeArb"))
 
     // snpResp ---[fastArb]---> snpCtrl
-    fastArbDec(reqBufs.map(_.io.snpResp), io.snpResp(0), Some("snpRespArb"))
+    fastArbVal(reqBufs.map(_.io.snpResp), io.snpResp(0), Some("snpRespArb"))
 
     // dbReq ---[fastArb]---> dataBuf
-    fastArbVal(reqBufs.map(_.io.dbReq), io.dbCrtl(0).req, Some("dbReqArb"))
+    fastArbVal(reqBufs.map(_.io.dbReq), io.dbCtrl(0).req, Some("dbReqArb"))
 
     // TODO: Connect chi <-> reqBufs
     reqBufs.foreach(_.io.chi <> DontCare)
@@ -141,10 +141,10 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
         reqbuf.io.mpResp.valid := io.mpResp(0).valid & io.mpResp(0).bits.id.l2 === i.U
         reqbuf.io.mpResp.bits := io.mpResp(0).bits
         // dbResp --(sel by mpResp.id.l2)--> reqBuf
-        reqbuf.io.dbResp.valid := io.dbCrtl(0).wResp.valid & io.dbCrtl(0).wResp.bits.id.l2 === i.U
-        reqbuf.io.dbResp.bits := io.dbCrtl(0).wResp.bits
+        reqbuf.io.dbResp.valid := io.dbCtrl(0).wResp.valid & io.dbCtrl(0).wResp.bits.id.l2 === i.U
+        reqbuf.io.dbResp.bits := io.dbCtrl(0).wResp.bits
         // dataFromDB --(sel by dataFromDB.bits.id.l2)--> dbDataValid
-        reqbuf.io.dbDataValid := io.dbCrtl(0).dataFromDB.valid & io.dbCrtl(0).dataFromDB.bits.id.l2 === i.U
+        reqbuf.io.dbDataValid := io.dbCtrl(0).dataFromDB.valid & io.dbCtrl(0).dataFromDB.bits.id.l2 === i.U
     }
 
 

@@ -2,6 +2,7 @@ package NHDSU
 
 import NHDSU.CHI._
 import NHDSU.CPUSALVE._
+import NHDSU.SLICE._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
@@ -41,17 +42,31 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
     // ------------------------------------------ Modules declaration And Connection ----------------------------------------------//
     if(dsuparam.nrBank == 1){
         // Modules declaration
-        val cpuSalve = Module(new CpuSlave())
+        val cpuSalves = Seq.fill(dsuparam.nrCore) { Module(new CpuSlave()) }
+        val slice = Module(new Slice())
 
 
         // IO Connection
-        cpuSalve.io.chi <> io.rnChi(0)
-        cpuSalve.io.chiLinkCtrl <> io.rnChiLinkCtrl(0)
-        cpuSalve.io.snpTask <> DontCare
-        cpuSalve.io.snpResp <> DontCare
-        cpuSalve.io.mptask <> DontCare
-        cpuSalve.io.mpResp <> DontCare
-        cpuSalve.io.dbCrtl <> DontCare
+        cpuSalves.zipWithIndex.foreach {
+            case(cpu, i) =>
+                // chi
+                cpu.io.chi <> io.rnChi(i)
+                cpu.io.chiLinkCtrl <> io.rnChiLinkCtrl(i)
+                // dataBuffer <-> cpuslave
+                cpu.io.dbCtrl(0) <> slice.io.dbCrtl(i)
+                // mainpipe <-> cpuslave
+                cpu.io.mpTask(0) <> slice.io.cpuTask(i)
+                cpu.io.mpResp(0) <> slice.io.cpuResp(i)
+                // snpCtrl <-> cpuslave
+                cpu.io.snpTask(0) <> slice.io.snpTask(i)
+                cpu.io.snpResp(0) <> slice.io.snpResp(i)
+        }
+
+        slice.io.dbCrtl(dsuparam.nrCore) <> DontCare
+        slice.io.msTask <> DontCare
+        slice.io.msResp <> DontCare
+
+
 
     } else {
         //
