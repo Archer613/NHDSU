@@ -8,6 +8,8 @@ import chisel3.util._
 import org.chipsalliance.cde.config._
 import xs.utils.perf.{DebugOptions, DebugOptionsKey}
 import Utils.GenerateVerilog
+import Utils.IDConnector._
+import Utils.FastArb._
 
 abstract class DSUModule(implicit val p: Parameters) extends Module with HasDSUParam
 abstract class DSUBundle(implicit val p: Parameters) extends Bundle with HasDSUParam
@@ -29,51 +31,96 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
     dontTouch(io)
 
 //
-//    ------------        -----------------------------------------------------------
-//    | CPUSLAVE | <--->  |      |   Dir   |      |  SnpCtl  |                      |
-//    ------------        |      -----------      ------------      ----------      |        ----------
-//                        | ---> | Arbiter | ---> | MainPipe | ---> | TxReqQ | ---> |  <---> | Master |
-//    ------------        |      -----------      ------------      ----------      |        ----------
-//    | CPUSLAVE | <--->  |      |   DB    | <--> |    DS    |                      |
-//    ------------        -----------------------------------------------------------
-//                                                   Slice
+//    ------------               -----------------------------------------------------------
+//    | CPUSLAVE | <---> | <---> |      |   Dir   |      |  SnpCtl  |                      |
+//    ------------       |       |      -----------      ------------      ----------      |        ----------
+//                       |       | ---> | Arbiter | ---> | MainPipe | ---> | TxReqQ | ---> |  <---> | Master |
+//    ------------       |       |      -----------      ------------      ----------      |        ----------
+//    | CPUSLAVE | <---> | <---> |      |   DB    | <--> |    DS    |                      |
+//    ------------       |       -----------------------------------------------------------
+//                       |                              Slice
+//                      XBar
+//                       |
+//    ------------       |       -----------------------------------------------------------
+//    | CPUSLAVE | <---> | <---> |      |   Dir   |      |  SnpCtl  |                      |
+//    ------------       |       |      -----------      ------------      ----------      |        ----------
+//                       |       | ---> | Arbiter | ---> | MainPipe | ---> | TxReqQ | ---> |  <---> | Master |
+//    ------------       |       |      -----------      ------------      ----------      |        ----------
+//    | CPUSLAVE | <---> | <---> |      |   DB    | <--> |    DS    |                      |
+//    ------------              -----------------------------------------------------------
+//                                                      Slice
 
 
     // ------------------------------------------ Modules declaration And Connection ----------------------------------------------//
-    if(dsuparam.nrBank == 1){
-        // Modules declaration
-        val cpuSalves = Seq.fill(dsuparam.nrCore) { Module(new CpuSlave()) }
-        val slice = Module(new Slice())
+    // Modules declaration
+    val cpuSalves = Seq.fill(dsuparam.nrCore) { Module(new CpuSlave()) }
+    val slices = Seq.fill(dsuparam.nrBank) { Module(new Slice()) }
+
+    cpuSalves.foreach(_.io <> DontCare)
+    slices.foreach(_.io <> DontCare)
+
+    // --------------------- Wire declaration ------------------------//
+    val mpTask = Wire(Decoupled(new TaskBundle()))
+    val mpResp = Wire(Valid(new TaskRespBundle()))
+    val snpTask = Wire(Decoupled(new TaskBundle()))
+    val snpResp = Wire(Valid(new TaskRespBundle()))
+    val dbSigs = Wire(new Bundle {
+        val req         = Valid(new DBReq())
+        val wResp       = Valid(new DBResp())
+        val dataFromDB  = Valid(new DBOutData())
+        val dataToDB    = Valid(new DBInData())
+    })
+
+    // --------------------- Connection ------------------------//
+    /*
+    * connect cpuSalves <--[ctrl signals]--> slices
+    */
+    // mpTask ---[fastArb]---[idSel]---> mainPipe
+    fastArbDec2Dec(cpuSalves.map(_.io.mpTask), mpTask, Some("mpTaskArb"))
+    idSelDec2DecVec(mpTask, slices.map(_.io.cpuTask), level = 2)
+
+    // mainPipe ---[fastArb]---[idSel]---> cpuSlaves
+    fastArbDec2Val(slices.map(_.io.cpuResp), mpResp, Some("mpRespArb"))
+    idSelVal2ValVec(mpResp, cpuSalves.map(_.io.mpResp), level = 2)
+
+    // snpTask ---[fastArb]---[idSel]---> cpuSlaves
+    fastArbDec2Dec(slices.map(_.io.snpTask), snpTask, Some("snpTaskArb"))
+    idSelDec2DecVec(snpTask, cpuSalves.map(_.io.snpTask), level = 2)
+
+    // snpResp ---[fastArb]---[idSel]---> snpCtrls
+    fastArbDec2Val(cpuSalves.map(_.io.snpResp), snpResp, Some("snpRespArb"))
+    idSelVal2ValVec(snpResp, slices.map(_.io.snpResp), level = 2)
+
+    /*
+    * connect cpuSalves <--[ctrl signals]--> slices
+    */
+    // req ---[fastArb]---[idSel]---> dataBuffer
+    fastArbDec2Val(cpuSalves.map(_.io.dbSigs.req), dbSigs.req, Some("dbReqArb"))
+    idSelVal2ValVec(dbSigs.req, slices.map(_.io.dbSigs2Cpu.req), level = 2)
+
+    // resp ---[fastArb]---[idSel]---> cpuSlaves
+    fastArbDec2Val(slices.map(_.io.dbSigs2Cpu.wResp), dbSigs.wResp, Some("dbRespArb"))
+    idSelVal2ValVec(dbSigs.wResp, cpuSalves.map(_.io.dbSigs.wResp), level = 2)
+
+    // dataFDB ---[fastArb]---[idSel]---> cpuSlaves
+    fastArbDec2Val(slices.map(_.io.dbSigs2Cpu.dataFromDB), dbSigs.dataFromDB, Some("dataFDBArb"))
+    idSelVal2ValVec(dbSigs.dataFromDB, cpuSalves.map(_.io.dbSigs.dataFromDB), level = 2)
+
+    // dataTDB ---[fastArb]---[idSel]---> dataBuffer
+    fastArbDec2Val(cpuSalves.map(_.io.dbSigs.dataToDB), dbSigs.dataToDB, Some("dataTDBArb"))
+    idSelVal2ValVec(dbSigs.dataToDB, slices.map(_.io.dbSigs2Cpu.dataToDB), level = 2)
 
 
-        // IO Connection
-        cpuSalves.zipWithIndex.foreach {
-            case(cpu, i) =>
-                // chi
-                cpu.io.chi <> io.rnChi(i)
-                cpu.io.chiLinkCtrl <> io.rnChiLinkCtrl(i)
-                // dataBuffer <-> cpuslave
-                cpu.io.dbCtrl(0) <> slice.io.dbCrtl(i)
-                // mainpipe <-> cpuslave
-                cpu.io.mpTask(0) <> slice.io.cpuTask(i)
-                cpu.io.mpResp(0) <> slice.io.cpuResp(i)
-                // snpCtrl <-> cpuslave
-                cpu.io.snpTask(0) <> slice.io.snpTask(i)
-                cpu.io.snpResp(0) <> slice.io.snpResp(i)
-        }
-
-        slice.io.dbCrtl(dsuparam.nrCore) <> DontCare
-        slice.io.msTask <> DontCare
-        slice.io.msResp <> DontCare
 
 
 
-    } else {
-        //
-        // TODO: multi-bank
-        //
-        assert(false.B, "Now dont support multi-bank")
-    }
+
+
+
+
+
+
+
     
 }
 

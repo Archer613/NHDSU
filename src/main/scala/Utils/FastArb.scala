@@ -6,7 +6,7 @@ import org.chipsalliance.cde.config._
 import xs.utils.FastArbiter
 
 object FastArb {
-    def fastArbDec[T <: Bundle](in: Seq[DecoupledIO[T]], out: DecoupledIO[T], name: Option[String] = None): Unit = {
+    def fastArbDec2Dec[T <: Bundle](in: Seq[DecoupledIO[T]], out: DecoupledIO[T], name: Option[String] = None): Unit = {
         val arb = Module(new FastArbiter[T](chiselTypeOf(out.bits), in.size))
         if (name.nonEmpty) {
             arb.suggestName(s"${name.get}_arb")
@@ -17,7 +17,7 @@ object FastArb {
         out <> arb.io.out
     }
 
-    def fastArbVal[T <: Bundle](in: Seq[DecoupledIO[T]], out: ValidIO[T], name: Option[String] = None): Unit = {
+    def fastArbDec2Val[T <: Bundle](in: Seq[DecoupledIO[T]], out: ValidIO[T], name: Option[String] = None): Unit = {
         val arb = Module(new FastArbiter[T](chiselTypeOf(out.bits), in.size))
         if (name.nonEmpty) {
             arb.suggestName(s"${name.get}_arb")

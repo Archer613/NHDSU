@@ -9,7 +9,7 @@ import xs.utils.FastArbiter
 case object DSUParamKey extends Field[DSUParam](DSUParam())
 
 case class DSUParam(
-                    nrCore: Int = 1,
+                    nrCore: Int = 4,
                     nrReqBuf: Int = 16,
                     nrSnoopCtl: Int = 16,
                     ways: Int = 8,
@@ -18,7 +18,7 @@ case class DSUParam(
                     beatBytes: Int = 32,
                     addressBits: Int = 44,
                     enableSramClockGate: Boolean = true,
-                    nrBank: Int = 1,
+                    nrBank: Int = 2,
                     nrDataBufferEntry: Int = 16,
                     replacementPolicy: String = "plru"
                   ) {

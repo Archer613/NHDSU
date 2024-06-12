@@ -7,7 +7,7 @@ import org.chipsalliance.cde.config._
 import scala.collection.immutable.ListMap
 import scala.math.{max, min}
 
-object IdL1 {
+object IdL0 {
     val width      = 3
     val SLICE      = "b000".U
     val CPU        = "b001".U
@@ -16,65 +16,49 @@ object IdL1 {
     val MASTER     = "b100".U
 }
 
-//trait HasTagBits extends DSUBundle { this: Bundle =>
-//    val sourceL0 = UInt(Tag.width.W)
-//    val sourceL1 = UInt(max(coreIdBits, bankBits).W)
-//    val sourceL2 = UInt(max(reqBufIdBits, snoopCtlIdBits).W)
-//}
-
-class IdBundle(implicit p: Parameters) extends DSUBundle{
-    val l0 = UInt(IdL1.width.W)
-    val l1 = UInt(max(coreIdBits, bankBits).W)
-    val l2 = UInt(max(reqBufIdBits, snoopCtlIdBits).W)
-
+trait HasIDBits extends DSUBundle { this: Bundle =>
+    val idL0 = UInt(IdL0.width.W)
+    val idL1 = UInt(max(coreIdBits, bankBits).W)
+    val idL2 = UInt(max(reqBufIdBits, snoopCtlIdBits).W)
 }
 
-class TaskBundle(implicit p: Parameters) extends DSUBundle{
+class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits{
+    // TODO: TaskBundle
     val opcode      = UInt(5.W)
-    val id          = new IdBundle()
-    val bank        = UInt(bankBits.W)
     val set         = UInt(setBits.W)
     val tag         = UInt(tagBits.W)
 }
 
-// TODO: TaskRespBundle
-class TaskRespBundle(implicit p: Parameters) extends DSUBundle{
-    val id          = new IdBundle()
+
+class TaskRespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits{
+    // TODO: TaskRespBundle
+    val opcode      = UInt(5.W)
+    val set = UInt(setBits.W)
+    val tag = UInt(tagBits.W)
 }
 
+
+// ---------------------- DataBuffer Bundle ------------------- //
 object DBOp {
-    val width      = 2
+    val width        = 2
     val Write        = "b01".U // Need Resp
     val Read         = "b10".U // Not Need Resp
     val Clean        = "b11".U // Not Nedd Resp
 }
-
-
-
-
-// ---------------------- DataBuffer Bundle ------------------- //
-class DBReq(implicit p: Parameters) extends DSUBundle{
+class DBReq(implicit p: Parameters) extends DSUBundle with HasIDBits{
     val dbOp = UInt(DBOp.width.W)
     val dbid = UInt(dbIdBits.W)
-    val id = new IdBundle()
 }
-class DBResp(implicit p: Parameters) extends DSUBundle{
-    val id = new IdBundle()
+class DBResp(implicit p: Parameters) extends DSUBundle with HasIDBits {
     val dbid = UInt(dbIdBits.W)
 }
-class DBOutData(implicit p: Parameters) extends DSUBundle{
-    val id = new IdBundle()
-    val data = UInt(beatBits.W)
-}
-class DBInData(implicit p: Parameters) extends DSUBundle{
+class DBOutData(implicit p: Parameters) extends DSUBundle with HasIDBits{
     val dbid = UInt(dbIdBits.W)
     val data = UInt(beatBits.W)
 }
-class DBCtrlBundle(implicit p: Parameters) extends DSUBundle{
-    val req = ValidIO(new DBReq())
-    val wResp = Flipped(ValidIO(new DBResp()))
-    val dataFromDB = Flipped(ValidIO(new DBOutData()))
-    val dataToDB = ValidIO(new DBInData())
+class DBInData(implicit p: Parameters) extends DSUBundle with HasIDBits{
+    val dbid = UInt(dbIdBits.W)
+    val data = UInt(beatBits.W)
 }
 
 

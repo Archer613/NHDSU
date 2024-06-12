@@ -11,10 +11,7 @@ class CpuChiRxDat()(implicit p: Parameters) extends DSUModule {
     val chi = CHIChannelIO(new CHIBundleDAT(chiBundleParams))
     val rxState = Input(new LinkState())
     val flit = Flipped(Decoupled(new CHIBundleDAT(chiBundleParams)))
-    val fromDB = Flipped(ValidIO(new Bundle {
-      val id = UInt(dbIdBits.W)
-      val data = UInt(beatBits.W)
-    }))
+    val fromDB = Flipped(ValidIO(new DBOutData()))
   })
 
   // TODO: Delete the following code when the coding is complete

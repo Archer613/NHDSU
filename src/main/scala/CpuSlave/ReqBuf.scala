@@ -12,11 +12,12 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     val reqBufId = Input(UInt(reqBufIdBits.W))
     // CHI
     val chi = Flipped(CHIBundleDecoupled(chiBundleParams))
-    // mainpipe and snpCtrl
-    val snpTask = Flipped(ValidIO(new TaskBundle()))
-    val snpResp = Decoupled(new TaskRespBundle())
+    // mainpipe
     val mpTask = Decoupled(new TaskBundle())
     val mpResp = Flipped(ValidIO(new TaskRespBundle()))
+    // snpCtrl
+    val snpTask = Flipped(Decoupled(new TaskBundle()))
+    val snpResp = Decoupled(new TaskRespBundle())
     // dataBuffer
     val dbReq = Decoupled(new DBReq())
     val dbResp = Flipped(ValidIO(new DBResp()))
@@ -33,5 +34,10 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   io.dbReq := DontCare
   io.dbResp := DontCare
   dontTouch(io)
+
+  // Whether the io.chi.txreq and io.snpTask can be input is determined by io.free in ReqBufSel
+  // So DontCare the following signals
+  io.chi.txreq.ready := true.B
+  io.snpTask.ready := true.B
 
 }
