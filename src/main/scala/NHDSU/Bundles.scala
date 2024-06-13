@@ -52,13 +52,13 @@ class DBReq(implicit p: Parameters) extends DSUBundle with HasIDBits{
 class DBResp(implicit p: Parameters) extends DSUBundle with HasIDBits {
     val dbid = UInt(dbIdBits.W)
 }
-class DBOutData(implicit p: Parameters) extends DSUBundle with HasIDBits{
+class DBOutData(beat: Int = 1)(implicit p: Parameters) extends DSUBundle with HasIDBits{
     val dbid = UInt(dbIdBits.W)
-    val data = UInt(beatBits.W)
+    val data = UInt((beatBits*beat).W)
 }
-class DBInData(implicit p: Parameters) extends DSUBundle with HasIDBits{
+class DBInData(beat: Int = 1)(implicit p: Parameters) extends DSUBundle with HasIDBits{
     val dbid = UInt(dbIdBits.W)
-    val data = UInt(beatBits.W)
+    val data = UInt((beatBits*beat).W)
 }
 
 

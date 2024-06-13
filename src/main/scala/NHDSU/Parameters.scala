@@ -31,6 +31,7 @@ trait HasDSUParam {
     val p: Parameters
     val dsuparam = p(DSUParamKey)
 
+    val nrBeat          = dsuparam.blockBytes/dsuparam.beatBytes
     val coreIdBits      = log2Ceil(dsuparam.nrCore)
     val reqBufIdBits    = log2Ceil(dsuparam.nrReqBuf)
     val snoopCtlIdBits  = log2Ceil(dsuparam.nrSnoopCtl)
@@ -42,6 +43,7 @@ trait HasDSUParam {
     val setBits         = log2Ceil(dsuparam.sets)
     val offsetBits      = log2Ceil(dsuparam.blockBytes)
     val tagBits         = dsuparam.addressBits - bankBits - setBits - offsetBits
+    val wayBits         = log2Ceil(dsuparam.ways)
 
 
     val chiBundleParams = CHIBundleParameters(

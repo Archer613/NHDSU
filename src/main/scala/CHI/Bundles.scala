@@ -182,3 +182,37 @@ object LinkStates {
 class LinkState extends Bundle {
     val state = UInt(LinkStates.width.W)
 }
+
+object ChiState {
+    val width = 3
+
+    def I = "b000".U(width.W)
+    def SC = "b001".U(width.W)
+    def UC = "b010".U(width.W)
+    def UD = "b010".U(width.W)
+    def SD = "b011".U(width.W)
+
+    def PassDirty = "b100".U(width.W)
+
+    def I_PD = setPD(I)
+    def SC_PD = setPD(SC)
+    def UC_PD = setPD(UC)
+    def UD_PD = setPD(UD)
+    def SD_PD = setPD(SD)
+
+    def setPD(state: UInt, pd: Bool = true.B): UInt = {
+        require(state.getWidth == width)
+        state | Mux(pd, PassDirty, 0.U)
+    }
+}
+
+trait HasChiStates { this: Bundle =>
+    val state = UInt(ChiState.width.W)
+
+    def isInvalid = state(1, 0) === ChiState.I(1, 0)
+    def isShared = state(1, 0) === ChiState.SC(1, 0) | state(1, 0) === ChiState.SD(1, 0)
+    def isUnique = state(1, 0) === ChiState.UC(1, 0) | state(1, 0) === ChiState.UD(1, 0)
+    def isClean = state(1, 0) === ChiState.SC(1, 0) | state(1, 0) === ChiState.UC(1, 0)
+    def isDirty = state(1, 0) === ChiState.UD(1, 0) | state(1, 0) === ChiState.SD(1, 0)
+    def passDirty = state(2)
+}
