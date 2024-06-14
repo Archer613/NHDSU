@@ -30,7 +30,7 @@ class Slice()(implicit p: Parameters) extends DSUModule {
       val dataToDB      = Flipped(ValidIO(new DBInData()))
     }
     val msTask        = Decoupled(new TaskBundle())
-    val msResp        = Flipped(Decoupled(new TaskRespBundle()))
+    val msResp        = Flipped(Decoupled(new TaskBundle()))
   })
 
 // --------------------- Modules declaration ------------------------//

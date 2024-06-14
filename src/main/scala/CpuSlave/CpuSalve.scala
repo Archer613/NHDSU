@@ -51,16 +51,6 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
     }
   })
 
-  // TODO: Delete the following code when the coding is complete
-  io.chi <> DontCare
-  io.chiLinkCtrl <> DontCare
-  io.snpTask <> DontCare
-  io.snpResp <> DontCare
-  io.mpTask <> DontCare
-  io.mpResp <> DontCare
-  io.dbSigs <> DontCare
-  dontTouch(io)
-
 
 // --------------------- Modules declaration ------------------------//
   val chiCtrl = Module(new ProtocolLayerCtrl())
@@ -95,7 +85,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   txDat.io.chi <> io.chi.txdat
   txDat.io.txState := chiCtrl.io.txState
   txDat.io.flit <> DontCare
-  txDat.io.toDB <> DontCare
+  txDat.io.toDB <> io.dbSigs.dataToDB
 
   io.chi.rxsnp <> rxSnp.io.chi
   rxSnp.io.rxState := chiCtrl.io.rxState
@@ -108,7 +98,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   io.chi.rxdat <> rxDat.io.chi
   rxDat.io.rxState := chiCtrl.io.rxState
   rxDat.io.flit <> DontCare
-  rxDat.io.fromDB <> DontCare
+  rxDat.io.fromDB <> io.dbSigs.dataFromDB
 
   /*
    * connect chiXXX <-> reqBufs <-> io.xxx(signals from or to slice)

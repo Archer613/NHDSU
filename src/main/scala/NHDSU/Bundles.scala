@@ -27,6 +27,7 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits{
     val opcode      = UInt(5.W)
     val set         = UInt(setBits.W)
     val tag         = UInt(tagBits.W)
+    val isWB        = Bool()
 }
 
 
