@@ -20,10 +20,15 @@ case class DSUParam(
                     enableSramClockGate: Boolean = true,
                     nrBank: Int = 2,
                     nrDataBufferEntry: Int = 16,
-                    replacementPolicy: String = "plru"
+                    replacementPolicy: String = "plru",
+                    // can receive or send chi lcrd num
+                    nrRnTxLcrdMax: Int = 4,
+                    nrRnRxLcrdMax: Int = 4
                   ) {
     require(nrCore > 0)
     require(nrBank > 0)
+    require(nrRnTxLcrdMax <= 15)
+    require(nrRnRxLcrdMax <= 15)
     require(replacementPolicy == "random" || replacementPolicy == "plru" || replacementPolicy == "lru")
 }
 
@@ -44,6 +49,8 @@ trait HasDSUParam {
     val offsetBits      = log2Ceil(dsuparam.blockBytes)
     val tagBits         = dsuparam.addressBits - bankBits - setBits - offsetBits
     val wayBits         = log2Ceil(dsuparam.ways)
+    val rnTxlcrdBits      = log2Ceil(dsuparam.nrRnTxLcrdMax)
+    val rnRxxlcrdBits      = log2Ceil(dsuparam.nrRnRxLcrdMax)
 
 
     val chiBundleParams = CHIBundleParameters(

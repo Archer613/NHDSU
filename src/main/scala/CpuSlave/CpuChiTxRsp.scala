@@ -9,7 +9,7 @@ import org.chipsalliance.cde.config._
 class CpuChiTxRsp()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val chi = Flipped(CHIChannelIO(new CHIBundleRSP(chiBundleParams)))
-    val txState = Input(new LinkState())
+    val txState = Input(UInt(LinkStates.width.W))
     val allLcrdRetrun = Output(Bool()) // Deactive Done
     val flit = Decoupled(new CHIBundleRSP(chiBundleParams))
   })

@@ -9,7 +9,7 @@ import org.chipsalliance.cde.config._
 class CpuChiRxSnp()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val chi = CHIChannelIO(new CHIBundleSNP(chiBundleParams))
-    val rxState = Input(new LinkState())
+    val rxState = Input(UInt(LinkStates.width.W))
     val flit = Flipped(Decoupled(new CHIBundleSNP(chiBundleParams)))
   })
 

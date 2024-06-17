@@ -177,6 +177,15 @@ object LinkStates {
     def ACTIVATE    = 1.U(width.W)
     def RUN         = 2.U(width.W)
     def DEACTIVATE  = 3.U(width.W)
+
+    def getLinkState(req: UInt, ack: UInt): UInt = {
+        MuxLookup(Cat(req, ack), LinkStates.STOP)(Seq(
+            Cat(true.B, false.B) -> LinkStates.ACTIVATE,
+            Cat(true.B, true.B) -> LinkStates.RUN,
+            Cat(false.B, true.B) -> LinkStates.DEACTIVATE,
+            Cat(false.B, false.B) -> LinkStates.STOP
+        ))
+    }
 }
 
 class LinkState extends Bundle {

@@ -73,6 +73,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
    */
   chiCtrl.io.chiLinkCtrl <> io.chiLinkCtrl
   chiCtrl.io.txAllLcrdRetrun := txReq.io.allLcrdRetrun & txRsp.io.allLcrdRetrun & txDat.io.allLcrdRetrun
+  chiCtrl.io.reqBufsVal := reqBufs.map(!_.io.free).reduce(_|_)
 
   txReq.io.chi <> io.chi.txreq
   txReq.io.txState := chiCtrl.io.txState
