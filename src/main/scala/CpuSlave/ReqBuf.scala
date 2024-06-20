@@ -25,7 +25,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   })
 
   // TODO: Delete the following code when the coding is complete
-  io.free := false.B
+  io.free := true.B
   io.chi := DontCare
   io.snpTask := DontCare
   io.snpResp := DontCare
@@ -34,6 +34,27 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   io.dbReq := DontCare
   io.dbResp := DontCare
   dontTouch(io)
+
+  // --------------------- Modules declaration ---------------------//
+
+
+  // --------------------- Wire declaration ------------------------//
+  val free = WireInit(true.B)
+
+  // --------------------- Logic -----------------------------------//
+
+
+
+
+  /*
+   * io.chi.fire ctrl logic
+   */
+  io.chi.txreq.ready := free
+  io.chi.txdat.ready := true.B
+  io.chi.txrsp.ready := true.B
+  io.chi.rxdat.valid := false.B // TODO
+  io.chi.rxrsp.valid := false.B // TODO
+  io.chi.rxsnp.valid := false.B // TODO
 
   // Whether the io.chi.txreq and io.snpTask can be input is determined by io.free in ReqBufSel
   // So DontCare the following signals
