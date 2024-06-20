@@ -143,21 +143,23 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     }
 
     val dsu = Module(new NHDSU())
-    val io = IO(new Bundle {
-      val snChi = Vec(dsu.dsuparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
-      val snChiLinkCtrl = Vec(dsu.dsuparam.nrBank, new CHILinkCtrlIO())
-    })
-    dsu.io.snChi <> io.snChi
-    dsu.io.snChiLinkCtrl <> io.snChiLinkCtrl
-    
+    // TODO: Connect IO_SN <-> ARM_SN
+//    val io = IO(new Bundle {
+//      val snChi = Vec(dsu.dsuparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
+//      val snChiLinkCtrl = Vec(dsu.dsuparam.nrBank, new CHILinkCtrlIO())
+//    })
+//    dsu.io.snChi <> io.snChi
+//    dsu.io.snChiLinkCtrl <> io.snChiLinkCtrl
+      dsu.io.snChi <> DontCare
+      dsu.io.snChiLinkCtrl <> DontCare
+
+    dontTouch(dsu.io)
+    dontTouch(l2_nodes(0).module.io_chi)
+
     // chil2 tansfer to nhdsu
     val l2Chi                               = l2_nodes(0).module.io_chi
-    l2Chi.tx <> DontCare
-    l2Chi.rx <> DontCare
-    dsu.io.rnChi <> DontCare
-    dsu.io.rnChiLinkCtrl <> DontCare
     // linkCtrl
-    dsu.io.rnChiLinkCtrl(0).txactivereq     := l2Chi.txsactive
+    dsu.io.rnChiLinkCtrl(0).txsactive       := l2Chi.txsactive
     l2Chi.rxsactive                         := dsu.io.rnChiLinkCtrl(0).rxsactive
     // tx linkCtrl
     dsu.io.rnChiLinkCtrl(0).txactivereq     := l2Chi.tx.linkactivereq
@@ -166,7 +168,7 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     l2Chi.rx.linkactivereq                  :=  dsu.io.rnChiLinkCtrl(0).rxactivereq
     dsu.io.rnChiLinkCtrl(0).rxactiveack     := l2Chi.rx.linkactiveack
 
-    // txreq ctrl
+        // txreq ctrl
     dsu.io.rnChi(0).txreq.flitpend          := l2Chi.tx.req.flitpend
     dsu.io.rnChi(0).txreq.flitv             := l2Chi.tx.req.flitv
     l2Chi.tx.req.lcrdv                      := dsu.io.rnChi(0).txreq.lcrdv
@@ -178,17 +180,21 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     txreq.srcID                             := l2Chi.tx.req.flit.srcID
     txreq.txnID                             := l2Chi.tx.req.flit.txnID
     txreq.returnNID                         := l2Chi.tx.req.flit.returnNID
+    txreq.returnTxnID                       := DontCare
     txreq.opcode                            := l2Chi.tx.req.flit.opcode
     txreq.size                              := l2Chi.tx.req.flit.size
     txreq.addr                              := l2Chi.tx.req.flit.addr
     txreq.ns                                := l2Chi.tx.req.flit.ns
-//    txreq.nse := DontCare
+    txreq.lpID                              := DontCare
+    txreq.excl                              := DontCare
     txreq.likelyShared                      := l2Chi.tx.req.flit.likelyshared
     txreq.allowRetry                        := l2Chi.tx.req.flit.allowRetry
     txreq.order                             := l2Chi.tx.req.flit.order
     txreq.pCrdType                          := l2Chi.tx.req.flit.pCrdType
     txreq.memAttr                           := l2Chi.tx.req.flit.memAttr.asUInt
     txreq.snpAttr                           := l2Chi.tx.req.flit.snpAttr.asUInt
+    txreq.traceTag                          := DontCare
+    txreq.rsvdc                             := DontCare
 //    txreq.cah := l2Chi.tx.req.flit
     // txreq.excl         := l2Chi.tx.req.flit
     // txreq.snoopMe      := l2Chi.tx.req.flit
@@ -209,9 +215,12 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     txdat.opcode                   := l2Chi.tx.dat.flit.opcode
     txdat.respErr                  := l2Chi.tx.dat.flit.respErr
     txdat.resp                     := l2Chi.tx.dat.flit.resp
+    txdat.fwdState                 := l2Chi.tx.dat.flit.fwdState
     txdat.dbID                     := l2Chi.tx.dat.flit.dbID
     txdat.ccID                     := l2Chi.tx.dat.flit.ccID
     txdat.dataID                   := l2Chi.tx.dat.flit.dataID
+    txdat.traceTag                 := l2Chi.tx.dat.flit.traceTag
+    txdat.rsvdc                    := l2Chi.tx.dat.flit.rsvdc
     txdat.be                       := l2Chi.tx.dat.flit.be
     txdat.data                     := l2Chi.tx.dat.flit.data
 
@@ -229,8 +238,10 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     txrsp.opcode                   := l2Chi.tx.rsp.flit.opcode
     txrsp.respErr                  := l2Chi.tx.rsp.flit.respErr
     txrsp.resp                     := l2Chi.tx.rsp.flit.resp
+    txrsp.fwdState                 := l2Chi.tx.rsp.flit.fwdState
     txrsp.dbID                     := l2Chi.tx.rsp.flit.dbID
     txrsp.pCrdType                 := l2Chi.tx.rsp.flit.pCrdType
+    txrsp.traceTag                 := l2Chi.tx.rsp.flit.traceTag
 
     //rxrsp ctrl
     l2Chi.rx.rsp.flitpend          := dsu.io.rnChi(0).rxrsp.flitpend
@@ -246,8 +257,10 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     l2Chi.rx.rsp.flit.opcode       := rxrsp.opcode
     l2Chi.rx.rsp.flit.respErr      := rxrsp.respErr
     l2Chi.rx.rsp.flit.resp         := rxrsp.resp
+    l2Chi.rx.rsp.flit.fwdState     := rxrsp.fwdState
     l2Chi.rx.rsp.flit.dbID         := rxrsp.dbID
     l2Chi.rx.rsp.flit.pCrdType     := rxrsp.pCrdType
+    l2Chi.rx.rsp.flit.traceTag     := rxrsp.traceTag
 
     //rxdat ctrl
     l2Chi.rx.dat.flitpend          := dsu.io.rnChi(0).rxdat.flitpend
@@ -264,9 +277,12 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     l2Chi.rx.dat.flit.opcode       := rxdat.opcode
     l2Chi.rx.dat.flit.respErr      := rxdat.respErr
     l2Chi.rx.dat.flit.resp         := rxdat.resp
+    l2Chi.rx.dat.flit.fwdState     := rxdat.fwdState
     l2Chi.rx.dat.flit.dbID         := rxdat.dbID
     l2Chi.rx.dat.flit.ccID         := rxdat.ccID
     l2Chi.rx.dat.flit.dataID       := rxdat.dataID
+    l2Chi.rx.dat.flit.traceTag     := rxdat.traceTag
+    l2Chi.rx.dat.flit.rsvdc        := rxdat.rsvdc
     l2Chi.rx.dat.flit.be           := rxdat.be
     l2Chi.rx.dat.flit.data         := rxdat.data
 
@@ -287,6 +303,7 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     l2Chi.rx.snp.flit.ns           := rxsnp.ns
     l2Chi.rx.snp.flit.doNotGoToSD  := rxsnp.doNotGoToSD
     l2Chi.rx.snp.flit.retToSrc     := rxsnp.retToSrc
+    l2Chi.rx.snp.flit.traceTag     := rxsnp.traceTag
   }
 
 }
@@ -342,11 +359,11 @@ object TestTopCHIHelper {
   }
 }
 
-object TestTop_CHI_OneCore_0UL extends App {
+object TestTop_CHI_OneCore_1UL extends App {
 
   TestTopCHIHelper.gen(p => new TestTop_CHIL2(
     numCores = 1,
-    numULAgents = 0,
+    numULAgents = 1,
     banks = 1)(p)
   )(args)
 }
