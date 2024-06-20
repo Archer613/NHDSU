@@ -17,14 +17,17 @@ class ProtocolLayerCtrl()(implicit p: Parameters) extends DSUModule {
   // DontCare txsactive and rxsactive
   io.chiLinkCtrl.rxsactive := true.B
 
+  val txState = LinkStates.getLinkState(io.chiLinkCtrl.txactivereq, io.chiLinkCtrl.txactiveack)
+  val rxState = LinkStates.getLinkState(io.chiLinkCtrl.rxactivereq, io.chiLinkCtrl.rxactiveack)
+
   val txStateReg = RegInit(LinkStates.STOP)
   val rxStateReg = RegInit(LinkStates.STOP)
 
   val txactiveackReg = RegInit(false.B)
   val rxactivereqReg = RegInit(false.B)
 
-  txStateReg := LinkStates.getLinkState(io.chiLinkCtrl.txactivereq, io.chiLinkCtrl.txactiveack)
-  rxStateReg := LinkStates.getLinkState(io.chiLinkCtrl.rxactivereq, io.chiLinkCtrl.rxactiveack)
+  txStateReg := txState
+  rxStateReg := rxState
 
   /*
    * txState FSM ctrl by io.chiLinkCtrl.txactiveack
@@ -63,8 +66,8 @@ class ProtocolLayerCtrl()(implicit p: Parameters) extends DSUModule {
     }
   }
 
-  io.txState := txStateReg
-  io.rxState := rxStateReg
+  io.txState := txState
+  io.rxState := rxState
 
   io.chiLinkCtrl.txactiveack := txactiveackReg
   io.chiLinkCtrl.rxactivereq := rxactivereqReg
