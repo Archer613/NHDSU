@@ -48,8 +48,8 @@ trait HasDSUParam {
     val offsetBits      = log2Ceil(dsuparam.blockBytes)
     val tagBits         = dsuparam.addressBits - bankBits - setBits - offsetBits
     val wayBits         = log2Ceil(dsuparam.ways)
-    val rnTxlcrdBits      = log2Ceil(dsuparam.nrRnTxLcrdMax)
-    val rnRxxlcrdBits      = log2Ceil(dsuparam.nrRnRxLcrdMax)
+    val rnTxlcrdBits      = log2Ceil(dsuparam.nrRnTxLcrdMax) + 1
+    val rnRxlcrdBits      = log2Ceil(dsuparam.nrRnRxLcrdMax) + 1
 
 
     val chiBundleParams = CHIBundleParameters(
