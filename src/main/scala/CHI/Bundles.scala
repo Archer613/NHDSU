@@ -11,26 +11,31 @@ import scala.collection.immutable.ListMap
 class CHIBundleREQ(params: CHIBundleParameters) extends Bundle {
     val channelName = "'REQ' channel"
 
-    val qos          = UInt(4.W)
-    val tgtID        = UInt(params.nodeIdBits.W)
-    val srcID        = UInt(params.nodeIdBits.W)
-    val txnID        = UInt(8.W)
-    val returnNID    = UInt(params.nodeIdBits.W)
-    val opcode       = UInt(6.W)
-    val size         = UInt(3.W)
-    val addr         = UInt(params.addressBits.W)
-    val ns           = Bool()
-    // val nse          = Bool()
-    val likelyShared = Bool()
-    val allowRetry   = Bool()
-    val order        = UInt(2.W)
-    val pCrdType     = UInt(4.W)
-    val memAttr      = UInt(4.W)
-    val snpAttr      = UInt(1.W)
-    // val cah          = Bool()
-    // val excl         = cah
-    // val snoopMe      = cah
-    val expCompAck = Bool()
+    val qos            = UInt(4.W)
+    val tgtID          = UInt(params.nodeIdBits.W)
+    val srcID          = UInt(params.nodeIdBits.W)
+    val txnID          = UInt(8.W)
+    val returnNID      = UInt(params.nodeIdBits.W)
+    // val stashNID       = returnNID
+    val returnTxnID    = UInt(8.W)
+    // val stashLPIDValid = returnTxnID(5)
+    // val stashLPID      = returnNID(4,0)
+    val opcode         = UInt(6.W)
+    val size           = UInt(3.W)
+    val addr           = UInt(params.addressBits.W)
+    val ns             = Bool()
+    val likelyShared   = Bool()
+    val allowRetry     = Bool()
+    val order          = UInt(2.W)
+    val pCrdType       = UInt(4.W)
+    val memAttr        = UInt(4.W)
+    val snpAttr        = UInt(1.W)
+    val lpID           = UInt(5.W)
+    val excl           = Bool()
+    // val snoopMe        = excl
+    val expCompAck     = Bool()
+    val traceTag       = Bool()
+    val rsvdc          = UInt(4.W)
 }
 
 class CHIBundleRSP(params: CHIBundleParameters) extends Bundle {
@@ -43,47 +48,56 @@ class CHIBundleRSP(params: CHIBundleParameters) extends Bundle {
     val opcode   = UInt(4.W)
     val respErr  = UInt(2.W)
     val resp     = UInt(3.W)
-    // val cBusy    = UInt(3.W)
+    val fwdState = UInt(3.W)
+    // val dataPull = fwdState
     val dbID     = UInt(8.W)
     val pCrdType = UInt(4.W)
+    val traceTag = Bool()
 }
 
 class CHIBundleSNP(params: CHIBundleParameters) extends Bundle {
     val channelName = "'SNP' channel"
 
-    val qos         = UInt(4.W)
-    val srcID       = UInt(params.nodeIdBits.W)
-    val txnID       = UInt(8.W)
-    val fwdNID      = UInt(params.nodeIdBits.W)
-    val fwdTxnID    = UInt(8.W)
-    val opcode      = UInt(5.W)
-    val addr        = UInt((params.addressBits - 3).W)
-    val ns          = Bool()
-    // val nse         = Bool()
-    val doNotGoToSD = Bool()
-    val retToSrc    = Bool()
+    val qos            = UInt(4.W)
+    val srcID          = UInt(params.nodeIdBits.W)
+    val txnID          = UInt(8.W)
+    val fwdNID         = UInt(params.nodeIdBits.W)
+    val fwdTxnID       = UInt(8.W)
+    // val stashLPIDValid = fwdTxnID(5)
+    // val stashLPID      = fwdTxnID(4,0)
+    // val vmIDExt        = fwdTxnID
+    val opcode         = UInt(5.W)
+    val addr           = UInt((params.addressBits - 3).W)
+    val ns             = Bool()
+    val doNotGoToSD    = Bool()
+    // val doNotDataPull  = doNotGoToSD
+    val retToSrc       = Bool()
+    val traceTag       = Bool()
 }
 
 class CHIBundleDAT(params: CHIBundleParameters) extends Bundle {
     val channelName = "'DAT' channel"
 
-    val qos       = UInt(4.W)
-    val tgtID     = UInt(params.nodeIdBits.W)
-    val srcID     = UInt(params.nodeIdBits.W)
-    val txnID     = UInt(8.W)
-    val homeNID   = UInt(params.nodeIdBits.W)
-    val opcode    = UInt(3.W)
-    val respErr   = UInt(2.W)
-    val resp      = UInt(3.W)
-    // val cBusy     = UInt(3.W)
-    val dbID      = UInt(8.W)
-    val ccID      = UInt(2.W)
-    val dataID    = UInt(2.W)
-    // val cah       = Bool()
-    val be        = UInt((params.dataBits / 8).W)
-    val data      = UInt(params.dataBits.W)
-    val dataCheck = if (params.dataCheck) Some(UInt((params.dataBits / 8).W)) else None
-    val poison    = if (params.dataCheck) Some(UInt((params.dataBits / 64).W)) else None
+    val qos        = UInt(4.W)
+    val tgtID      = UInt(params.nodeIdBits.W)
+    val srcID      = UInt(params.nodeIdBits.W)
+    val txnID      = UInt(8.W)
+    val homeNID    = UInt(params.nodeIdBits.W)
+    val opcode     = UInt(3.W)
+    val respErr    = UInt(2.W)
+    val resp       = UInt(3.W)
+    val fwdState   = UInt(3.W)
+    // val dataPull   = fwdState
+    // val dataSource = fwdState
+    val dbID       = UInt(8.W)
+    val ccID       = UInt(2.W)
+    val dataID     = UInt(2.W)
+    val traceTag   = Bool()
+    val rsvdc      = UInt(4.W)
+    val be         = UInt((params.dataBits / 8).W)
+    val data       = UInt(params.dataBits.W)
+    val dataCheck  = if (params.dataCheck) Some(UInt((params.dataBits / 8).W)) else None
+    val poison     = if (params.dataCheck) Some(UInt((params.dataBits / 64).W)) else None
 }
 
 class CHIChannelIO[T <: Data](gen: T, aggregateIO: Boolean = false) extends Bundle {
