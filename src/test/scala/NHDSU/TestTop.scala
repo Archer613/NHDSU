@@ -133,13 +133,8 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
       }
     }
 
-    val io = IO(Vec(numCores, new Bundle() {
-      val chi = new PortIO
-    }))
 
     l2_nodes.zipWithIndex.foreach { case (l2, i) =>
-      l2.module.io_chi <> io(i).chi
-      dontTouch(l2.module.io)
 
       l2.module.io.hartId := i.U
       l2.module.io_nodeID := i.U(NODEID_WIDTH.W)
@@ -148,17 +143,150 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     }
 
     val dsu = Module(new NHDSU())
-    val io_dsu = IO(new Bundle {
-      val rnChi = Vec(dsu.dsuparam.nrCore, CHIBundleUpstream(dsu.chiBundleParams))
-      val rnChiLinkCtrl = Vec(dsu.dsuparam.nrCore, Flipped(new CHILinkCtrlIO()))
+    val io = IO(new Bundle {
       val snChi = Vec(dsu.dsuparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
       val snChiLinkCtrl = Vec(dsu.dsuparam.nrBank, new CHILinkCtrlIO())
     })
+    dsu.io.snChi <> io.snChi
+    dsu.io.snChiLinkCtrl <> io.snChiLinkCtrl
+    
+    // chil2 tansfer to nhdsu
+    val l2Chi                               = l2_nodes(0).module.io_chi
+    l2Chi.tx <> DontCare
+    l2Chi.rx <> DontCare
+    dsu.io.rnChi <> DontCare
+    dsu.io.rnChiLinkCtrl <> DontCare
+    // linkCtrl
+    dsu.io.rnChiLinkCtrl(0).txactivereq     := l2Chi.txsactive
+    l2Chi.rxsactive                         := dsu.io.rnChiLinkCtrl(0).rxsactive
+    // tx linkCtrl
+    dsu.io.rnChiLinkCtrl(0).txactivereq     := l2Chi.tx.linkactivereq
+    l2Chi.tx.linkactiveack                  :=  dsu.io.rnChiLinkCtrl(0).txactiveack
+    // rx linkCtrl
+    l2Chi.rx.linkactivereq                  :=  dsu.io.rnChiLinkCtrl(0).rxactivereq
+    dsu.io.rnChiLinkCtrl(0).rxactiveack     := l2Chi.rx.linkactiveack
 
-    dsu.io.rnChi <> io_dsu.rnChi
-    dsu.io.rnChiLinkCtrl <> io_dsu.rnChiLinkCtrl
-    dsu.io.snChi <> io_dsu.snChi
-    dsu.io.snChiLinkCtrl <> io_dsu.snChiLinkCtrl
+    // txreq ctrl
+    dsu.io.rnChi(0).txreq.flitpend          := l2Chi.tx.req.flitpend
+    dsu.io.rnChi(0).txreq.flitv             := l2Chi.tx.req.flitv
+    l2Chi.tx.req.lcrdv                      := dsu.io.rnChi(0).txreq.lcrdv
+    // txreqflit
+    val txreq                               = Wire(new CHIBundleREQ(dsu.chiBundleParams))
+    dsu.io.rnChi(0).txreq.flit              := txreq
+    txreq.qos                               := l2Chi.tx.req.flit.qos
+    txreq.tgtID                             := l2Chi.tx.req.flit.tgtID
+    txreq.srcID                             := l2Chi.tx.req.flit.srcID
+    txreq.txnID                             := l2Chi.tx.req.flit.txnID
+    txreq.returnNID                         := l2Chi.tx.req.flit.returnNID
+    txreq.opcode                            := l2Chi.tx.req.flit.opcode
+    txreq.size                              := l2Chi.tx.req.flit.size
+    txreq.addr                              := l2Chi.tx.req.flit.addr
+    txreq.ns                                := l2Chi.tx.req.flit.ns
+//    txreq.nse := DontCare
+    txreq.likelyShared                      := l2Chi.tx.req.flit.likelyshared
+    txreq.allowRetry                        := l2Chi.tx.req.flit.allowRetry
+    txreq.order                             := l2Chi.tx.req.flit.order
+    txreq.pCrdType                          := l2Chi.tx.req.flit.pCrdType
+    txreq.memAttr                           := l2Chi.tx.req.flit.memAttr.asUInt
+    txreq.snpAttr                           := l2Chi.tx.req.flit.snpAttr.asUInt
+//    txreq.cah := l2Chi.tx.req.flit
+    // txreq.excl         := l2Chi.tx.req.flit
+    // txreq.snoopMe      := l2Chi.tx.req.flit
+    txreq.expCompAck                        := l2Chi.tx.req.flit.expCompAck
+
+    //txdat ctrl
+    dsu.io.rnChi(0).txdat.flitpend := l2Chi.tx.dat.flitpend
+    dsu.io.rnChi(0).txdat.flitv    := l2Chi.tx.dat.flitv
+    l2Chi.tx.dat.lcrdv             := dsu.io.rnChi(0).txdat.lcrdv
+    //txdatflit
+    val txdat = Wire(new CHIBundleDAT(dsu.chiBundleParams))
+    dsu.io.rnChi(0).txdat.flit     := txdat
+    txdat.qos                      := l2Chi.tx.dat.flit.qos
+    txdat.tgtID                    := l2Chi.tx.dat.flit.tgtID
+    txdat.srcID                    := l2Chi.tx.dat.flit.srcID
+    txdat.txnID                    := l2Chi.tx.dat.flit.txnID
+    txdat.homeNID                  := l2Chi.tx.dat.flit.homeNID
+    txdat.opcode                   := l2Chi.tx.dat.flit.opcode
+    txdat.respErr                  := l2Chi.tx.dat.flit.respErr
+    txdat.resp                     := l2Chi.tx.dat.flit.resp
+    txdat.dbID                     := l2Chi.tx.dat.flit.dbID
+    txdat.ccID                     := l2Chi.tx.dat.flit.ccID
+    txdat.dataID                   := l2Chi.tx.dat.flit.dataID
+    txdat.be                       := l2Chi.tx.dat.flit.be
+    txdat.data                     := l2Chi.tx.dat.flit.data
+
+    //txrsp ctrl
+    dsu.io.rnChi(0).txrsp.flitpend := l2Chi.tx.rsp.flitpend
+    dsu.io.rnChi(0).txrsp.flitv    := l2Chi.tx.rsp.flitv
+    l2Chi.tx.rsp.lcrdv             := dsu.io.rnChi(0).txrsp.lcrdv
+    //txrspflit
+    val txrsp = Wire(new CHIBundleRSP(dsu.chiBundleParams))
+    dsu.io.rnChi(0).txrsp.flit     := txrsp
+    txrsp.qos                      := l2Chi.tx.rsp.flit.qos
+    txrsp.tgtID                    := l2Chi.tx.rsp.flit.tgtID
+    txrsp.srcID                    := l2Chi.tx.rsp.flit.srcID
+    txrsp.txnID                    := l2Chi.tx.rsp.flit.txnID
+    txrsp.opcode                   := l2Chi.tx.rsp.flit.opcode
+    txrsp.respErr                  := l2Chi.tx.rsp.flit.respErr
+    txrsp.resp                     := l2Chi.tx.rsp.flit.resp
+    txrsp.dbID                     := l2Chi.tx.rsp.flit.dbID
+    txrsp.pCrdType                 := l2Chi.tx.rsp.flit.pCrdType
+
+    //rxrsp ctrl
+    l2Chi.rx.rsp.flitpend          := dsu.io.rnChi(0).rxrsp.flitpend
+    l2Chi.rx.rsp.flitv             := dsu.io.rnChi(0).rxrsp.flitv
+    dsu.io.rnChi(0).rxrsp.lcrdv    := l2Chi.rx.rsp.lcrdv
+    //rxrspflit
+    val rxrsp = Wire(new CHIBundleRSP(dsu.chiBundleParams))
+    rxrsp                          := dsu.io.rnChi(0).rxrsp.flit
+    l2Chi.rx.rsp.flit.qos          := rxrsp.qos
+    l2Chi.rx.rsp.flit.tgtID        := rxrsp.tgtID
+    l2Chi.rx.rsp.flit.srcID        := rxrsp.srcID
+    l2Chi.rx.rsp.flit.txnID        := rxrsp.txnID
+    l2Chi.rx.rsp.flit.opcode       := rxrsp.opcode
+    l2Chi.rx.rsp.flit.respErr      := rxrsp.respErr
+    l2Chi.rx.rsp.flit.resp         := rxrsp.resp
+    l2Chi.rx.rsp.flit.dbID         := rxrsp.dbID
+    l2Chi.rx.rsp.flit.pCrdType     := rxrsp.pCrdType
+
+    //rxdat ctrl
+    l2Chi.rx.dat.flitpend          := dsu.io.rnChi(0).rxdat.flitpend
+    l2Chi.rx.dat.flitv             := dsu.io.rnChi(0).rxdat.flitv
+    dsu.io.rnChi(0).rxdat.lcrdv    := l2Chi.rx.dat.lcrdv
+    //rxdatflit
+    val rxdat = Wire(new CHIBundleDAT(dsu.chiBundleParams))
+    rxdat                          := dsu.io.rnChi(0).rxdat.flit
+    l2Chi.rx.dat.flit.qos          := rxdat.qos
+    l2Chi.rx.dat.flit.tgtID        := rxdat.tgtID
+    l2Chi.rx.dat.flit.srcID        := rxdat.srcID
+    l2Chi.rx.dat.flit.txnID        := rxdat.txnID
+    l2Chi.rx.dat.flit.homeNID      := rxdat.homeNID
+    l2Chi.rx.dat.flit.opcode       := rxdat.opcode
+    l2Chi.rx.dat.flit.respErr      := rxdat.respErr
+    l2Chi.rx.dat.flit.resp         := rxdat.resp
+    l2Chi.rx.dat.flit.dbID         := rxdat.dbID
+    l2Chi.rx.dat.flit.ccID         := rxdat.ccID
+    l2Chi.rx.dat.flit.dataID       := rxdat.dataID
+    l2Chi.rx.dat.flit.be           := rxdat.be
+    l2Chi.rx.dat.flit.data         := rxdat.data
+
+    //rxsnp ctrl
+    l2Chi.rx.snp.flitpend          := dsu.io.rnChi(0).rxsnp.flitpend
+    l2Chi.rx.snp.flitv             := dsu.io.rnChi(0).rxsnp.flitv
+    dsu.io.rnChi(0).rxsnp.lcrdv    := l2Chi.rx.snp.lcrdv
+    //rxsnpflit
+    val rxsnp = Wire(new CHIBundleSNP(dsu.chiBundleParams))
+    rxsnp                          := dsu.io.rnChi(0).rxsnp.flit
+    l2Chi.rx.snp.flit.qos          := rxsnp.qos
+    l2Chi.rx.snp.flit.srcID        := rxsnp.srcID
+    l2Chi.rx.snp.flit.txnID        := rxsnp.txnID
+    l2Chi.rx.snp.flit.fwdNID       := rxsnp.fwdNID
+    l2Chi.rx.snp.flit.fwdTxnID     := rxsnp.fwdTxnID
+    l2Chi.rx.snp.flit.opcode       := rxsnp.opcode
+    l2Chi.rx.snp.flit.addr         := rxsnp.addr
+    l2Chi.rx.snp.flit.ns           := rxsnp.ns
+    l2Chi.rx.snp.flit.doNotGoToSD  := rxsnp.doNotGoToSD
+    l2Chi.rx.snp.flit.retToSrc     := rxsnp.retToSrc
   }
 
 }

@@ -4,21 +4,20 @@ import NHDSU.CHI._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
-import xs.utils.FastArbiter
 
 case object DSUParamKey extends Field[DSUParam](DSUParam())
 
 case class DSUParam(
-                    nrCore: Int = 4,
+                    nrCore: Int = 1,
                     nrReqBuf: Int = 16,
                     nrSnoopCtl: Int = 16,
                     ways: Int = 8,
                     sets: Int = 256,
                     blockBytes: Int = 64,
                     beatBytes: Int = 32,
-                    addressBits: Int = 44,
+                    addressBits: Int = 48,
                     enableSramClockGate: Boolean = true,
-                    nrBank: Int = 2,
+                    nrBank: Int = 1,
                     nrDataBufferEntry: Int = 16,
                     replacementPolicy: String = "plru",
                     // can receive or send chi lcrd num
