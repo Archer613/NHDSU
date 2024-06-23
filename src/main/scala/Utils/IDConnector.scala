@@ -16,11 +16,11 @@ object IDConnector {
                 o.bits := in.bits
                 val idMatch = WireInit(false.B)
                 if (level == 0) {
-                    idMatch := in.bits.idL0 === i.U
+                    idMatch := in.bits.to.idL0 === i.U
                 } else if (level == 1) {
-                    idMatch := in.bits.idL1 === i.U
+                    idMatch := in.bits.to.idL1 === i.U
                 } else if (level == 2) {
-                    idMatch := in.bits.idL2 === i.U
+                    idMatch := in.bits.to.idL2 === i.U
                 } else {
                     assert(false, "id level cant be over 2")
                 }
@@ -42,11 +42,11 @@ object IDConnector {
                 o.bits := in.bits
                 val idMatch = WireInit(false.B)
                 if (level == 0) {
-                    idMatch := in.bits.idL0 === i.U
+                    idMatch := in.bits.to.idL0 === i.U
                 } else if (level == 1) {
-                    idMatch := in.bits.idL1 === i.U
+                    idMatch := in.bits.to.idL1 === i.U
                 } else if (level == 2) {
-                    idMatch := in.bits.idL2 === i.U
+                    idMatch := in.bits.to.idL2 === i.U
                 } else {
                     assert(false, "id level cant be over 2")
                 }

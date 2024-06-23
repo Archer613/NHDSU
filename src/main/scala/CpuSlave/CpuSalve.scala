@@ -13,11 +13,11 @@ import Utils.IDConnector._
 class ReqBufSelector(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle() {
     val idle = Input(Vec(dsuparam.nrReqBuf, Bool()))
-    val idleNum = Output(UInt(reqBufIdBits.W))
+    val idleNum = Output(UInt((reqBufIdBits+1).W))
     val out0 = UInt(dsuparam.nrReqBuf.W)
     val out1 = UInt(dsuparam.nrReqBuf.W)
   })
-  io.idleNum := PopCount(io.idle)
+  io.idleNum := PopCount(io.idle.asUInt)
   io.out0 := ParallelPriorityMux(io.idle.zipWithIndex.map {
     case (b, i) => (b, (1 << i).U)
   })
@@ -33,6 +33,7 @@ class ReqBufSelector(implicit p: Parameters) extends DSUModule {
 class CpuSlave()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
+    val cpuSlvId      = Input(UInt(coreIdBits.W))
     // CHI
     val chi           = CHIBundleUpstream(chiBundleParams)
     val chiLinkCtrl   = Flipped(new CHILinkCtrlIO())
@@ -116,19 +117,20 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   io.snpTask.ready := reqBufSel.io.idleNum > 0.U
   txReq.io.flit.ready := reqBufSel.io.idleNum > 1.U // The last reqBuf is reserved for snpTask
   when(io.snpTask.valid){
-    snpSelId := reqBufSel.io.out0
-    txReqSelId := reqBufSel.io.out1
+    snpSelId := OHToUInt(reqBufSel.io.out0)
+    txReqSelId := OHToUInt(reqBufSel.io.out1)
   }.otherwise{
-    snpSelId := 0.U
-    txReqSelId := reqBufSel.io.out0
+    snpSelId := DontCare
+    txReqSelId := OHToUInt(reqBufSel.io.out0)
   }
 
   // ReqBuf input:
   reqBufs.zipWithIndex.foreach {
     case (reqbuf, i) =>
+      reqbuf.io.cpuSlvId := io.cpuSlvId
       reqbuf.io.reqBufId := i.U
       // snpTask  ---snpSelId---> reqBuf(N)
-      reqbuf.io.snpTask.valid := io.snpTask.fire & txReqSelId === i.U
+      reqbuf.io.snpTask.valid := io.snpTask.fire & snpSelId === i.U
       reqbuf.io.snpTask.bits := io.snpTask.bits
       // txReq    ---txReqSelId---> reqBuf(N+X)
       reqbuf.io.chi.txreq.valid := txReq.io.flit.fire & txReqSelId === i.U
@@ -150,7 +152,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   // dataFromDB --(sel by dataFromDB.bits.id.l2)--> dbDataValid
   reqBufs.zipWithIndex.foreach {
     case (reqbuf, i) =>
-      reqbuf.io.dbDataValid := io.dbSigs.dataFromDB.valid & io.dbSigs.dataFromDB.bits.idL2 === i.U
+      reqbuf.io.dbDataValid := io.dbSigs.dataFromDB.valid & io.dbSigs.dataFromDB.bits.to.idL2 === i.U
   }
 
 

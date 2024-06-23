@@ -17,7 +17,7 @@ case class DSUParam(
                     beatBytes: Int = 32,
                     addressBits: Int = 48,
                     enableSramClockGate: Boolean = true,
-                    nrBank: Int = 1,
+                    nrBank: Int = 2,
                     nrDataBufferEntry: Int = 16,
                     replacementPolicy: String = "plru",
                     // can receive or send chi lcrd num
@@ -25,7 +25,7 @@ case class DSUParam(
                     nrRnRxLcrdMax: Int = 4
                   ) {
     require(nrCore > 0)
-    require(nrBank > 0)
+    require(nrBank == 1 | nrBank == 2 | nrBank == 4)
     require(nrRnTxLcrdMax <= 15)
     require(nrRnRxLcrdMax <= 15)
     require(replacementPolicy == "random" || replacementPolicy == "plru" || replacementPolicy == "lru")

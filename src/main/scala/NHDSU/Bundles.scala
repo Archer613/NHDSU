@@ -17,21 +17,29 @@ object IdL0 {
 }
 
 trait HasIDBits extends DSUBundle { this: Bundle =>
-    val idL0 = UInt(IdL0.width.W)
-    val idL1 = UInt(max(coreIdBits, bankBits).W)
-    val idL2 = UInt(max(reqBufIdBits, snoopCtlIdBits).W)
+    val from = new Bundle {
+        val idL0 = UInt(IdL0.width.W)
+        val idL1 = UInt(max(coreIdBits, bankBits).W)
+        val idL2 = UInt(max(reqBufIdBits, snoopCtlIdBits).W)
+    }
+    val to = new Bundle {
+        val idL0 = UInt(IdL0.width.W)
+        val idL1 = UInt(max(coreIdBits, bankBits).W)
+        val idL2 = UInt(max(reqBufIdBits, snoopCtlIdBits).W)
+    }
 }
 
-class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits{
-    // TODO: TaskBundle
+class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel{
     val opcode      = UInt(5.W)
-    val set         = UInt(setBits.W)
     val tag         = UInt(tagBits.W)
-    val isWB        = Bool()
+    val set         = UInt(setBits.W)
+    val bank        = UInt(bankBits.W)
+    val isR         = Bool()
+    val isWB        = Bool() // write back
 }
 
 
-class TaskRespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits{
+class TaskRespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel{
     // TODO: TaskRespBundle
     val opcode      = UInt(5.W)
     val set = UInt(setBits.W)
@@ -62,6 +70,14 @@ class DBInData(beat: Int = 1)(implicit p: Parameters) extends DSUBundle with Has
     val data = UInt((beatBits*beat).W)
 }
 
+// ---------------------- ReqBuf Bundle ------------------- //
+class RBFSMState(implicit p: Parameters) extends Bundle {
+    // schedule
+    val s_rReq2mp = Bool()
+    val s_wReq2mp = Bool()
 
+    // wait
+    val w_rResp = Bool()
+}
 
 

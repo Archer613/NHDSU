@@ -15,6 +15,7 @@ import Utils.FastArb._
 abstract class DSUModule(implicit val p: Parameters) extends Module with HasDSUParam
 abstract class DSUBundle(implicit val p: Parameters) extends Bundle with HasDSUParam
 
+
 class NHDSU()(implicit p: Parameters) extends DSUModule {
 // ------------------------------------------ IO declaration ----------------------------------------------//
     val io = IO(new Bundle {
@@ -51,6 +52,10 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
     val slices = Seq.fill(dsuparam.nrBank) { Module(new Slice()) }
     val dsuMasters = Seq.fill(dsuparam.nrBank) { Module(new DSUMaster()) }
 
+    cpuSalves.foreach(m => dontTouch(m.io))
+    slices.foreach(m => dontTouch(m.io))
+    dsuMasters.foreach(m => dontTouch(m.io))
+
     cpuSalves.foreach(_.io <> DontCare)
     slices.foreach(_.io <> DontCare)
 
@@ -70,6 +75,9 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
 
 
     // --------------------- Connection ------------------------//
+    // Set cpuSalves id
+    cpuSalves.zipWithIndex.foreach { case(c, i) => c.io.cpuSlvId := i.U }
+
     /*
     * connect cpuSalves <--[ctrl signals]--> slices
     */

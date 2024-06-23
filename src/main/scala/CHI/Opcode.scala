@@ -3,9 +3,9 @@ package NHDSU.CHI
 import chisel3._
 import chisel3.util._
 
-object CHIOpcode {
+object CHIOp {
 
-  object REQOpcodes {
+  object REQ {
     val width = 6
 
     def ReqLCrdReturn         = 0x00.U(width.W)
@@ -64,7 +64,7 @@ object CHIOpcode {
     def PrefetchTgt           = 0x3A.U(width.W)
   }
 
-  object RSPOpcodes {
+  object RSP {
     val width = 4
 
     def RespLCrdReturn  = 0x0.U(width.W)
@@ -79,7 +79,7 @@ object CHIOpcode {
     def SnpRespFwded    = 0x9.U(width.W)
   }
 
-  object SNPOpcodes {
+  object SNP {
     val width = 5
 
     def SnpLCrdReturn         = 0x00.U(width.W)

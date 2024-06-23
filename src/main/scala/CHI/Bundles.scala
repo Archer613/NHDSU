@@ -241,3 +241,26 @@ trait HasChiStates { this: Bundle =>
     def isDirty = state(1, 0) === ChiState.UD(1, 0) | state(1, 0) === ChiState.SD(1, 0)
     def passDirty = state(2)
 }
+
+object CHIChannel {
+    val width = 3
+
+    def TXREQ = "b001".U(width.W)
+    def TXRSP = "b010".U(width.W)
+    def TXDAT = "b011".U(width.W)
+    def RXSNP = "b100".U(width.W)
+    def RXRSP = "b101".U(width.W)
+    def RXDAT = "b110".U(width.W)
+}
+
+trait HasCHIChannel {
+    this: Bundle =>
+    val channel = UInt(CHIChannel.width.W)
+
+    def isTxReq = channel === CHIChannel.TXREQ
+    def isTxRsp = channel === CHIChannel.TXRSP
+    def isTxDat = channel === CHIChannel.TXDAT
+    def isRxSnp = channel === CHIChannel.RXSNP
+    def isRxRsp = channel === CHIChannel.RXRSP
+    def isRxDat = channel === CHIChannel.RXDAT
+}
