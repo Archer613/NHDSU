@@ -14,17 +14,17 @@ class CpuChiTxReq()(implicit p: Parameters) extends DSUModule {
     val flit = Decoupled(new CHIBundleREQ(chiBundleParams))
   })
 
-// --------------------- Modules declaration ---------------------//
+// --------------------- Modules declaration --------------------- //
   val queue = Module(new Queue(new CHIBundleREQ(chiBundleParams), entries = dsuparam.nrRnTxLcrdMax, pipe = true, flow = false, hasFlush = false))
 
-// --------------------- Wire declaration ------------------------//
+// --------------------- Wire declaration ------------------------ //
   val lcrdSendNumReg = RegInit(0.U(rnTxlcrdBits.W))
   val lcrdFreeNum = Wire(UInt(rnTxlcrdBits.W))
   val lcrdv = WireInit(false.B)
   val enq = WireInit(0.U.asTypeOf(io.flit))
   dontTouch(lcrdFreeNum)
 
-// --------------------- Logic -----------------------------------//
+// --------------------- Logic ----------------------------------- //
   // Count lcrd
   lcrdSendNumReg := lcrdSendNumReg + io.chi.lcrdv.asUInt - io.chi.flitv.asUInt
   lcrdFreeNum := dsuparam.nrRnTxLcrdMax.U - queue.io.count - lcrdSendNumReg
@@ -62,12 +62,11 @@ class CpuChiTxReq()(implicit p: Parameters) extends DSUModule {
   io.chi.lcrdv := lcrdv
   // enq
   queue.io.enq <> enq
-
   // deq
   io.flit <> queue.io.deq
 
 
-// --------------------- Assertion -------------------------------//
+// --------------------- Assertion ------------------------------- //
   switch(io.txState) {
     is(LinkStates.STOP) {
       assert(!io.chi.flitv, "When STOP, RN cant send flit")
