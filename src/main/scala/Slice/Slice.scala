@@ -9,6 +9,7 @@ import xs.utils._
 class Slice()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
+    val valid         = Output(Bool())
     // snpCtrl <-> cpuslave
     val snpTask       = Decoupled(new TaskBundle())
     val snpResp       = Flipped(ValidIO(new TaskRespBundle()))
@@ -79,4 +80,5 @@ class Slice()(implicit p: Parameters) extends DSUModule {
   mpRespQueue.io.deq <> io.cpuResp
   mpReqQueue.io.deq <> io.msTask
 
+  io.valid := true.B
 }
