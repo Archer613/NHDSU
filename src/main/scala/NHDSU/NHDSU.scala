@@ -56,9 +56,22 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
     cpuSalves.foreach(m => dontTouch(m.io))
     slices.foreach(m => dontTouch(m.io))
     dsuMasters.foreach(m => dontTouch(m.io))
+    dontTouch(xbar.io)
 
-    cpuSalves.foreach(_.io <> DontCare)
-    slices.foreach(_.io <> DontCare)
+    /*
+    * Set cpuSalves.io.cpuSlvId value
+    */
+    cpuSalves.map(_.io.cpuSlvId).zipWithIndex.foreach { case(id, i) => id := i.U }
+
+    /*
+    * connect RN <--[CHI signals]--> cpuSlaves
+    * connect dsuMasters <--[CHI signals]--> SN
+    */
+    io.rnChi.zip(cpuSalves.map(_.io.chi)).foreach { case (r, c) => r <> c }
+    io.rnChiLinkCtrl.zip(cpuSalves.map(_.io.chiLinkCtrl)).foreach { case (r, c) => r <> c }
+
+    io.snChi.zip(dsuMasters.map(_.io.chi)).foreach { case (s, d) => s <> d }
+    io.snChiLinkCtrl.zip(dsuMasters.map(_.io.chiLinkCtrl)).foreach { case (s, d) => s <> d }
 
     /*
     * connect cpuslaves <-----> xbar <------> slices
@@ -98,16 +111,6 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
             s.io.msResp <> m.io.mpResp
             s.io.dbSigs2Ms <> m.io.dbSigs
     }
-
-    /*
-    * connect RN <--[CHI signals]--> cpuSlaves
-    * connect dsuMasters <--[CHI signals]--> SN
-    */
-    io.rnChi.zip(cpuSalves.map(_.io.chi)).foreach { case (r, c) => r <> c }
-    io.rnChiLinkCtrl.zip(cpuSalves.map(_.io.chiLinkCtrl)).foreach { case (r, c) => r <> c }
-
-    io.snChi.zip(dsuMasters.map(_.io.chi)).foreach { case (s, d) => s <> d }
-    io.snChiLinkCtrl.zip(dsuMasters.map(_.io.chiLinkCtrl)).foreach { case (s, d) => s <> d }
 
 }
 
