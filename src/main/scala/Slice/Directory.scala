@@ -50,8 +50,10 @@ val io = IO(new Bundle {
   io.resetFinish <> DontCare
 
 // --------------------- Modules and SRAM declaration ------------------------//
+  val metaArray = Module(new SRAMTemplate(new DirectoryMetaEntry, dsuparam.sets, dsuparam.ways,
+    singlePort = true, hasClkGate = dsuparam.enableSramClockGate, clk_div_by_2 = false))
 
-
+  metaArray.io <> DontCare
 
 
 // --------------------- Wire declaration ------------------------//

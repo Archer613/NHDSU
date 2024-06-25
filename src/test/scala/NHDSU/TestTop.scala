@@ -15,6 +15,7 @@ import coupledL2.prefetch._
 import coupledL2.tl2chi._
 import utility.{ChiselDB, FileRegisters, TLLogger}
 import coupledL2._
+import xs.utils.perf.{DebugOptions, DebugOptionsKey}
 
 class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(implicit p: Parameters) extends LazyModule
   with HasCHIMsgParameters {
@@ -330,6 +331,7 @@ object TestTopCHIHelper {
         // SAM for tester ICN: Home Node ID = 33
         sam                 = Seq(AddressSet.everything -> 33)
       )
+      case DebugOptionsKey => DebugOptions()
     })
 
     ChiselDB.init(enableChiselDB)
