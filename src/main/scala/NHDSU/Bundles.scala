@@ -36,6 +36,9 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     val bank        = UInt(bankBits.W)
     val isR         = Bool()
     val isWB        = Bool() // write back
+    val isClean     = Bool()
+    val readDir     = Bool()
+    val btWay       = UInt(blockWayBits.W) // block table
 }
 
 
@@ -81,3 +84,11 @@ class RBFSMState(implicit p: Parameters) extends Bundle {
 }
 
 
+// --------------------- ReqArb Bundle ------------------- //
+class BlockTableEntry(implicit p: Parameters) extends DSUBundle {
+    val valid = Bool()
+    val tag = UInt(tagBits.W)
+    val set = UInt((setBits-log2Ceil(nrBlockSets)).W)
+    val bank = UInt(bankBits.W)
+    // TODO: block by way full
+}

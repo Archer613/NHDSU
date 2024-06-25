@@ -48,6 +48,12 @@ class Slice()(implicit p: Parameters) extends DSUModule {
   val mpReqQueue = Module(new Queue(gen = new TaskBundle(), entries = mpReqQDepth, pipe = true, flow = true))
   val mpRespQueue = Module(new Queue(gen = new TaskRespBundle(),entries = mpRespQDepth, pipe = true, flow = true))
 
+  dontTouch(dataBuffer.io)
+  dontTouch(dataStorage.io)
+  dontTouch(directory.io)
+  dontTouch(mainPipe.io)
+  dontTouch(reqArb.io)
+  dontTouch(snpCtl.io)
 
 // --------------------- Connection ------------------------//
   dataBuffer.io.dbSigs2Cpu <> io.dbSigs2Cpu

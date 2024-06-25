@@ -87,6 +87,10 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     task.to.idL0    := IdL0.SLICE
     task.to.idL1    := DontCare
     task.to.idL2    := DontCare
+    // task other
+    task.isClean    := false.B
+    task.readDir    := true.B
+    task.btWay      := DontCare
     // other
     reqTxnIDReg     := txreq.txnID
   }

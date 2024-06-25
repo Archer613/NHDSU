@@ -37,6 +37,11 @@ trait HasDSUParam {
     val p: Parameters
     val dsuparam = p(DSUParamKey)
 
+    val nrBlockSets     = 16
+    val nrBlockWays     = dsuparam.ways * 2
+
+    require(nrBlockSets <= dsuparam.sets)
+
     val nrBeat          = dsuparam.blockBytes/dsuparam.beatBytes
     val coreIdBits      = log2Ceil(dsuparam.nrCore)
     val reqBufIdBits    = log2Ceil(dsuparam.nrReqBuf)
@@ -54,6 +59,8 @@ trait HasDSUParam {
     val rnRxlcrdBits    = log2Ceil(dsuparam.nrRnRxLcrdMax) + 1
     val clientWayBits   = log2Ceil(dsuparam.clientWays)
     val clientSetBits   = log2Ceil(dsuparam.clientSets)
+    val blockSetBits    = log2Ceil(nrBlockSets)
+    val blockWayBits    = log2Ceil(nrBlockWays)
 
 
     val chiBundleParams = CHIBundleParameters(
