@@ -13,6 +13,8 @@ case class DSUParam(
                     nrSnoopCtl: Int = 16,
                     ways: Int = 8,
                     sets: Int = 256,
+                    clientWays: Int = 8,
+                    clientSets: Int = 8,
                     blockBytes: Int = 64,
                     beatBytes: Int = 32,
                     addressBits: Int = 48,
@@ -48,8 +50,10 @@ trait HasDSUParam {
     val offsetBits      = log2Ceil(dsuparam.blockBytes)
     val tagBits         = dsuparam.addressBits - bankBits - setBits - offsetBits
     val wayBits         = log2Ceil(dsuparam.ways)
-    val rnTxlcrdBits      = log2Ceil(dsuparam.nrRnTxLcrdMax) + 1
-    val rnRxlcrdBits      = log2Ceil(dsuparam.nrRnRxLcrdMax) + 1
+    val rnTxlcrdBits    = log2Ceil(dsuparam.nrRnTxLcrdMax) + 1
+    val rnRxlcrdBits    = log2Ceil(dsuparam.nrRnRxLcrdMax) + 1
+    val clientWayBits   = log2Ceil(dsuparam.clientWays)
+    val clientSetBits   = log2Ceil(dsuparam.clientSets)
 
 
     val chiBundleParams = CHIBundleParameters(
@@ -64,7 +68,7 @@ trait HasDSUParam {
         val bank   = offset >> offsetBits
         val set    = bank >> bankBits
         val tag    = set >> setBits
-        (tag(tagBits - 1, 0), bank(bankBits - 1, 0), set(setBits - 1, 0), offset(offsetBits - 1, 0))
+        (tag(tagBits - 1, 0), set(setBits - 1, 0), bank(bankBits - 1, 0), offset(offsetBits - 1, 0))
     }
 
 
