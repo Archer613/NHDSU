@@ -69,7 +69,6 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   when(io.chi.txreq.valid) {
     taskReg         := task
     val txreq       = io.chi.txreq.bits
-    val (tag, set, bank, offset) = parseAddress(txreq.addr)
     // task base message
     task.channel    := CHIChannel.TXREQ
     task.opcode     := txreq.opcode
@@ -77,9 +76,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
                        (CHIOp.REQ.ReadOnceCleanInvalid <= txreq.opcode & txreq.opcode <= CHIOp.REQ.ReadNotSharedDirty)
     task.isWB       := CHIOp.REQ.WriteEvictFull <= txreq.opcode & txreq.opcode <= CHIOp.REQ.WriteUniquePtlStash
     // task addr
-    task.tag        := tag
-    task.set        := set
-    task.bank       := bank
+    task.addr       := txreq.addr
     // task id
     task.from.idL0  := IdL0.CPU
     task.from.idL1  := io.cpuSlvId

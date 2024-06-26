@@ -9,73 +9,32 @@ import freechips.rocketchip.util.ReplacementPolicy
 import xs.utils.sram.SRAMTemplate
 import xs.utils.perf.{DebugOptions, DebugOptionsKey}
 
-class DirectoryMetaEntry(implicit p: Parameters) extends DSUBundle with HasChiStates {
-  val tag          = UInt(tagBits.W)
-}
 
 class DirRead(implicit p: Parameters) extends DSUBundle {
-  val alreayUseWayOH = UInt(dsuparam.ways.W)
-  val set = UInt(setBits.W)
-  val tag = UInt(tagBits.W)
-}
-
-class DirWrite(implicit p: Parameters) extends DSUBundle {
-  val wayOH = UInt(dsuparam.ways.W)
-  val set   = UInt(setBits.W)
-  val meta  = new DirectoryMetaEntry
-}
-
-class DirResp(implicit p: Parameters) extends DSUBundle {
-  val meta  = new DirectoryMetaEntry
-  val wayOH = UInt(dsuparam.ways.W)
-  val hit   = Bool()
+  val selfUseWayOH    = UInt(dsuparam.ways.W)
+  val clientUseWayOH  = UInt(dsuparam.clientWays.W)
+  val sRefill         = Bool()
+  val cRefill         = Bool()
+  val addr            = UInt(addressBits.W)
 }
 
 class Directory()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
 val io = IO(new Bundle {
-  val dirRead   = Flipped(Decoupled(new DirRead))
-  val dirWrite  = Flipped(Decoupled(new DirWrite))
-  val dirResp   = Decoupled(new DirResp)
-
-  // TODO: update replacer SRAM
+  val dirRead    = Flipped(Decoupled(new DirRead()))
+  val sDirWrite  = Flipped(Decoupled(new SDirWrite()))
+  val cDirWrite  = Flipped(Decoupled(new CDirWrite()))
+  val sDirResp   = Decoupled(new SDirResp())
+  val cDirResp   = Decoupled(new CDirResp())
 
   val resetFinish = Output(Bool())
 })
 
   // TODO: Delete the following code when the coding is complete
-  io.dirRead <> DontCare
-  io.dirWrite <> DontCare
-  io.dirResp <> DontCare
+  io.dirRead    <> DontCare
+  io.sDirWrite  <> DontCare
+  io.cDirWrite  <> DontCare
+  io.sDirResp   <> DontCare
+  io.cDirResp   <> DontCare
   io.resetFinish <> DontCare
-
-// --------------------- Modules and SRAM declaration ------------------------//
-  val metaArray = Module(new SRAMTemplate(new DirectoryMetaEntry, dsuparam.sets, dsuparam.ways,
-    singlePort = true, hasClkGate = dsuparam.enableSramClockGate, clk_div_by_2 = false))
-
-  metaArray.io <> DontCare
-
-
-// --------------------- Wire declaration ------------------------//
-
-
-// -----------------------------------------------------------------------------------------
-// Stage 1 (dir read) / (dir write)
-// -----------------------------------------------------------------------------------------
-
-
-// -----------------------------------------------------------------------------------------
-// Stage 2(dir read)
-// -----------------------------------------------------------------------------------------
-
-
-// -----------------------------------------------------------------------------------------
-// Stage 3(dir read)
-// -----------------------------------------------------------------------------------------
-
-
-// -----------------------------------------------------------------------------------------
-// Stage 4(dir resp)
-// -----------------------------------------------------------------------------------------
-
 }

@@ -23,6 +23,7 @@ class IdMap(implicit p: Parameters) extends DSUModule {
     io.in <> io.out
     val bankaValNum = WireInit(PopCount(io.bankVal).asUInt)
 
+    val inBank = parseAddress(io.in.bits.addr)._2
 
     if (dsuparam.nrBank == 4) {
         switch(bankaValNum) {
@@ -32,11 +33,11 @@ class IdMap(implicit p: Parameters) extends DSUModule {
             }
             // Use Bank [0 1]
             is(2.U) {
-                io.out.bits.to.idL1 === io.in.bits.bank(0)
+                io.out.bits.to.idL1 === inBank(0)
             }
             // Use Bank [0 1 2 3]
             is(4.U) {
-                io.out.bits.to.idL1 === io.in.bits.bank
+                io.out.bits.to.idL1 === inBank
             }
         }
     }else if (dsuparam.nrBank == 2) {
@@ -47,7 +48,7 @@ class IdMap(implicit p: Parameters) extends DSUModule {
             }
             // Use Bank [0 1]
             is(2.U) {
-                io.out.bits.to.idL1 === io.in.bits.bank(0)
+                io.out.bits.to.idL1 === inBank(0)
             }
         }
     }else {

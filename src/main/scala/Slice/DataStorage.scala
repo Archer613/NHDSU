@@ -6,8 +6,7 @@ import chisel3.util._
 import org.chipsalliance.cde.config._
 
 class DSRequest(implicit p: Parameters) extends DSUBundle with HasIDBits {
-  val way = UInt(wayBits.W)
-  val set = UInt(setBits.W)
+  val addr = UInt(addressBits.W)
   val wen = Bool()
 }
 

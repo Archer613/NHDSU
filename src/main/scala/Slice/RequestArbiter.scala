@@ -18,15 +18,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 
     // Send task to MainPipe
     val mpTask        = Decoupled(new TaskBundle)
-    // Lock signals from MainPipe
-    val lockAddr      = Flipped(ValidIO(new Bundle {
-      val set           = UInt(setBits.W)
-      val tag           = UInt(tagBits.W)
-    }))
-    val lockWay       = Flipped(ValidIO(new Bundle {
-      val wayOH         = UInt(dsuparam.ways.W)
-      val set           = UInt(setBits.W)
-    }))
+    // TODO: Lock signals from MainPipe
     // Read directory
     val dirRead = Decoupled(new DirRead)
     // Directory reset finish
@@ -53,6 +45,10 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   val blockTableReg = RegInit(VecInit(Seq.fill(nrBlockSets) {
     VecInit(Seq.fill(nrBlockWays) {0.U.asTypeOf(new BlockTableEntry())})
   }))
+  val btRSet = Wire(UInt(blockSetBits.W)) // block table
+  val btRTag = Wire(UInt(blockTagBits.W)) // block table
+  val btWSet = Wire(UInt(blockSetBits.W)) // block table
+  val btWTag = Wire(UInt(blockTagBits.W)) // block table
   val taskSelVec = Wire(Vec(3, Bool()))
   val invWayVec = Wire(Vec(nrBlockWays, Bool()))
   val blockWayNext = Wire(UInt(blockWayBits.W))
@@ -79,17 +75,12 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   /*
    * Determine whether it need to block cputask
    */
-  blockCpuTaskVec := blockTableReg(io.taskCpu.bits.set(blockSetBits-1, 0)).map {
-    case b => b.valid & b.tag === io.taskCpu.bits.tag & b.set === io.taskCpu.bits.set(setBits-1, blockSetBits) & b.bank === io.taskCpu.bits.bank
-  }
-  invWayVec := blockTableReg(io.taskCpu.bits.set(blockSetBits - 1, 0)).map {
-    case b => b.valid
-  }
-  blockWayNext := ParallelPriorityMux(invWayVec.zipWithIndex.map {
-    case (b, i) => (b, (1 << i).U)
-  })
+  btRTag := io.taskCpu.bits.addr(addressBits - 1, blockSetBits + offsetBits)
+  btRSet := io.taskCpu.bits.addr(blockTagBits - 1,  offsetBits)
+  blockCpuTaskVec := blockTableReg(btRSet).map { case b => b.valid & b.tag === btRTag }
+  invWayVec := blockTableReg(btRSet).map { case b => b.valid }
+  blockWayNext := ParallelPriorityMux(invWayVec.zipWithIndex.map { case (b, i) => (b, (1 << i).U) })
   blockCpuTask := blockCpuTaskVec.asUInt.orR | invWayVec.asUInt.andR
-
 
   /*
    * Priority(!task.isClean): taskSnp > taskMs > taskCpu
@@ -115,12 +106,12 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   /*
    * Write block table when task_s0.valid and canGo_s0
    */
+  btWTag := task_s0.bits.addr(addressBits - 1, blockSetBits + offsetBits)
+  btWSet := task_s0.bits.addr(blockTagBits - 1, offsetBits)
   when(task_s0.valid & canGo_s0) {
-    val writeTable = blockTableReg(task_s0.bits.set(blockSetBits-1, 0))(blockWayNext)
+    val writeTable = blockTableReg(btWSet)(blockWayNext)
     writeTable.valid := true.B
-    writeTable.tag := task_s0.bits.tag
-    writeTable.set := task_s0.bits.set(setBits-1, blockSetBits)
-    writeTable.bank := task_s0.bits.bank
+    writeTable.tag := btWTag
   }
 
 

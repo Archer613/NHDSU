@@ -31,13 +31,14 @@ trait HasIDBits extends DSUBundle { this: Bundle =>
 
 class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel{
     val opcode      = UInt(5.W)
-    val tag         = UInt(tagBits.W)
-    val set         = UInt(setBits.W)
-    val bank        = UInt(bankBits.W)
+    val addr        = UInt(addressBits.W)
     val isR         = Bool()
     val isWB        = Bool() // write back
     val isClean     = Bool()
     val readDir     = Bool()
+    val wirteSDir   = Bool()
+    val wirteCDir   = Bool()
+    val wirteDS     = Bool()
     val btWay       = UInt(blockWayBits.W) // block table
 }
 
@@ -45,8 +46,7 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
 class TaskRespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel{
     // TODO: TaskRespBundle
     val opcode      = UInt(5.W)
-    val set = UInt(setBits.W)
-    val tag = UInt(tagBits.W)
+    val addr        = UInt(addressBits.W)
 }
 
 
@@ -86,9 +86,7 @@ class RBFSMState(implicit p: Parameters) extends Bundle {
 
 // --------------------- ReqArb Bundle ------------------- //
 class BlockTableEntry(implicit p: Parameters) extends DSUBundle {
-    val valid = Bool()
-    val tag = UInt(tagBits.W)
-    val set = UInt((setBits-log2Ceil(nrBlockSets)).W)
-    val bank = UInt(bankBits.W)
+    val valid   = Bool()
+    val tag     = UInt(blockTagBits.W)
     // TODO: block by way full
 }

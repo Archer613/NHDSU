@@ -64,15 +64,15 @@ class Slice()(implicit p: Parameters) extends DSUModule {
   dataStorage.io.mpReq <> mainPipe.io.dsReq
 
   directory.io.dirRead <> reqArb.io.dirRead
-  directory.io.dirResp <> mainPipe.io.dirResp
-  directory.io.dirWrite <> mainPipe.io.dirWrite
+  directory.io.sDirResp <> mainPipe.io.sDirResp
+  directory.io.sDirWrite <> mainPipe.io.sDirWrite
+  directory.io.cDirResp <> mainPipe.io.cDirResp
+  directory.io.cDirWrite <> mainPipe.io.cDirWrite
 
   reqArb.io.taskSnp <> snpCtl.io.mpResp
   reqArb.io.taskCpu <> io.cpuTask
   reqArb.io.taskMs <> io.msResp
   reqArb.io.mpTask <> mainPipe.io.arbTask
-  reqArb.io.lockAddr <> mainPipe.io.lockAddr
-  reqArb.io.lockWay <> mainPipe.io.lockWay
   reqArb.io.dirRstFinish :=  directory.io.resetFinish
   reqArb.io.txReqQFull := (mpReqQueue.entries.asUInt - mpReqQueue.io.count <= pipeDepth.asUInt)
 
