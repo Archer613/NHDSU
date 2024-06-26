@@ -141,7 +141,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
    * Read Directory
    */
   dirAlreadyReadReg := Mux(dirAlreadyReadReg, !io.mpTask.fire, io.dirRead.fire & !canGo_s1)
-  io.dirRead.valid := task_s1_g.valid & !dirAlreadyReadReg & !task_s1_g.bits.readDir
+  io.dirRead.valid := task_s1_g.valid & !dirAlreadyReadReg & task_s1_g.bits.readDir
   io.dirRead.bits := DontCare // TODO
 
 
