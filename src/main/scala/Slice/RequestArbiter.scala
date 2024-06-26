@@ -94,13 +94,13 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   /*
    * Priority(!task.isClean): taskSnp > taskMs > taskCpu
    */
-  taskSelVec(2) := io.taskSnp.valid & !io.taskSnp.bits.isClean
+  taskSelVec(0) := io.taskSnp.valid & !io.taskSnp.bits.isClean
   taskSelVec(1) := io.taskMs.valid  & !io.taskMs.bits.isClean
-  taskSelVec(0) := io.taskCpu.valid & !io.taskCpu.bits.isClean & !blockCpuTask
+  taskSelVec(2) := io.taskCpu.valid & !io.taskCpu.bits.isClean & !blockCpuTask
 
   task_s0.valid := taskSelVec.asUInt.orR
-  task_s0.bits := ParallelPriorityMux(taskSelVec, Seq(io.taskSnp.bits, io.taskMs.bits, io.taskCpu.bits))
-  canGo_s0 := (io.mpTask.ready & (io.dirRead.ready | dirAlreadyReadReg | !task_s1_g.bits.readDir)) | !task_s1_g.valid
+  task_s0.bits := ParallelPriorityMux(taskSelVec.asUInt, Seq(io.taskSnp.bits, io.taskMs.bits, io.taskCpu.bits))
+  canGo_s0 := canGo_s1 | !task_s1_g.valid
 
   // set task block table value
   task_s0.bits.btWay := blockWayNext
@@ -108,9 +108,9 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   /*
    * task ready
    */
-  io.taskSnp.ready := taskSelVec(2) & canGo_s0
-  io.taskMs.ready  := taskSelVec(1) & !taskSelVec(2) & canGo_s0
-  io.taskCpu.ready := taskSelVec(0) & !taskSelVec(1) & !taskSelVec(2) & canGo_s0
+  io.taskSnp.ready := canGo_s0
+  io.taskMs.ready  := !taskSelVec(0) & canGo_s0
+  io.taskCpu.ready := !taskSelVec(1) & !taskSelVec(0) & canGo_s0
 
   /*
    * Write block table when task_s0.valid and canGo_s0
