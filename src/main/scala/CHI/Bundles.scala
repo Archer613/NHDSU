@@ -209,15 +209,15 @@ class LinkState extends Bundle {
 }
 
 object ChiState {
-    val width = 3
+    val width = 4
 
-    def I = "b000".U(width.W)
-    def SC = "b001".U(width.W)
-    def UC = "b010".U(width.W)
-    def UD = "b010".U(width.W)
-    def SD = "b011".U(width.W)
+    def I = "b0000".U(width.W)
+    def SC = "b0001".U(width.W)
+    def UC = "b0010".U(width.W)
+    def UD = "b0011".U(width.W)
+    def SD = "b0100".U(width.W)
 
-    def PassDirty = "b100".U(width.W)
+    def PassDirty = "b1000".U(width.W)
 
     def I_PD = setPD(I)
     def SC_PD = setPD(SC)
@@ -234,12 +234,14 @@ object ChiState {
 trait HasChiStates { this: Bundle =>
     val state = UInt(ChiState.width.W)
 
-    def isInvalid = state(1, 0) === ChiState.I(1, 0)
-    def isShared = state(1, 0) === ChiState.SC(1, 0) | state(1, 0) === ChiState.SD(1, 0)
-    def isUnique = state(1, 0) === ChiState.UC(1, 0) | state(1, 0) === ChiState.UD(1, 0)
-    def isClean = state(1, 0) === ChiState.SC(1, 0) | state(1, 0) === ChiState.UC(1, 0)
-    def isDirty = state(1, 0) === ChiState.UD(1, 0) | state(1, 0) === ChiState.SD(1, 0)
-    def passDirty = state(2)
+    val baseWidth = ChiState.width-2
+
+    def isInvalid = state(baseWidth, 0) === ChiState.I(baseWidth, 0)
+    def isShared = state(baseWidth, 0) === ChiState.SC(baseWidth, 0) | state(baseWidth, 0) === ChiState.SD(baseWidth, 0)
+    def isUnique = state(baseWidth, 0) === ChiState.UC(baseWidth, 0) | state(baseWidth, 0) === ChiState.UD(baseWidth, 0)
+    def isClean = state(baseWidth, 0) === ChiState.SC(baseWidth, 0) | state(baseWidth, 0) === ChiState.UC(baseWidth, 0)
+    def isDirty = state(baseWidth, 0) === ChiState.UD(baseWidth, 0) | state(baseWidth, 0) === ChiState.SD(baseWidth, 0)
+    def passDirty = state(ChiState.width-1)
 }
 
 class CHIStateBundle extends Bundle with HasChiStates
