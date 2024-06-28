@@ -118,14 +118,14 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 
 // ------------------------ S1: Read Dir and send task to MainPipe --------------------------//
 
-  task_s1_g.valid := Mux(task_s0.valid, true.B, task_s1_g.valid & !io.mpTask.fire)
+  task_s1_g.valid := Mux(task_s0.valid, true.B, task_s1_g.valid & !canGo_s1)
   task_s1_g.bits := Mux(task_s0.valid & canGo_s0 , task_s0.bits, task_s1_g.bits)
   canGo_s1 := io.mpTask.ready & (io.dirRead.ready | dirAlreadyReadReg | !task_s1_g.bits.readDir)
 
   /*
    * Send mpTask to mainpipe
    */
-  io.mpTask.valid := task_s1_g.valid
+  io.mpTask.valid := task_s1_g.valid & canGo_s1
   io.mpTask.bits := task_s1_g.bits
 
   /*
@@ -133,7 +133,11 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
    */
   dirAlreadyReadReg := Mux(dirAlreadyReadReg, !io.mpTask.fire, io.dirRead.fire & !canGo_s1)
   io.dirRead.valid := task_s1_g.valid & !dirAlreadyReadReg & task_s1_g.bits.readDir
-  io.dirRead.bits := DontCare // TODO
+  io.dirRead.bits.addr := task_s1_g.bits.addr
+  io.dirRead.bits.self.alreayUseWayOH := 0.U // TODO
+  io.dirRead.bits.self.refill := task_s1_g.bits.wirteSDir
+  io.dirRead.bits.client.alreayUseWayOH := 0.U // TODO
+  io.dirRead.bits.client.refill := task_s1_g.bits.wirteCDir
 
 
 
