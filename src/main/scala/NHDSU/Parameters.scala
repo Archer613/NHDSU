@@ -47,6 +47,7 @@ trait HasDSUParam {
     val dsuparam = p(DSUParamKey)
 
     // BASE
+    val nrMPQBeat       = 4
     val nrBeat          = dsuparam.blockBytes/dsuparam.beatBytes
     val addressBits     = dsuparam.addressBits
     val dataBits        = dsuparam.blockBytes * 8

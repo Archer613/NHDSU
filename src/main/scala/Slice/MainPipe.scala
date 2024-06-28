@@ -12,10 +12,9 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     val arbTask     = Flipped(Decoupled(new TaskBundle))
     // TODO: Lock signals to Arb
     // Resp/Write Directory
-    val sDirWrite    = Decoupled(new SDirWrite)
-    val sDirResp     = Flipped(Decoupled(new SDirResp))
-    val cDirWrite    = Decoupled(new CDirWrite)
-    val cDirResp     = Flipped(Decoupled(new CDirResp))
+    val dirResp     = Flipped(Decoupled(new DirResp()))
+    val sDirWrite   = Decoupled(new SDirWrite(useAddr = true))
+    val cDirWrite   = Decoupled(new CDirWrite(useAddr = true))
     // Req to DataStorage
     val dsReq       = Decoupled(new DSRequest())
     // Task to snpCtrl
@@ -31,9 +30,8 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   // TODO: Delete the following code when the coding is complete
   io.arbTask <> DontCare
   io.sDirWrite <> DontCare
-  io.sDirResp <> DontCare
+  io.dirResp <> DontCare
   io.cDirWrite <> DontCare
-  io.cDirResp <> DontCare
   io.dsReq <> DontCare
   io.snpTask <> DontCare
   io.msTask <> DontCare

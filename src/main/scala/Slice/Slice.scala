@@ -64,9 +64,8 @@ class Slice()(implicit p: Parameters) extends DSUModule {
   dataStorage.io.mpReq <> mainPipe.io.dsReq
 
   directory.io.dirRead <> reqArb.io.dirRead
-  directory.io.sDirResp <> mainPipe.io.sDirResp
+  directory.io.dirResp <> mainPipe.io.dirResp
   directory.io.sDirWrite <> mainPipe.io.sDirWrite
-  directory.io.cDirResp <> mainPipe.io.cDirResp
   directory.io.cDirWrite <> mainPipe.io.cDirWrite
 
   reqArb.io.taskSnp <> snpCtl.io.mpResp

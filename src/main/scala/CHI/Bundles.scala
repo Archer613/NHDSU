@@ -242,6 +242,8 @@ trait HasChiStates { this: Bundle =>
     def passDirty = state(2)
 }
 
+class CHIStateBundle extends Bundle with HasChiStates
+
 object CHIChannel {
     val width = 3
 

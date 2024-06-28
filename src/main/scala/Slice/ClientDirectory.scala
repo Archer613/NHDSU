@@ -7,35 +7,28 @@ import chisel3.util._
 import org.chipsalliance.cde.config._
 import xs.utils.sram.SRAMTemplate
 
-class CDirMeta(implicit p: Parameters) extends Bundle with HasChiStates
-
 class CDirMetaEntry(implicit p: Parameters) extends DSUBundle {
   val tag          = UInt(cTagBits.W)
   val bank         = UInt(bankBits.W)
-  val metas        = Vec(dsuparam.nrCore, new CDirMeta())
+  val metas        = Vec(dsuparam.nrCore, new CHIStateBundle())
 }
 
-class CDirRead(implicit p: Parameters) extends DSUBundle {
-  val alreayUseWayOH  = UInt(dsuparam.clientWays.W)
-  val set             = UInt(cSetBits.W)
-  val tag             = UInt(cTagBits.W)
-  val bank            = UInt(bankBits.W)
-  val refill          = Bool()
+class CDirRead(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasClientAddrBits {
+  override def useAddrVal: Boolean = useAddr
+  val mes = new DirReadBase(dsuparam.clientWays)
 }
 
-class CDirWrite(implicit p: Parameters) extends DSUBundle {
+class CDirWrite(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasClientAddrBits {
+  override def useAddrVal: Boolean = useAddr
   val wayOH = UInt(dsuparam.clientWays.W)
-  val tag   = UInt(cTagBits.W)
-  val set   = UInt(cSetBits.W)
-  val meta  = new CDirMetaEntry
+  val metas = Vec(dsuparam.nrCore, new CHIStateBundle())
 }
 
-class CDirResp(implicit p: Parameters) extends DSUBundle {
-  val meta  = new CDirMetaEntry
-  val tag   = UInt(cTagBits.W)
-  val bank  = UInt(bankBits.W)
+class CDirResp(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasClientAddrBits {
+  override def useAddrVal: Boolean = useAddr
   val wayOH = UInt(dsuparam.clientWays.W)
-  val hitVec = Bool()
+  val metas = Vec(dsuparam.nrCore, new CHIStateBundle())
+  val hitVec = Vec(dsuparam.nrCore, Bool())
 }
 
 class ClientDirectory()(implicit p: Parameters) extends DSUModule {
@@ -55,6 +48,8 @@ val io = IO(new Bundle {
   io.dirWrite <> DontCare
   io.dirResp <> DontCare
   io.resetFinish <> DontCare
+  dontTouch(io)
+  io.dirRead.ready := true.B
 
 // --------------------- Modules and SRAM declaration ------------------------//
   val metaArray = Module(new SRAMTemplate(new CDirMetaEntry, dsuparam.sets, dsuparam.ways,

@@ -12,25 +12,18 @@ class SDirMetaEntry(implicit p: Parameters) extends DSUBundle with HasChiStates 
   val bank         = UInt(bankBits.W)
 }
 
-class SDirRead(implicit p: Parameters) extends DSUBundle {
-  val alreayUseWayOH  = UInt(dsuparam.ways.W)
-  val tag             = UInt(sTagBits.W)
-  val set             = UInt(sSetBits.W) // TODO: Width should be setBits - sDirBankBits
-  val bank            = UInt(bankBits.W)
-  val refill          = Bool()
+class SDirRead(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasSelfAddrBits {
+  override def useAddrVal: Boolean = useAddr
+  val mes = new DirReadBase(dsuparam.ways)
 }
 
-class SDirWrite(implicit p: Parameters) extends DSUBundle {
+class SDirWrite(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasSelfAddrBits with HasChiStates {
+  override def useAddrVal: Boolean = useAddr
   val wayOH = UInt(dsuparam.ways.W)
-  val tag   = UInt(sTagBits.W)
-  val set   = UInt(sSetBits.W)
-  val meta  = new SDirMetaEntry
 }
 
-class SDirResp(implicit p: Parameters) extends DSUBundle {
-  val meta  = new SDirMetaEntry
-  val tag   = UInt(sTagBits.W)
-  val bank  = UInt(bankBits.W)
+class SDirResp(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasSelfAddrBits with HasChiStates {
+  override def useAddrVal: Boolean = useAddr
   val wayOH = UInt(dsuparam.ways.W)
   val hit   = Bool()
 }
@@ -52,6 +45,8 @@ val io = IO(new Bundle {
   io.dirWrite <> DontCare
   io.dirResp <> DontCare
   io.resetFinish <> DontCare
+  dontTouch(io)
+  io.dirRead.ready := true.B
 
 // --------------------- Modules and SRAM declaration ------------------------//
   val metaArray = Module(new SRAMTemplate(new SDirMetaEntry, dsuparam.sets / dsuparam.nrSelfDirBank, dsuparam.ways,
@@ -63,6 +58,7 @@ val io = IO(new Bundle {
 // --------------------- Reg/Wire declaration ------------------------//
   val respValid_s2 = RegNext(io.dirRead.valid)
   val respValid = RegInit(false.B)
+
 
 
 // -----------------------------------------------------------------------------------------
