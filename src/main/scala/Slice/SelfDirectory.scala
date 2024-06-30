@@ -131,7 +131,7 @@ val io = IO(new Bundle {
 
   val tagMatchVec               = metaAll_s3.map(_.tag(sTagBits - 1, 0) === reqRead_s3_reg.tag)
   val bankMatchVec              = metaAll_s3.map(_.bank === reqRead_s3_reg.bank)
-  val metaValidVec              = metaAll_s3.map(_.state(1, 0) === ChiState.I(1, 0))
+  val metaValidVec              = metaAll_s3.map(_.state(1, 0) =/= ChiState.I(1, 0))
   val metaInvalidVec            = metaAll_s3.map(_.state(1, 0) === ChiState.I(1, 0))
   val has_invalid_way           = Cat(metaInvalidVec).orR
   val invalid_way               = PriorityMuxDefault(metaInvalidVec.zipWithIndex.map(x => x._1 -> x._2.U(sWayBits.W)), 0.U)
@@ -172,7 +172,7 @@ val io = IO(new Bundle {
   IO out logic
    */
 
-  io.dirResp.bits.hit          := hit_s3
+  io.dirResp.bits.hit          := Mux(reqReadValid_s3, hit_s3, false.B)
   io.dirResp.bits.set          := reqRead_s3_reg.set
   io.dirResp.bits.bank         := reqRead_s3_reg.bank
   io.dirResp.bits.tag          := Mux(refillReqValid_s3, metaAll_s3(chosenWay).tag, reqRead_s3_reg.tag)
