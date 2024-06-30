@@ -141,7 +141,7 @@ val io = IO(new Bundle {
 
   val useRandomWay          = (dsuparam.replacementPolicy == "random").asBool
   val randomWay             = RegInit(0.U(cWayBits.W))
-  randomWay                := Mux(refillReqValid_s3, LFSR(log2Ceil(ways))(cWayBits - 1, 0), 0.U(cWayBits.W))
+  randomWay                := Mux(refillReqValid_s2, LFSR(log2Ceil(ways))(cWayBits - 1, 0), 0.U(cWayBits.W))
   val metaInvalidVec        = stateAll_s3.map(_.metas.map(x => x.state(1, 0) === ChiState.I(1, 0)))
   val has_invalid_way_vec   = metaInvalidVec.map(Cat(_).orR)
   val has_invalid_way       = Cat(has_invalid_way_vec).orR
@@ -161,6 +161,7 @@ val io = IO(new Bundle {
   replaceWay               := repl.get_replace_way(repl_state_s3)
 
   val way_s3                = Mux(refillReqValid_s3, chosenWay, hit_tag_bank_way)
+  val failState             = VecInit(Seq.fill(dsuparam.nrCore)(false.B))
 
 
   /* 
@@ -169,8 +170,8 @@ val io = IO(new Bundle {
 
    io.dirResp.bits.hitVec  := hitWayState
 
-    when(!hit_tag_bank){
-    io.dirResp.bits.hitVec := VecInit(Seq.fill(dsuparam.nrCore)(false.B))
+    when(!hit_tag_bank || !reqReadValid_s3){
+    io.dirResp.bits.hitVec := failState
   }
 
    io.dirResp.bits.tag     := Mux(refillReqValid_s3, stateAll_s3(chosenWay).tag, reqRead_s3_reg.tag)
