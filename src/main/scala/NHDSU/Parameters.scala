@@ -53,10 +53,10 @@ trait HasDSUParam {
     val dataBits        = dsuparam.blockBytes * 8
     val beatBits        = dsuparam.beatBytes * 8
     // ID
-    val coreIdBits = log2Ceil(dsuparam.nrCore)
-    val reqBufIdBits = log2Ceil(dsuparam.nrReqBuf)
-    val snoopCtlIdBits = log2Ceil(dsuparam.nrSnoopCtl)
-    val dbIdBits = log2Ceil(dsuparam.nrDataBufferEntry)
+    val coreIdBits      = log2Ceil(dsuparam.nrCore)
+    val reqBufIdBits    = log2Ceil(dsuparam.nrReqBuf)
+    val snoopCtlIdBits  = log2Ceil(dsuparam.nrSnoopCtl)
+    val dbIdBits        = log2Ceil(dsuparam.nrDataBufferEntry)
     // CHI
     val rnTxlcrdBits    = log2Ceil(dsuparam.nrRnTxLcrdMax) + 1
     val rnRxlcrdBits    = log2Ceil(dsuparam.nrRnRxLcrdMax) + 1
@@ -78,11 +78,14 @@ trait HasDSUParam {
     val dsBankBits      = log2Ceil(dsuparam.nrDSBank)
     val dsSetBits       = log2Ceil(dsuparam.sets/dsuparam.nrDSBank)
     // BLOCK TABLE: [blockTag] + [blockSet] + [offset]
-    val nrBlockWays = dsuparam.ways * 2
-    val nrBlockSets = 16
-    val blockWayBits = log2Ceil(nrBlockWays)
-    val blockSetBits = log2Ceil(nrBlockSets)
-    val blockTagBits = dsuparam.addressBits - blockSetBits - offsetBits
+    val nrBlockWays     = dsuparam.ways * 2
+    val nrBlockSets     = 16
+    val blockWayBits    = log2Ceil(nrBlockWays)
+    val blockSetBits    = log2Ceil(nrBlockSets)
+    val blockTagBits    = dsuparam.addressBits - blockSetBits - offsetBits
+    // ReadCtl
+    val nrReadCtlEntry  = 8
+    val rcEntryBits     = log2Ceil(nrReadCtlEntry)
 
     require(nrBlockSets <= dsuparam.sets)
 

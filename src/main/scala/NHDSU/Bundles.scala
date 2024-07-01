@@ -16,20 +16,23 @@ object IdL0 {
     val MASTER     = "b100".U
 }
 
-trait HasIDBits extends DSUBundle { this: Bundle =>
-    val from = new Bundle {
-        val idL0 = UInt(IdL0.width.W)
-        val idL1 = UInt(max(coreIdBits, bankBits).W)
-        val idL2 = UInt(max(reqBufIdBits, snoopCtlIdBits).W)
-    }
-    val to = new Bundle {
-        val idL0 = UInt(IdL0.width.W)
-        val idL1 = UInt(max(coreIdBits, bankBits).W)
-        val idL2 = UInt(max(reqBufIdBits, snoopCtlIdBits).W)
-    }
+class IDBundle(implicit p: Parameters) extends DSUBundle {
+    val idL0 = UInt(IdL0.width.W) // Module: IDL0
+    val idL1 = UInt(max(coreIdBits, bankBits).W) // SubModule: CpuSlaves, Slices
+    val idL2 = UInt(max(max(reqBufIdBits, snoopCtlIdBits), dbIdBits).W) // SubSubModule: ReqBufs, SnpCtls, dbid
 }
 
+trait HasFromIDBits extends DSUBundle { this: Bundle => val from = new IDBundle() }
+
+trait HasToIDBits extends DSUBundle { this: Bundle => val to = new IDBundle() }
+
+trait HasIDBits extends DSUBundle with HasFromIDBits with HasToIDBits
+
 class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel{
+    // constants related to CHI
+    def tgtID       = 0.U(chiBundleParams.nodeIdBits.W)
+    def srcID       = 0.U(chiBundleParams.nodeIdBits.W)
+    // value in use
     val opcode      = UInt(5.W)
     val addr        = UInt(addressBits.W)
     val isR         = Bool()
@@ -53,9 +56,23 @@ class TaskRespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits wi
 // ---------------------- DataBuffer Bundle ------------------- //
 object DBOp {
     val width        = 2
-    val Write        = "b01".U // Need Resp
-    val Read         = "b10".U // Not Need Resp
-    val Clean        = "b11".U // Not Nedd Resp
+    val WRITE        = "b01".U // Need Resp
+    val READ         = "b10".U // Not Need Resp
+    val CLEAN        = "b11".U // Not Nedd Resp
+}
+object DBState {
+    val width       = 3
+    val FREE        = "b000".U
+    val ALLOC       = "b001".U
+    val WRITE_B0    = "b010".U // Has been written beat 0
+    val WRITE_B1    = "b011".U // Has been written beat 1
+    val READ_B0     = "b100".U // Has been read beat 0
+    val READ_B1     = "b101".U // Has been read beat 1
+}
+class DBEntry(implicit p: Parameters) extends DSUBundle {
+    val state = UInt(DBState.width.W)
+    val beat0 = UInt(beatBits.W)
+    val beat1 = UInt(beatBits.W)
 }
 class DBReq(implicit p: Parameters) extends DSUBundle with HasIDBits{
     val dbOp = UInt(DBOp.width.W)
@@ -90,3 +107,25 @@ class BlockTableEntry(implicit p: Parameters) extends DSUBundle {
     val tag     = UInt(blockTagBits.W)
     // TODO: block by way full
 }
+
+
+// -------------------- ReadCtl Bundle ------------------ //
+object ReadState {
+    val width      = 3
+    val FREE       = "b000".U
+    val GET_ID     = "b001".U
+    val WAIT_ID    = "b010".U
+    val SEND_REQ   = "b011".U
+    val WAIT_RESP  = "b100".U
+}
+
+class ReadCtlTableEntry(implicit p: Parameters) extends DSUBundle with HasFromIDBits {
+    val state = UInt(ReadState.width.W)
+    val txnid = UInt(8.W)
+    val addr = UInt(addressBits.W)
+}
+
+
+
+
+

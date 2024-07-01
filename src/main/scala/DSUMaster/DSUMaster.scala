@@ -43,6 +43,8 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   val dbWrite = WireInit(0.U.asTypeOf(Decoupled(new DBReq())))
   val dbRead = WireInit(0.U.asTypeOf(Valid(new DBReq())))
 
+  dontTouch(wbReq)
+  dontTouch(rReq)
 
 // --------------------- Connection ------------------------//
   /*
