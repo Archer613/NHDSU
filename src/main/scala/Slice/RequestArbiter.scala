@@ -79,7 +79,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   btRSet := io.taskCpu.bits.addr(blockTagBits - 1,  offsetBits)
   blockCpuTaskVec := blockTableReg(btRSet).map { case b => b.valid & b.tag === btRTag }
   invWayVec := blockTableReg(btRSet).map { case b => b.valid }
-  blockWayNext := ParallelPriorityMux(invWayVec.zipWithIndex.map { case (b, i) => (b, (1 << i).U) })
+  blockWayNext := PriorityEncoder(invWayVec)
   blockCpuTask := blockCpuTaskVec.asUInt.orR | invWayVec.asUInt.andR
 
   /*

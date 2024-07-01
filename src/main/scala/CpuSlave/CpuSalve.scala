@@ -18,14 +18,10 @@ class ReqBufSelector(implicit p: Parameters) extends DSUModule {
     val out1 = UInt(dsuparam.nrReqBuf.W)
   })
   io.idleNum := PopCount(io.idle.asUInt)
-  io.out0 := ParallelPriorityMux(io.idle.zipWithIndex.map {
-    case (b, i) => (b, (1 << i).U)
-  })
+  io.out0 := PriorityEncoder(io.idle)
   val idle1 = WireInit(io.idle)
-  idle1(OHToUInt(io.out0.asUInt)) := false.B
-  io.out1 := ParallelPriorityMux(idle1.zipWithIndex.map {
-    case (b, i) => (b, (1 << i).U)
-  })
+  idle1(io.out0.asUInt) := false.B
+  io.out1 := PriorityEncoder(idle1)
 }
 
 
@@ -117,11 +113,11 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   io.snpTask.ready := reqBufSel.io.idleNum > 0.U
   txReq.io.flit.ready := reqBufSel.io.idleNum > 1.U // The last reqBuf is reserved for snpTask
   when(io.snpTask.valid){
-    snpSelId := OHToUInt(reqBufSel.io.out0)
-    txReqSelId := OHToUInt(reqBufSel.io.out1)
+    snpSelId := reqBufSel.io.out0
+    txReqSelId := reqBufSel.io.out1
   }.otherwise{
     snpSelId := DontCare
-    txReqSelId := OHToUInt(reqBufSel.io.out0)
+    txReqSelId := reqBufSel.io.out0
   }
 
   // ReqBuf input:
