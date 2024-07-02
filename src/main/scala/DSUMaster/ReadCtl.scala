@@ -9,13 +9,13 @@ import xs.utils.ParallelPriorityMux
 
 class ReadCtl()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
-    val mpTask = Flipped(Decoupled(new TaskBundle()))
-    val mpResp = Decoupled(new TaskBundle())
-    val rReq = Decoupled(new TaskBundle())
+    val mpTask    = Flipped(Decoupled(new TaskBundle()))
+    val mpResp    = Decoupled(new TaskBundle())
+    val rReq      = Decoupled(new TaskBundle())
     val rxRspResp = Flipped(ValidIO(new CHIBundleRSP(chiBundleParams)))
     val rxDatResp = Flipped(ValidIO(new CHIBundleDAT(chiBundleParams)))
-    val dbWrite = Decoupled(new DBReq())
-    val dbResp = Flipped(ValidIO(new DBResp()))
+    val dbWReq    = Decoupled(new DBWReq())
+    val dbResp    = Flipped(Decoupled(new DBWResp()))
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -24,7 +24,7 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
   io.rReq := DontCare
   io.rxRspResp := DontCare
   io.rxDatResp := DontCare
-  io.dbWrite := DontCare
+  io.dbWReq := DontCare
   io.dbResp := DontCare
   dontTouch(io)
 

@@ -17,19 +17,9 @@ class Slice()(implicit p: Parameters) extends DSUModule {
     val cpuTask       = Flipped(Decoupled(new TaskBundle()))
     val cpuResp       = Decoupled(new TaskRespBundle())
     // dataBuffer <-> CPUSLAVE
-    val dbSigs2Cpu    = new Bundle {
-      val req           = Flipped(ValidIO(new DBReq()))
-      val wResp         = Decoupled(new DBResp())
-      val dataFromDB    = Decoupled(new DBOutData())
-      val dataToDB       = Flipped(ValidIO(new DBInData()))
-    }
+    val dbSigs2Cpu    = Flipped(new DBBundle())
     // dataBuffer <-> DSUMASTER
-    val dbSigs2Ms     = new Bundle {
-      val req           = Flipped(ValidIO(new DBReq()))
-      val wResp         = ValidIO(new DBResp())
-      val dataFromDB    = Decoupled(new DBOutData())
-      val dataToDB      = Flipped(ValidIO(new DBInData()))
-    }
+    val dbSigs2Ms     = Flipped(new DBBundle())
     val msTask        = Decoupled(new TaskBundle())
     val msResp        = Flipped(Decoupled(new TaskBundle()))
   })
@@ -56,10 +46,10 @@ class Slice()(implicit p: Parameters) extends DSUModule {
   dontTouch(snpCtl.io)
 
 // --------------------- Connection ------------------------//
-  dataBuffer.io.dbSigs2Cpu <> io.dbSigs2Cpu
-  dataBuffer.io.dbSigs2Ms <> io.dbSigs2Ms
-  dataBuffer.io.mpReq <> mainPipe.io.dbReq
-  dataBuffer.io.dbSigs2DS <> dataStorage.io.dbSigs2DB
+  dataBuffer.io.cpu2db <> io.dbSigs2Cpu
+  dataBuffer.io.ms2db <> io.dbSigs2Ms
+  dataBuffer.io.mpRCReq <> mainPipe.io.dbRCReq
+  dataBuffer.io.ds2db <> dataStorage.io.dbSigs2DB
 
   dataStorage.io.mpReq <> mainPipe.io.dsReq
 

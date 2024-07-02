@@ -95,7 +95,7 @@ class CHIBundleDAT(params: CHIBundleParameters) extends Bundle {
     val traceTag   = Bool()
     val rsvdc      = UInt(4.W)
     val be         = UInt((params.dataBits / 8).W)
-    val data       = UInt(params.dataBits.W)
+    val data       = UInt(params.dataBits.W) // TODO: parameterize this val
     val dataCheck  = if (params.dataCheck) Some(UInt((params.dataBits / 8).W)) else None
     val poison     = if (params.dataCheck) Some(UInt((params.dataBits / 64).W)) else None
 }

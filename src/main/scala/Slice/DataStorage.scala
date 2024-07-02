@@ -17,12 +17,7 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
     // Req From MainPipe
     val mpReq         = Flipped(Decoupled(new DSRequest()))
     // dataBuffer <-> DataStorage
-    val dbSigs2DB     = new Bundle {
-      val req           = ValidIO(new DBReq())
-      val wResp         = Flipped(ValidIO(new DBResp()))
-      val dataFromDB    = Flipped(ValidIO(new DBOutData(beat = nrBeat)))
-      val dataToDB      = ValidIO(new DBInData(beat = nrBeat))
-    }
+    val dbSigs2DB     = new DBBundle()
   })
 
   // TODO: Delete the following code when the coding is complete

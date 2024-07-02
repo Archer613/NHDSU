@@ -1,6 +1,6 @@
 package Utils
 
-import NHDSU.HasIDBits
+import NHDSU.HasToIDBits
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
@@ -8,7 +8,7 @@ import xs.utils.FastArbiter
 
 object IDConnector {
     // DecoupledIO -> DecoupledIOVec
-    def idSelDec2DecVec[T <: Bundle with HasIDBits](in: DecoupledIO[T], out: Seq[DecoupledIO[T]], level: Int): Unit = {
+    def idSelDec2DecVec[T <: Bundle with HasToIDBits](in: DecoupledIO[T], out: Seq[DecoupledIO[T]], level: Int): Unit = {
         in.ready := false.B
         out.foreach(_.bits := in.bits)
         out.zipWithIndex.foreach {
@@ -35,7 +35,7 @@ object IDConnector {
 
 
     // ValidIO -> ValidIOVec
-    def idSelVal2ValVec[T <: Bundle with HasIDBits](in: ValidIO[T], out: Seq[ValidIO[T]], level: Int): Unit = {
+    def idSelVal2ValVec[T <: Bundle with HasToIDBits](in: ValidIO[T], out: Seq[ValidIO[T]], level: Int): Unit = {
         out.foreach(_.bits := in.bits)
         out.zipWithIndex.foreach {
             case (o, i) =>

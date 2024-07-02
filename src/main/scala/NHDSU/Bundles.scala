@@ -54,12 +54,6 @@ class TaskRespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits wi
 
 
 // ---------------------- DataBuffer Bundle ------------------- //
-object DBOp {
-    val width        = 2
-    val WRITE        = "b01".U // Need Resp
-    val READ         = "b10".U // Not Need Resp
-    val CLEAN        = "b11".U // Not Nedd Resp
-}
 object DBState {
     val width       = 3
     val FREE        = "b000".U
@@ -74,21 +68,27 @@ class DBEntry(implicit p: Parameters) extends DSUBundle {
     val beat0 = UInt(beatBits.W)
     val beat1 = UInt(beatBits.W)
 }
-class DBReq(implicit p: Parameters) extends DSUBundle with HasIDBits{
-    val dbOp = UInt(DBOp.width.W)
-    val dbid = UInt(dbIdBits.W)
+trait HasDBRCOp extends DSUBundle { this: Bundle =>
+    val isRead = Bool()
+    val isClean = Bool()
 }
-class DBResp(implicit p: Parameters) extends DSUBundle with HasIDBits {
-    val dbid = UInt(dbIdBits.W)
-}
-class DBOutData(beat: Int = 1)(implicit p: Parameters) extends DSUBundle with HasIDBits{
-    val dbid = UInt(dbIdBits.W)
+class DBRCReq(implicit p: Parameters) extends DSUBundle with HasIDBits with HasDBRCOp   // DataBuffer Read Req
+class DBWReq(implicit p: Parameters) extends DSUBundle with HasIDBits                   // DataBuffer Write Req
+class DBWResp(implicit p: Parameters) extends DSUBundle with HasIDBits                  // DataBuffer Write Resp
+class DBOutData(beat: Int = 1)(implicit p: Parameters) extends DSUBundle with HasToIDBits {
     val data = UInt((beatBits*beat).W)
 }
-class DBInData(beat: Int = 1)(implicit p: Parameters) extends DSUBundle with HasIDBits{
-    val dbid = UInt(dbIdBits.W)
+class DBInData(beat: Int = 1)(implicit p: Parameters) extends DSUBundle with HasToIDBits {
     val data = UInt((beatBits*beat).W)
 }
+class DBBundle(beat: Int = 1)(implicit p: Parameters) extends DSUBundle {
+    val rcReq       = Decoupled(new DBRCReq())
+    val wReq        = Decoupled(new DBWReq())
+    val wResp       = Flipped(Decoupled(new DBWResp()))
+    val dataFDB     = Flipped(Decoupled(new DBOutData(beat)))
+    val dataTDB     = Decoupled(new DBInData(beat))
+}
+
 
 // ---------------------- ReqBuf Bundle ------------------- //
 class RBFSMState(implicit p: Parameters) extends Bundle {

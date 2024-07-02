@@ -90,17 +90,8 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
     xbar.io.mpResp.in <> slices.map(_.io.cpuResp)
     xbar.io.mpResp.out <> cpuSalves.map(_.io.mpResp)
 
-    xbar.io.dbSigs.req.in <> cpuSalves.map(_.io.dbSigs.req)
-    xbar.io.dbSigs.req.out <> slices.map(_.io.dbSigs2Cpu.req)
-
-    xbar.io.dbSigs.wResp.in <> slices.map(_.io.dbSigs2Cpu.wResp)
-    xbar.io.dbSigs.wResp.out <> cpuSalves.map(_.io.dbSigs.wResp)
-
-    xbar.io.dbSigs.dataFromDB.in <> slices.map(_.io.dbSigs2Cpu.dataFromDB)
-    xbar.io.dbSigs.dataFromDB.out <> cpuSalves.map(_.io.dbSigs.dataFromDB)
-
-    xbar.io.dbSigs.dataToDB.in <> cpuSalves.map(_.io.dbSigs.dataToDB)
-    xbar.io.dbSigs.dataToDB.out <> slices.map(_.io.dbSigs2Cpu.dataToDB)
+    xbar.io.dbSigs.in <> cpuSalves.map(_.io.dbSigs)
+    xbar.io.dbSigs.out <> slices.map(_.io.dbSigs2Cpu)
 
     /*
     * connect slices <--[ctrl/db signals]--> dsuMasters

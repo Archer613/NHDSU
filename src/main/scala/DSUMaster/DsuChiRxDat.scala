@@ -12,14 +12,14 @@ class DsuChiRxDat()(implicit p: Parameters) extends DSUModule {
     val rxState = Input(new LinkState())
     val allLcrdRetrun = Output(Bool()) // Deactive Done
     val resp = ValidIO(new CHIBundleDAT(chiBundleParams))
-    val toDB = ValidIO(new DBInData())
+    val dataTDB = Decoupled(new DBInData())
   })
 
   // TODO: Delete the following code when the coding is complete
   io.chi := DontCare
   io.allLcrdRetrun := DontCare
   io.resp := DontCare
-  io.toDB := DontCare
+  io.dataTDB := DontCare
   dontTouch(io)
 
 

@@ -14,15 +14,15 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
       val dbidSlice = Input(UInt(reqBufIdBits.W))
     }))
     val txState = Input(new LinkState())
-    val dbRead = ValidIO(new DBReq())
-    val fromDB = Flipped(Decoupled(new DBOutData()))
+    val dbRCReq  = Decoupled(new DBRCReq())
+    val dataFDB = Flipped(Decoupled(new DBOutData()))
   })
 
   // TODO: Delete the following code when the coding is complete
   io.chi := DontCare
   io.txState := DontCare
-  io.dbRead := DontCare
-  io.fromDB := DontCare
+  io.dbRCReq := DontCare
+  io.dataFDB := DontCare
   dontTouch(io)
 
 

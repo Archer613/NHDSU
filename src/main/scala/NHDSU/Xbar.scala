@@ -83,22 +83,8 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
         }
         // dataBuffer
         val dbSigs = new Bundle {
-            val req = new Bundle {
-                val in = Vec(dsuparam.nrCore, Flipped(Decoupled(new DBReq())))
-                val out = Vec(dsuparam.nrBank, ValidIO(new DBReq()))
-            }
-            val wResp = new Bundle {
-                val in = Vec(dsuparam.nrBank, Flipped(Decoupled(new DBResp())))
-                val out = Vec(dsuparam.nrCore, ValidIO(new DBResp()))
-            }
-            val dataFromDB = new Bundle {
-                val in = Vec(dsuparam.nrBank, Flipped(Decoupled(new DBOutData())))
-                val out = Vec(dsuparam.nrCore, ValidIO(new DBOutData()))
-            }
-            val dataToDB = new Bundle {
-                val in = Vec(dsuparam.nrCore, Flipped(Decoupled(new DBInData())))
-                val out = Vec(dsuparam.nrBank, ValidIO(new DBInData()))
-            }
+            val in = Vec(dsuparam.nrCore, Flipped(new DBBundle()))
+            val out = Vec(dsuparam.nrBank, new DBBundle())
         }
     })
 
@@ -112,8 +98,9 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
     val snpTaskRedir    = Wire(Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new TaskBundle()))))
     val snpRespRedir    = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new TaskRespBundle()))))
     val dbSigsRedir     = Wire(new Bundle {
-            val req         = Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new DBReq())))
-            val wResp       = Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new DBResp())))
+            val rcReq       = Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new DBRCReq())))
+            val wReq        = Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new DBWReq())))
+            val wResp       = Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new DBWResp())))
             val dataFromDB  = Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new DBOutData())))
             val dataToDB    = Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new DBInData())))
     })
@@ -150,21 +137,25 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
     /*
     * connect cpuSalves <--[db signals]--> slices
     */
-    // req ---[fastArb]---[idSel]---> dataBuffer
-    io.dbSigs.req.in.zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.req(i), level = 1) }
-    io.dbSigs.req.out.zipWithIndex.foreach { case (m, i) => fastArbDec2Val(dbSigsRedir.req.map(_(i)), m, Some("dbReqArb")) }
+    // rcReq ---[fastArb]---[idSel]---> dataBuffer
+    io.dbSigs.in.map(_.rcReq).zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.rcReq(i), level = 1) }
+    io.dbSigs.out.map(_.rcReq).zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(dbSigsRedir.rcReq.map(_(i)), m, Some("dbRCReqArb")) }
 
-    // resp ---[fastArb]---[idSel]---> cpuSlaves
-    io.dbSigs.wResp.in.zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.wResp(i), level = 1) }
-    io.dbSigs.wResp.out.zipWithIndex.foreach { case (m, i) => fastArbDec2Val(dbSigsRedir.wResp.map(_(i)), m, Some("dbRespArb")) }
+    // wReq ---[fastArb]---[idSel]---> dataBuffer
+    io.dbSigs.in.map(_.wReq).zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.wReq(i), level = 1) }
+    io.dbSigs.out.map(_.wReq).zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(dbSigsRedir.wReq.map(_(i)), m, Some("dbWReqArb")) }
+
+    // wResp ---[fastArb]---[idSel]---> cpuSlaves
+    io.dbSigs.out.map(_.wResp).zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.wResp(i), level = 1) }
+    io.dbSigs.in.map(_.wResp).zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(dbSigsRedir.wResp.map(_(i)), m, Some("dbWRespArb")) }
 
     // dataFDB ---[fastArb]---[idSel]---> cpuSlaves
-    io.dbSigs.dataFromDB.in.zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.dataFromDB(i), level = 1) }
-    io.dbSigs.dataFromDB.out.zipWithIndex.foreach { case (m, i) => fastArbDec2Val(dbSigsRedir.dataFromDB.map(_(i)), m, Some("dataFDBArb")) }
+    io.dbSigs.out.map(_.dataFDB).zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.dataFromDB(i), level = 1) }
+    io.dbSigs.in.map(_.dataFDB).zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(dbSigsRedir.dataFromDB.map(_(i)), m, Some("dataFDBArb")) }
 
     // dataTDB ---[fastArb]---[idSel]---> dataBuffer
-    io.dbSigs.dataToDB.in.zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.dataToDB(i), level = 1) }
-    io.dbSigs.dataToDB.out.zipWithIndex.foreach { case (m, i) => fastArbDec2Val(dbSigsRedir.dataToDB.map(_(i)), m, Some("dataTDBArb")) }
+    io.dbSigs.in.map(_.dataTDB).zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.dataToDB(i), level = 1) }
+    io.dbSigs.out.map(_.dataTDB).zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(dbSigsRedir.dataToDB.map(_(i)), m, Some("dataTDBArb")) }
 
 
 

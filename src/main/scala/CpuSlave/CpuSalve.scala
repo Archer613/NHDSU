@@ -40,12 +40,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
     val mpTask        = Decoupled(new TaskBundle())
     val mpResp        = Flipped(ValidIO(new TaskRespBundle()))
     // dataBuffer
-    val dbSigs      = new Bundle {
-      val req           = Decoupled(new DBReq())
-      val wResp         = Flipped(ValidIO(new DBResp()))
-      val dataFromDB    = Flipped(ValidIO(new DBOutData()))
-      val dataToDB      = Decoupled(new DBInData())
-    }
+    val dbSigs        = new DBBundle()
   })
 
 
@@ -83,7 +78,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   txDat.io.chi <> io.chi.txdat
   txDat.io.txState := chiCtrl.io.txState
   txDat.io.flit <> DontCare
-  txDat.io.toDB <> io.dbSigs.dataToDB
+  txDat.io.dataTDB <> io.dbSigs.dataTDB
 
   io.chi.rxsnp <> rxSnp.io.chi
   rxSnp.io.rxState := chiCtrl.io.rxState
@@ -96,7 +91,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   io.chi.rxdat <> rxDat.io.chi
   rxDat.io.rxState := chiCtrl.io.rxState
   rxDat.io.flit <> DontCare
-  rxDat.io.fromDB <> io.dbSigs.dataFromDB
+  rxDat.io.dataFDB <> io.dbSigs.dataFDB
 
   /*
    * connect chiXXX <-> reqBufs <-> io.xxx(signals from or to slice)
@@ -135,7 +130,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   // mpResp --(sel by mpResp.id.l2)--> reqBuf
   idSelVal2ValVec(io.mpResp, reqBufs.map(_.io.mpResp), level = 2)
   // dbResp --(sel by mpResp.id.l2)--> reqBuf
-  idSelVal2ValVec(io.dbSigs.wResp, reqBufs.map(_.io.dbResp), level = 2)
+  idSelDec2DecVec(io.dbSigs.wResp, reqBufs.map(_.io.wResp), level = 2)
 
 
   // ReqBuf output:
@@ -144,11 +139,12 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   // snpResp ---[fastArb]---> snpCtrl
   fastArbDec2Dec(reqBufs.map(_.io.snpResp), io.snpResp, Some("snpRespArb"))
   // dbReq ---[fastArb]---> dataBuffer
-  fastArbDec2Dec(reqBufs.map(_.io.dbReq), io.dbSigs.req, Some("dbReqArb"))
+  fastArbDec2Dec(reqBufs.map(_.io.rcReq), io.dbSigs.rcReq, Some("dbRCReqArb"))
+  fastArbDec2Dec(reqBufs.map(_.io.wReq), io.dbSigs.wReq, Some("dbWReqArb"))
   // dataFromDB --(sel by dataFromDB.bits.id.l2)--> dbDataValid
   reqBufs.zipWithIndex.foreach {
     case (reqbuf, i) =>
-      reqbuf.io.dbDataValid := io.dbSigs.dataFromDB.valid & io.dbSigs.dataFromDB.bits.to.idL2 === i.U
+      reqbuf.io.dbDataValid := io.dbSigs.dataFDB.valid & io.dbSigs.dataFDB.bits.to.idL2 === i.U
   }
 
 

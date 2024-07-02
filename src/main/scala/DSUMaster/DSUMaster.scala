@@ -13,15 +13,10 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
     val chi           = CHIBundleDownstream(chiBundleParams)
     val chiLinkCtrl   = new CHILinkCtrlIO()
     // mainpipe
-    val mpTask        = Flipped(Decoupled(new TaskBundle()))
+    val mpTask        = Flipped(Decoupled(new TaskBundle())) // Consider splitting the Bundle into rReq and wbReq
     val mpResp        = Decoupled(new TaskBundle())
     // dataBuffer
-    val dbSigs        = new Bundle {
-      val req           = ValidIO(new DBReq())
-      val wResp         = Flipped(ValidIO(new DBResp()))
-      val dataFromDB    = Flipped(Decoupled(new DBOutData()))
-      val dataToDB      = ValidIO(new DBInData())
-    }
+    val dbSigs        = new DBBundle()
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -40,9 +35,6 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   val wbReq = WireInit(0.U.asTypeOf(Decoupled(new TaskBundle())))
   val rReq = WireInit(0.U.asTypeOf(Decoupled(new TaskBundle())))
 
-  val dbWrite = WireInit(0.U.asTypeOf(Decoupled(new DBReq())))
-  val dbRead = WireInit(0.U.asTypeOf(Valid(new DBReq())))
-
   dontTouch(wbReq)
   dontTouch(rReq)
 
@@ -56,7 +48,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   rxDat.io.chi <> io.chi.rxdat
   rxDat.io.rxState := chiCtrl.io.rxState
   rxDat.io.resp <> readCtl.io.rxDatResp
-  rxDat.io.toDB <> io.dbSigs.dataToDB
+  rxDat.io.dataTDB <> io.dbSigs.dataTDB
 
   rxRsp.io.chi <> io.chi.rxrsp
   rxRsp.io.rxState := chiCtrl.io.rxState
@@ -65,8 +57,8 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
 
   txDat.io.chi <> io.chi.txdat
   txDat.io.txState := chiCtrl.io.txState
-  txDat.io.dbRead <> dbRead
-  txDat.io.fromDB <> io.dbSigs.dataFromDB
+  txDat.io.dbRCReq <> io.dbSigs.rcReq
+  txDat.io.dataFDB <> io.dbSigs.dataFDB
 
   txReq.io.chi <> io.chi.txreq
   txReq.io.txState := chiCtrl.io.txState
@@ -79,7 +71,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   // readCtl
   readCtl.io.mpTask <> rReq
   readCtl.io.mpResp <> io.mpResp
-  readCtl.io.dbWrite <> dbWrite
+  readCtl.io.dbWReq <> io.dbSigs.wReq
   readCtl.io.dbResp <> io.dbSigs.wResp
 
 
@@ -89,11 +81,6 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   wbReq.bits := io.mpTask.bits
   rReq.bits := io.mpTask.bits
   io.mpTask.ready := Mux(io.mpTask.bits.isWB, wbReq.ready, rReq.ready)
-
-  // dbReq sel
-  io.dbSigs.req.valid := dbRead.valid | dbWrite.valid
-  io.dbSigs.req.bits := Mux(dbRead.valid, dbRead.bits, dbWrite.bits)
-  dbWrite.ready := !dbRead.valid
 
 
 

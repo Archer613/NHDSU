@@ -25,7 +25,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     // Task to Master
     val msTask      = Decoupled(new TaskBundle())
     // Req to dataBuffer
-    val dbReq       = ValidIO(new DBReq())
+    val dbRCReq     = ValidIO(new DBRCReq())
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -37,7 +37,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   io.snpTask <> DontCare
   io.msTask <> DontCare
   io.cpuResp <> DontCare
-  io.dbReq <> DontCare
+  io.dbRCReq <> DontCare
 
 
 // --------------------- Modules declaration ------------------------//
@@ -154,7 +154,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
    * Update can go s3 logic
    */
   val needToDo_s3 = Seq(needSnoop, needReadDS, needReadDB, needResp, needReq)
-  val done_s3 = Seq(io.snpTask.fire, io.dsReq.fire, io.dbReq.fire, io.cpuResp.fire, io.msTask.fire)
+  val done_s3 = Seq(io.snpTask.fire, io.dsReq.fire, io.dbRCReq.fire, io.cpuResp.fire, io.msTask.fire)
   canGo_s3 := needToDo_s3.zip(done_s3).map(a => !a._1 | a._2).reduce(_ & _) & taskTypeVec.asUInt.orR
 
 

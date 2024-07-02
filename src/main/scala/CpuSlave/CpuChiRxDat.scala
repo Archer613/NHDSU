@@ -11,12 +11,13 @@ class CpuChiRxDat()(implicit p: Parameters) extends DSUModule {
     val chi = CHIChannelIO(new CHIBundleDAT(chiBundleParams))
     val rxState = Input(UInt(LinkStates.width.W))
     val flit = Flipped(Decoupled(new CHIBundleDAT(chiBundleParams)))
-    val fromDB = Flipped(ValidIO(new DBOutData()))
+    val dataFDB = Flipped(Decoupled(new DBOutData()))
   })
 
   // TODO: Delete the following code when the coding is complete
   io.chi := DontCare
   io.flit := DontCare
+  io.dataFDB := DontCare
   dontTouch(io)
 
 }
