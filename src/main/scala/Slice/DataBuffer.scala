@@ -24,47 +24,68 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   io.ds2db <> DontCare
   io.mpRCReq <> DontCare
 
-// // --------------------- Reg/Wire declaration ------------------------ //
-//   val dataBuffer  = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U.asTypeOf(new DBEntry()) }))
-//   val dbFreeVec   = Wire(Vec(3, Vec(dsuparam.nrDataBufferEntry, Bool())))
-//   val dbFreeNum   = WireInit(0.U((dbIdBits+1).W))
-//   val dbAllocId   = Wire(Vec(3, UInt(dbIdBits.W)))
-//   val canAllocVec = Wire(Vec(3, Bool()))
-
-// // ----------------------------- Logic ------------------------------ //
-//   /*
-//    * TODO: Consider the legitimacy of request priority
-//    * select free db for alloc, Priority: [DSUMASTER] > [DataStorage] > [CPUSLAVE]
-//    */
-//   // get free dbid
-//   dbFreeVec(0) := dataBuffer.map(_.state === DBState.FREE)
-//   dbFreeVec(1)(dbAllocId(0)) := false.B
-//   dbFreeVec(2)(dbAllocId(1)) := false.B
-//   dbFreeVec(1) := dbFreeVec(0)
-//   dbFreeVec(2) := dbFreeVec(1)
-//   dbFreeNum := PopCount(dbFreeVec.asUInt)
-//   canAllocVec.zipWithIndex.foreach{ case(v, i) => v := dbFreeNum > i.U }
-//   dbAllocId.zip(dbFreeVec).foreach{ case(id, vec) => id := PriorityEncoder(vec) }
-//   // when req is write, alloc dbid
-//   val wReqVec = Seq(io.dbSigs2Ms.req, io.dbSigs2DS.req, io.dbSigs2Cpu.req)
-//   wReqVec..zip(canAllocVec).foreach{ case((w, v), c) => v := w.valid & w.bits.dbOp === DBOp.WRITE & c }
+// ----------------------- Modules declaration ------------------------ //
+  // TODO: Consider remove cpuWRespQ because cpu wResp.ready is false rare occurrence
+  val bankOver1 = dsuparam.nrBank > 1
+  val cpuWRespQ = if(bankOver1) { Some(Module(new Queue(gen = new DBWResp(), entries = dsuparam.nrBank-1, flow = true, pipe = true))) } else { None }
 
 
-//   /*
-//    * set dataBuffer state
-//    */
+// --------------------- Reg/Wire declaration ------------------------ //
+  val dataBuffer  = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U.asTypeOf(new DBEntry()) }))
+  val dbFreeVec   = Wire(Vec(3, Vec(dsuparam.nrDataBufferEntry, Bool())))
+  val dbFreeNum   = WireInit(0.U((dbIdBits+1).W))
+  val dbAllocId   = Wire(Vec(3, UInt(dbIdBits.W)))
+  val canAllocVec = Wire(Vec(3, Bool()))
+  val wReqVec     = Seq(io.ms2db.wReq, io.ds2db.wReq, io.cpu2db.wReq)
+  val wRespVec    = Seq(io.ms2db.wResp, io.ds2db.wResp, if(bankOver1) cpuWRespQ.get.io.enq else io.cpu2db.wResp)
+
+// ----------------------------- Logic ------------------------------ //
+  /*
+  * TODO: Consider the legitimacy of request priority
+  * select free db for alloc, Priority: [DSUMASTER] > [DataStorage] > [CPUSLAVE]
+  */
+  // get free dbid
+  dbFreeVec(0) := dataBuffer.map(_.state === DBState.FREE)
+  dbFreeVec(1)(dbAllocId(0)) := false.B
+  dbFreeVec(2)(dbAllocId(1)) := false.B
+  dbFreeVec(1) := dbFreeVec(0)
+  dbFreeVec(2) := dbFreeVec(1)
+  dbFreeNum := PopCount(dbFreeVec.asUInt)
+  canAllocVec.zipWithIndex.foreach{ case(v, i) => v := dbFreeNum > i.U }
+  dbAllocId.zip(dbFreeVec).foreach{ case(id, vec) => id := PriorityEncoder(vec) }
+  // set wReq ready
+  wReqVec.map(_.ready).zip(canAllocVec).foreach{ case(r, v) => r := v }
+  if(bankOver1) io.cpu2db.wReq.ready := cpuWRespQ.get.io.enq.ready
+
+  /*
+   * write response
+   * dontCare ready, when resp valid ready should be true
+   * ms2db.wResp.ready and ds2db.wResp.ready should be true forever
+   */
+  wRespVec.zipWithIndex.foreach {
+    case(resp, i) =>
+      resp.valid := wReqVec(i).valid
+      resp.bits.to := wReqVec(i).bits.from
+      resp.bits.from := wReqVec(i).bits.to
+      resp.bits.from.idL2 := dbAllocId(i)
+  }
+  if(bankOver1) io.cpu2db.wResp <> cpuWRespQ.get.io.deq
 
 
+  /*
+  * set dataBuffer state
+  */
+  dataBuffer.zipWithIndex.foreach {
+    case(db, i) =>
+      switch(db.state) {
+        is(DBState.FREE) {
+          val hit = dbAllocId.zip(wReqVec.map(_.fire)).map(a => a._1 === i.U & a._2).reduce(_ | _)
+          db.state := Mux(hit, DBState.ALLOC, DBState.FREE)
+        }
+      }
+  }
 
 
-
-
-
-//   /*
-//    *
-//    */
-
-
-
-
+// ----------------------------- Assertion ------------------------------ //
+  assert(wReqVec.zip(wRespVec).map{ a => Mux(a._1.fire, a._2.fire, true.B) }.reduce(_ & _), "When wReq fire, wResp must also fire too")
 }
