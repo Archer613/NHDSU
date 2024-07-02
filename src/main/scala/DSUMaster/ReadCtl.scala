@@ -15,7 +15,7 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
     val rxRspResp = Flipped(ValidIO(new CHIBundleRSP(chiBundleParams)))
     val rxDatResp = Flipped(ValidIO(new CHIBundleDAT(chiBundleParams)))
     val dbWReq    = Decoupled(new DBWReq())
-    val dbResp    = Flipped(Decoupled(new DBWResp()))
+    val dbWResp   = Flipped(Decoupled(new DBWResp()))
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -25,52 +25,84 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
   io.rxRspResp := DontCare
   io.rxDatResp := DontCare
   io.dbWReq := DontCare
-  io.dbResp := DontCare
+  io.dbWResp := DontCare
   dontTouch(io)
 
 
 
   // --------------------- Reg/Wire declaration ----------------------- //
   val fsmReg      = RegInit(VecInit(Seq.fill(nrReadCtlEntry) { 0.U.asTypeOf(new ReadCtlTableEntry()) }))
-  val fsmFreeVec  = Wire(Vec(nrReadCtlEntry, Bool()))
-  val fsmSelId    = WireInit(0.U(rcEntryBits.W))
+  val stateVec  = Wire(Vec(nrReadCtlEntry, Vec(RCState.nrState, Bool())))
+  val SelIdVec  = Wire(Vec(RCState.nrState, UInt(rcEntryBits.W)))
 
   dontTouch(fsmReg)
-  dontTouch(fsmFreeVec)
-  dontTouch(fsmSelId)
+  dontTouch(stateVec)
+  dontTouch(SelIdVec)
 
   // ---------------------------- Logic  ------------------------------ //
   /*
-   * select one free fsm for mpTask input
+   * Get stateVec and SelIdVec
+   * exa:
+   * fsmReg.state := ALLOC, FREE, FREE, FREE
+   * stateVec(FREE) := (0, 1, 1, 1)
+   * SelIdVec(FREE) := 1
    */
-  fsmFreeVec.zip(fsmReg.map(_.state)).foreach { case(v, s) => v := s === ReadState.FREE }
-//  fsmSelId := OHToUInt(ParallelPriorityMux(fsmFreeVec.zipWithIndex.map { case (b, i) => (b, (1 << i).U) }))
-  fsmSelId := PriorityEncoder(fsmFreeVec)
-
+  stateVec.zipWithIndex.foreach{ case(v, i) => v.zip(fsmReg.map(_.state)).foreach{ case(v, s) => v := s === i.U } }
+  SelIdVec.zip(stateVec).foreach{ case(sel, vec) => sel := PriorityEncoder(vec) }
 
   /*
    * receive mpTask
    */
-  io.mpTask.ready := fsmFreeVec.asUInt.orR
+  io.mpTask.ready := stateVec(RCState.FREE).asUInt.orR
 
   /*
    * fsm: FREE -> GET_ID -> WAIT_ID -> SEND_REQ -> WAIT_RESP -> FREE
+   * fsm: FREE -> GET_ID -> SEND_REQ -> WAIT_RESP -> FREE
    */
   fsmReg.zipWithIndex.foreach {
     case (fsm, i) =>
       switch(fsm.state) {
         // ReadState.FREE: Wait mpTask input
-        is(ReadState.FREE) {
-          when(io.mpTask.fire & fsmSelId === i.U) {
-            fsm.state := ReadState.GET_ID
+        is(RCState.FREE) {
+          when(io.mpTask.fire & SelIdVec(RCState.FREE) === i.U) {
+            fsm.state := RCState.GET_ID
             fsm.from := io.mpTask.bits.from
             fsm.addr := io.mpTask.bits.addr
           }
         }
-        is(ReadState.GET_ID) {
-
+        // ReadState.GET_ID: Get dbid from DataBuffer
+        is(RCState.GET_ID) {
+          fsm.state := Mux(io.dbWReq.fire & SelIdVec(RCState.GET_ID) === i.U,
+                          Mux(io.dbWResp.fire & !stateVec(RCState.WAIT_ID).asUInt.orR,
+                            RCState.SEND_REQ,
+                              RCState.WAIT_ID),
+                                RCState.GET_ID)
+        }
+        // ReadState.WAIT_ID: Wait dbid from DataBuffer
+        is(RCState.WAIT_ID) {
+          fsm.state := Mux(io.dbWResp.fire & SelIdVec(RCState.WAIT_ID) === i.U, RCState.SEND_REQ, RCState.WAIT_ID)
         }
       }
+  }
+
+
+  /*
+   * fsm state: GET_ID deal logic
+   */
+  io.dbWReq.valid := stateVec(RCState.GET_ID).asUInt.orR
+
+
+  /*
+   * fsm state: WAIT_ID deal logic
+   * io.dbWResp.ready always be true.B
+   */
+  io.dbWResp.ready := true.B
+  when(io.dbWResp.fire){
+    when(stateVec(RCState.WAIT_ID).asUInt.orR){
+      fsmReg(SelIdVec(RCState.WAIT_ID)).txnid := io.dbWResp.bits.from.idL2
+    }.otherwise {
+      fsmReg(SelIdVec(RCState.GET_ID)).txnid := io.dbWResp.bits.from.idL2
+    }
   }
 
 

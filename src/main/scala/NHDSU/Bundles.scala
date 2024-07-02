@@ -72,9 +72,10 @@ trait HasDBRCOp extends DSUBundle { this: Bundle =>
     val isRead = Bool()
     val isClean = Bool()
 }
-class DBRCReq(implicit p: Parameters) extends DSUBundle with HasIDBits with HasDBRCOp   // DataBuffer Read Req
-class DBWReq(implicit p: Parameters) extends DSUBundle with HasIDBits                   // DataBuffer Write Req
-class DBWResp(implicit p: Parameters) extends DSUBundle with HasIDBits                  // DataBuffer Write Resp
+// CPU DB Bundle
+class DBRCReq(implicit p: Parameters) extends DSUBundle with HasIDBits with HasDBRCOp       // DataBuffer Read Req
+class DBWReq(implicit p: Parameters) extends DSUBundle with HasIDBits                       // DataBuffer Write Req
+class DBWResp(implicit p: Parameters) extends DSUBundle with HasIDBits                      // DataBuffer Write Resp
 class DBOutData(beat: Int = 1)(implicit p: Parameters) extends DSUBundle with HasToIDBits {
     val data = UInt((beatBits*beat).W)
 }
@@ -88,6 +89,9 @@ class DBBundle(beat: Int = 1)(implicit p: Parameters) extends DSUBundle {
     val dataFDB     = Flipped(Decoupled(new DBOutData(beat)))
     val dataTDB     = Decoupled(new DBInData(beat))
 }
+// TODO: Simplifying the Bundle for MASTER and DS
+// TODO: MASTER DB Bundle
+// TODO: DS DB Bundle
 
 
 // ---------------------- ReqBuf Bundle ------------------- //
@@ -110,8 +114,9 @@ class BlockTableEntry(implicit p: Parameters) extends DSUBundle {
 
 
 // -------------------- ReadCtl Bundle ------------------ //
-object ReadState {
+object RCState { // Read Ctl State
     val width      = 3
+    val nrState    = 5
     val FREE       = "b000".U
     val GET_ID     = "b001".U
     val WAIT_ID    = "b010".U
@@ -120,7 +125,7 @@ object ReadState {
 }
 
 class ReadCtlTableEntry(implicit p: Parameters) extends DSUBundle with HasFromIDBits {
-    val state = UInt(ReadState.width.W)
+    val state = UInt(RCState.width.W)
     val txnid = UInt(8.W)
     val addr = UInt(addressBits.W)
 }

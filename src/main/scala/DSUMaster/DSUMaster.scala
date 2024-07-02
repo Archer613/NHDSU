@@ -72,7 +72,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   readCtl.io.mpTask <> rReq
   readCtl.io.mpResp <> io.mpResp
   readCtl.io.dbWReq <> io.dbSigs.wReq
-  readCtl.io.dbResp <> io.dbSigs.wResp
+  readCtl.io.dbWResp <> io.dbSigs.wResp
 
 
   // req sel by io.mpTask.bits.isWB
