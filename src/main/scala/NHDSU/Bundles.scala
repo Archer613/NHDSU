@@ -125,6 +125,7 @@ object RCState { // Read Ctl State
 }
 
 class ReadCtlTableEntry(implicit p: Parameters) extends DSUBundle with HasFromIDBits {
+    val opcode = UInt(5.W)
     val state = UInt(RCState.width.W)
     val txnid = UInt(8.W)
     val addr = UInt(addressBits.W)

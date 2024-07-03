@@ -13,7 +13,7 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
       val dbidCHI = Input(UInt(12.W))
       val dbidSlice = Input(UInt(reqBufIdBits.W))
     }))
-    val txState = Input(new LinkState())
+    val txState = Input(UInt(LinkStates.width.W))
     val dbRCReq  = Decoupled(new DBRCReq())
     val dataFDB = Flipped(Decoupled(new DBOutData()))
   })

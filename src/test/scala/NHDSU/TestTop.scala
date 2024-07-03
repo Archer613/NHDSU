@@ -144,19 +144,18 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     }
 
     val dsu = Module(new NHDSU())
-    // TODO: Connect IO_SN <-> ARM_SN
-//    val io = IO(new Bundle {
-//      val snChi = Vec(dsu.dsuparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
-//      val snChiLinkCtrl = Vec(dsu.dsuparam.nrBank, new CHILinkCtrlIO())
-//    })
-//    dsu.io.snChi <> io.snChi
-//    dsu.io.snChiLinkCtrl <> io.snChiLinkCtrl
-      dsu.io.snChi <> DontCare
-      dsu.io.snChiLinkCtrl <> DontCare
+// ----------------------------- Connect IO_SN <-> ARM_SN -------------------------- //
+    val io = IO(new Bundle {
+      val snChi = Vec(dsu.dsuparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
+      val snChiLinkCtrl = Vec(dsu.dsuparam.nrBank, new CHILinkCtrlIO())
+    })
+    dsu.io.snChi <> io.snChi
+    dsu.io.snChiLinkCtrl <> io.snChiLinkCtrl
 
     dontTouch(dsu.io)
     dontTouch(l2_nodes(0).module.io_chi)
 
+// ----------------------------- Connect L2_RN <-> DSU_RN -------------------------- //
     // chil2 tansfer to nhdsu
     val l2Chi                               = l2_nodes(0).module.io_chi
     // linkCtrl
@@ -196,7 +195,7 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     txreq.snpAttr                           := l2Chi.tx.req.flit.snpAttr.asUInt
     txreq.traceTag                          := DontCare
     txreq.rsvdc                             := DontCare
-//    txreq.cah := l2Chi.tx.req.flit
+    // txreq.cah := l2Chi.tx.req.flit
     // txreq.excl         := l2Chi.tx.req.flit
     // txreq.snoopMe      := l2Chi.tx.req.flit
     txreq.expCompAck                        := l2Chi.tx.req.flit.expCompAck

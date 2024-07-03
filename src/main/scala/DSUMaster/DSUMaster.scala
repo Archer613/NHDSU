@@ -35,15 +35,28 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   val wbReq = WireInit(0.U.asTypeOf(Decoupled(new TaskBundle())))
   val rReq = WireInit(0.U.asTypeOf(Decoupled(new TaskBundle())))
 
+  val txReqWb = WireInit(0.U.asTypeOf((Decoupled(new DsuChiTxReqBundle()))))
+
   dontTouch(wbReq)
   dontTouch(rReq)
 
 // --------------------- Connection ------------------------//
   /*
+   * Convert wbReq to txReqWb
+   */
+  txReqWb.valid := wbReq.valid
+  txReqWb.bits.opcode := wbReq.bits.opcode
+  txReqWb.bits.addr := wbReq.bits.addr
+  txReqWb.bits.txnid := DontCare
+  wbReq.ready := txReqWb.ready
+
+
+  /*
    * connect io.chi <-> chiXXX <-> dataBuffer/readCtl
    */
   chiCtrl.io.chiLinkCtrl <> io.chiLinkCtrl
   chiCtrl.io.rxAllLcrdRetrun := rxDat.io.allLcrdRetrun & rxRsp.io.allLcrdRetrun
+  chiCtrl.io.readCtlFsmVal := readCtl.io.readCtlFsmVal
 
   rxDat.io.chi <> io.chi.rxdat
   rxDat.io.rxState := chiCtrl.io.rxState
@@ -62,11 +75,11 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
 
   txReq.io.chi <> io.chi.txreq
   txReq.io.txState := chiCtrl.io.txState
-  // txReq.io.task: priority is wbReq
-  txReq.io.task.valid := wbReq.valid | readCtl.io.rReq.valid
-  txReq.io.task.bits := Mux(wbReq.valid, wbReq.bits, readCtl.io.rReq.bits)
-  wbReq.ready := txReq.io.task.ready
-  readCtl.io.rReq.ready := txReq.io.task.ready & !wbReq.valid
+  // txReq.io.task: priority is txReqWb
+  txReq.io.task.valid := txReqWb.valid | readCtl.io.txReqRead.valid
+  txReq.io.task.bits := Mux(txReqWb.valid, txReqWb.bits, readCtl.io.txReqRead.bits)
+  txReqWb.ready := txReq.io.task.ready
+  readCtl.io.txReqRead.ready := txReq.io.task.ready & !txReqWb.valid
 
   // readCtl
   readCtl.io.mpTask <> rReq

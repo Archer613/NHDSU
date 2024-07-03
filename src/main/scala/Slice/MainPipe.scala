@@ -137,14 +137,12 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(TYPE_READ) { needReq := !self_s3.hit & !client_s3.hitVec.asUInt.orR } // Not hit in all cache
   }
   // bits
-  taskReq_s3.opcode   := CHIOp.REQ.ReadNoSnp
+  taskReq_s3.opcode   := task_s3_g.bits.opcode
   taskReq_s3.addr     := task_s3_g.bits.addr
   taskReq_s3.isR      := true.B
   taskReq_s3.isWB     := false.B
   taskReq_s3.from     := task_s3_g.bits.from
-  taskReq_s3.to.idL0  := IdL0.MASTER
-  taskReq_s3.to.idL1  := DontCare
-  taskReq_s3.to.idL2  := DontCare
+  taskReq_s3.to       := DontCare
   // io
   io.msTask.valid     := needReq
   io.msTask.bits      := taskReq_s3

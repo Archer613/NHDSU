@@ -9,7 +9,7 @@ import org.chipsalliance.cde.config._
 class DsuChiRxDat()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val chi = Flipped(CHIChannelIO(new CHIBundleDAT(chiBundleParams)))
-    val rxState = Input(new LinkState())
+    val rxState = Input(UInt(LinkStates.width.W))
     val allLcrdRetrun = Output(Bool()) // Deactive Done
     val resp = ValidIO(new CHIBundleDAT(chiBundleParams))
     val dataTDB = Decoupled(new DBInData())

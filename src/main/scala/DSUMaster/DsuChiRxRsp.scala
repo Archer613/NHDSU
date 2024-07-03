@@ -9,7 +9,7 @@ import org.chipsalliance.cde.config._
 class DsuChiRxRsp()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val chi = Flipped(CHIChannelIO(new CHIBundleRSP(chiBundleParams)))
-    val rxState = Input(new LinkState())
+    val rxState = Input(UInt(LinkStates.width.W))
     val allLcrdRetrun = Output(Bool()) // Deactive Done
     val resp = ValidIO(new CHIBundleRSP(chiBundleParams))
     val dbidResp = ValidIO(new Bundle {
