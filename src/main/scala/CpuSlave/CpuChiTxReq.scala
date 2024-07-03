@@ -17,7 +17,7 @@ class CpuChiTxReq()(implicit p: Parameters) extends DSUModule {
 // --------------------- Modules declaration --------------------- //
   val queue = Module(new Queue(new CHIBundleREQ(chiBundleParams), entries = dsuparam.nrRnTxLcrdMax, pipe = true, flow = false, hasFlush = false))
 
-// --------------------- Wire declaration ------------------------ //
+// ------------------- Reg/Wire declaration ---------------------- //
   val lcrdSendNumReg = RegInit(0.U(rnTxlcrdBits.W))
   val lcrdFreeNum = Wire(UInt(rnTxlcrdBits.W))
   val lcrdv = WireInit(false.B)

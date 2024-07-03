@@ -7,6 +7,13 @@ import org.chipsalliance.cde.config._
 
 case object DSUParamKey extends Field[DSUParam](DSUParam())
 
+case class IDMap
+(
+    RNID: Seq[Int] = Seq(0),
+    HNID: Int = 0,
+    SNID: Int = 0
+)
+
 case class DSUParam(
                     // base num
                     nrCore: Int = 1,
@@ -33,12 +40,17 @@ case class DSUParam(
                     // chi
                     // can receive or send chi lcrd num
                     nrRnTxLcrdMax: Int = 4,
-                    nrRnRxLcrdMax: Int = 4
+                    nrRnRxLcrdMax: Int = 4,
+                    nrSnTxLcrdMax: Int = 4,
+                    nrSnRxLcrdMax: Int = 4,
+                    // CHI ID Map
+                    idmap: IDMap = new IDMap()
                   ) {
     require(nrCore > 0)
     require(nrBank == 1 | nrBank == 2 | nrBank == 4)
     require(nrRnTxLcrdMax <= 15)
     require(nrRnRxLcrdMax <= 15)
+    require(log2Ceil(nrReqBuf) <= 8-1) // txnID width -1, retain the highest bit
     require(replacementPolicy == "random" || replacementPolicy == "plru" || replacementPolicy == "lru")
 }
 
@@ -60,6 +72,8 @@ trait HasDSUParam {
     // CHI
     val rnTxlcrdBits    = log2Ceil(dsuparam.nrRnTxLcrdMax) + 1
     val rnRxlcrdBits    = log2Ceil(dsuparam.nrRnRxLcrdMax) + 1
+    val snTxlcrdBits    = log2Ceil(dsuparam.nrSnTxLcrdMax) + 1
+    val snRxlcrdBits    = log2Ceil(dsuparam.nrSnRxLcrdMax) + 1
     // DIR BASE
     val bankBits        = log2Ceil(dsuparam.nrBank)
     val offsetBits      = log2Ceil(dsuparam.blockBytes)
@@ -86,6 +100,8 @@ trait HasDSUParam {
     // ReadCtl
     val nrReadCtlEntry  = 8
     val rcEntryBits     = log2Ceil(nrReadCtlEntry)
+    // TXNID Width
+    val txnidBits       = 8
 
     require(nrBlockSets <= dsuparam.sets)
 

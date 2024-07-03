@@ -1,9 +1,9 @@
 package NHDSU.DSUMASTER
 
 import NHDSU._
-import NHDSU.CHI._
+import _root_.NHDSU.CHI._
 import chisel3._
-import chisel3.util.Decoupled
+import chisel3.util.{Cat, Decoupled, is, log2Ceil, switch}
 import org.chipsalliance.cde.config._
 
 class DsuChiTxReqBundle(implicit p: Parameters) extends DSUBundle {
@@ -24,6 +24,69 @@ class DsuChiTxReq()(implicit p: Parameters) extends DSUModule {
   io.chi := DontCare
   io.task := DontCare
   dontTouch(io)
+
+// ------------------- Reg/Wire declaration ---------------------- //
+  val lcrdFreeNumReg  = RegInit(0.U(snTxlcrdBits.W))
+  val filtReg         = RegInit(0.U.asTypeOf(new CHIBundleREQ(chiBundleParams)))
+  val filtvReg        = RegInit(false.B)
+  val flit            = WireInit(0.U.asTypeOf(new CHIBundleREQ(chiBundleParams)))
+  val flitv           = WireInit(false.B)
+
+
+
+// ------------------------- Logic ------------------------------- //
+  /*
+   * task to TXREQFLIT
+   * Read* txnID:       0XXX_XXXX, X = dbid
+   * WriteBack* txnID:  1XXX_XXXX, X = wbid
+   */
+  flit.tgtID      := dsuparam.idmap.SNID.U
+  flit.srcID      := dsuparam.idmap.HNID.U
+  flit.txnID      := io.task.bits.txnid
+  flit.opcode     := io.task.bits.opcode
+  flit.size       := log2Ceil(dsuparam.blockBytes).U
+  flit.addr       := io.task.bits.addr
+  flit.order      := 0.U
+  flit.lpID       := 0.U //  Logical Processor Identifier
+  flit.expCompAck := false.B
+  flitv           := io.task.fire
+
+  /*
+   * set reg value
+   */
+  filtvReg := flitv
+  filtReg := Mux(flitv, flit, filtReg)
+
+
+  /*
+   * FSM: count free lcrd and set task ready value
+   */
+  switch(io.txState) {
+    is(LinkStates.STOP) {
+      // Nothing to do
+      io.task.ready := false.B
+    }
+    is(LinkStates.ACTIVATE) {
+      lcrdFreeNumReg := lcrdFreeNumReg + io.chi.lcrdv.asUInt
+      io.task.ready := false.B
+    }
+    is(LinkStates.RUN) {
+      lcrdFreeNumReg := lcrdFreeNumReg + io.chi.lcrdv.asUInt - flitv
+      io.task.ready := lcrdFreeNumReg > 0.U
+    }
+    is(LinkStates.DEACTIVATE) {
+      // TODO: should consider io.chi.flit.bits.opcode
+      io.task.ready := false.B
+    }
+  }
+
+  /*
+   * Output chi flit
+   */
+  io.chi.flitpend := flitv
+  io.chi.flitv := filtvReg
+  io.chi.flit := filtReg
+
 
 
 }
