@@ -108,7 +108,7 @@ trait HasDSUParam {
     val chiBundleParams = CHIBundleParameters(
         nodeIdBits = 7,
         addressBits = addressBits,
-        dataBits = dataBits,
+        dataBits = beatBits,
         dataCheck = false
     )
 
