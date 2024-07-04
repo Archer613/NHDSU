@@ -20,17 +20,13 @@ class DsuChiTxReq()(implicit p: Parameters) extends DSUModule {
     val task = Flipped(Decoupled(new DsuChiTxReqBundle()))
   })
 
-  // TODO: Delete the following code when the coding is complete
-  io.chi := DontCare
-  io.task := DontCare
-  dontTouch(io)
-
 // ------------------- Reg/Wire declaration ---------------------- //
   val lcrdFreeNumReg  = RegInit(0.U(snTxlcrdBits.W))
   val filtReg         = RegInit(0.U.asTypeOf(new CHIBundleREQ(chiBundleParams)))
   val filtvReg        = RegInit(false.B)
   val flit            = WireInit(0.U.asTypeOf(new CHIBundleREQ(chiBundleParams)))
   val flitv           = WireInit(false.B)
+  val taskReady       = WireInit(false.B)
 
 
 
@@ -64,21 +60,19 @@ class DsuChiTxReq()(implicit p: Parameters) extends DSUModule {
   switch(io.txState) {
     is(LinkStates.STOP) {
       // Nothing to do
-      io.task.ready := false.B
     }
     is(LinkStates.ACTIVATE) {
       lcrdFreeNumReg := lcrdFreeNumReg + io.chi.lcrdv.asUInt
-      io.task.ready := false.B
     }
     is(LinkStates.RUN) {
       lcrdFreeNumReg := lcrdFreeNumReg + io.chi.lcrdv.asUInt - flitv
-      io.task.ready := lcrdFreeNumReg > 0.U
+      taskReady:= lcrdFreeNumReg > 0.U
     }
     is(LinkStates.DEACTIVATE) {
-      // TODO: should consider io.chi.flit.bits.opcode
-      io.task.ready := false.B
+      // TODO: return lcrd logic
     }
   }
+  io.task.ready := taskReady
 
   /*
    * Output chi flit
