@@ -31,13 +31,19 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
 
 
 // --------------------- Reg/Wire declaration ------------------------ //
+  // base
   val dataBuffer  = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U.asTypeOf(new DBEntry()) }))
   val dbFreeVec   = Wire(Vec(3, Vec(dsuparam.nrDataBufferEntry, Bool())))
   val dbFreeNum   = WireInit(0.U((dbIdBits+1).W))
   val dbAllocId   = Wire(Vec(3, UInt(dbIdBits.W)))
   val canAllocVec = Wire(Vec(3, Bool()))
+  // wReq
   val wReqVec     = Seq(io.ms2db.wReq, io.ds2db.wReq, io.cpu2db.wReq)
   val wRespVec    = Seq(io.ms2db.wResp, io.ds2db.wResp, if(bankOver1) cpuWRespQ.get.io.enq else io.cpu2db.wResp)
+  // dataTDB
+  val dataTDBVec  = Seq(io.ms2db.dataTDB, io.ds2db.dataTDB, io.cpu2db.dataTDB)
+
+  dontTouch(dataBuffer)
 
 // ----------------------------- Logic ------------------------------ //
   /*
@@ -73,6 +79,21 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
 
 
   /*
+   * receive Data from dataTDB and save data in dataBuffer
+   * ready be true forever
+   * TODO: consider dataWitdth = 512 bits
+   */
+  dataTDBVec.foreach {
+    case t =>
+      t.ready := true.B
+      when(t.valid) {
+        dataBuffer(t.bits.to.idL2).beatVals(t.bits.beatNum) := true.B
+        dataBuffer(t.bits.to.idL2).beats(t.bits.beatNum) := t.bits.data
+      }
+  }
+
+
+  /*
   * set dataBuffer state
   */
   dataBuffer.zipWithIndex.foreach {
@@ -81,6 +102,15 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
         is(DBState.FREE) {
           val hit = dbAllocId.zip(wReqVec.map(_.fire)).map(a => a._1 === i.U & a._2).reduce(_ | _)
           db.state := Mux(hit, DBState.ALLOC, DBState.FREE)
+        }
+        is(DBState.ALLOC) {
+          val hit = dataTDBVec.map( t => t.valid & t.bits.to.idL2 === i.U).reduce(_ | _)
+          db.state := Mux(hit, DBState.WRITTING, DBState.ALLOC)
+        }
+        is(DBState.WRITTING) {
+          val hit = dataTDBVec.map(t => t.valid & t.bits.to.idL2 === i.U).reduce(_ | _)
+          val writeDone = PopCount(db.beatVals) + 1.U === nrBeat.U
+          db.state := Mux(hit & writeDone, DBState.WRITE_DONE, DBState.WRITTING)
         }
       }
   }

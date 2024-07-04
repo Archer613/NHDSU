@@ -35,6 +35,7 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     // value in use
     val opcode      = UInt(5.W)
     val addr        = UInt(addressBits.W)
+    val dbid        = UInt(dbIdBits.W)
     val isR         = Bool()
     val isWB        = Bool() // write back
     val isClean     = Bool()
@@ -58,15 +59,15 @@ object DBState {
     val width       = 3
     val FREE        = "b000".U
     val ALLOC       = "b001".U
-    val WRITE_B0    = "b010".U // Has been written beat 0
-    val WRITE_B1    = "b011".U // Has been written beat 1
-    val READ_B0     = "b100".U // Has been read beat 0
-    val READ_B1     = "b101".U // Has been read beat 1
+    val WRITTING    = "b010".U // Has been written some beats
+    val WRITE_DONE  = "b011".U // Has been written all beats
+    val READING     = "b100".U // Has been read some beat
+    val READ_DONE   = "b101".U // Has been read all beat
 }
 class DBEntry(implicit p: Parameters) extends DSUBundle {
-    val state = UInt(DBState.width.W)
-    val beat0 = UInt(beatBits.W)
-    val beat1 = UInt(beatBits.W)
+    val state       = UInt(DBState.width.W)
+    val beatVals    = Vec(nrBeat, Bool())
+    val beats       = Vec(nrBeat, UInt(beatBits.W))
 }
 trait HasDBRCOp extends DSUBundle { this: Bundle =>
     val isRead = Bool()
@@ -78,9 +79,21 @@ class DBWReq(implicit p: Parameters) extends DSUBundle with HasIDBits           
 class DBWResp(implicit p: Parameters) extends DSUBundle with HasIDBits                      // DataBuffer Write Resp
 class DBOutData(beat: Int = 1)(implicit p: Parameters) extends DSUBundle with HasToIDBits {
     val data = UInt((beatBits*beat).W)
+    val dataID = UInt(2.W)
+    def beatNum: UInt = {
+        if (dataBits / beatBits*beat == 1) { 0.U }
+        else if(dataBits / beatBits*beat == 2) { OHToUInt(dataID) }
+        else { dataID }
+    }
 }
 class DBInData(beat: Int = 1)(implicit p: Parameters) extends DSUBundle with HasToIDBits {
     val data = UInt((beatBits*beat).W)
+    val dataID = UInt(2.W)
+    def beatNum: UInt = {
+        if (dataBits / beatBits * beat == 1) { 0.U }
+        else if (dataBits / beatBits * beat == 2) { OHToUInt(dataID) }
+        else { dataID }
+    }
 }
 class DBBundle(beat: Int = 1)(implicit p: Parameters) extends DSUBundle {
     val rcReq       = Decoupled(new DBRCReq())
@@ -116,19 +129,21 @@ class BlockTableEntry(implicit p: Parameters) extends DSUBundle {
 // -------------------- ReadCtl Bundle ------------------ //
 object RCState { // Read Ctl State
     val width      = 3
-    val nrState    = 5
+    val nrState    = 6
     val FREE       = "b000".U
     val GET_ID     = "b001".U
     val WAIT_ID    = "b010".U
     val SEND_REQ   = "b011".U
     val WAIT_RESP  = "b100".U
+    val SEND_RESP  = "b101".U
 }
 
 class ReadCtlTableEntry(implicit p: Parameters) extends DSUBundle with HasFromIDBits {
-    val opcode = UInt(5.W)
-    val state = UInt(RCState.width.W)
-    val txnid = UInt(8.W)
-    val addr = UInt(addressBits.W)
+    val opcode  = UInt(5.W)
+    val state   = UInt(RCState.width.W)
+    val txnid   = UInt(8.W)
+    val addr    = UInt(addressBits.W)
+    val btWay   = UInt(blockWayBits.W) // block table
 }
 
 

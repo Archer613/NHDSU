@@ -249,6 +249,14 @@ class CHIStateBundle extends Bundle with HasChiStates
 object CHIChannel {
     val width = 3
 
+    /*
+     *  TXREQ   TXRSP   TXDAT
+     * -----------------------
+     * |        DSU          |
+     * -----------------------
+     *  RXSNP   RXRSP   RXDAR
+     */
+
     def TXREQ = "b001".U(width.W)
     def TXRSP = "b010".U(width.W)
     def TXDAT = "b011".U(width.W)
