@@ -110,7 +110,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   /*
    * Determine task_s3 is [ taskRead_s3 / taskWrite_s3 / taskResp_s3 ]
    */
-  taskTypeVec(0) := task_s3_g.valid & task_s3_g.bits.isR & dirRes_s3.valid // Default taskRead_s3 needs to read directory
+  taskTypeVec(0) := task_s3_g.valid & task_s3_g.bits.isR & dirRes_s3.valid & task_s3_g.bits.isTxReq // Default taskRead_s3 needs to read directory
   taskTypeVec(1) := false.B // TODO
   taskTypeVec(2) := false.B // TODO
 
