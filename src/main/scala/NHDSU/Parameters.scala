@@ -50,7 +50,6 @@ case class DSUParam(
     require(nrBank == 1 | nrBank == 2 | nrBank == 4)
     require(nrRnTxLcrdMax <= 15)
     require(nrRnRxLcrdMax <= 15)
-    require(log2Ceil(nrReqBuf) <= 8-1) // txnID width -1, retain the highest bit
     require(replacementPolicy == "random" || replacementPolicy == "plru" || replacementPolicy == "lru")
 }
 
@@ -104,6 +103,8 @@ trait HasDSUParam {
     val txnidBits       = 8
 
     require(nrBlockSets <= dsuparam.sets)
+    require(nrReadCtlEntry <= dsuparam.nrDataBufferEntry, "The maximum number of ReadCtl deal req logic is equal to nrDataBufferEntry")
+    require(log2Ceil(dsuparam.nrReqBuf) <= txnidBits-1) // txnID width -1, retain the highest bit
 
     val chiBundleParams = CHIBundleParameters(
         nodeIdBits = 7,
