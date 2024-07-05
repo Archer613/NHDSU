@@ -12,10 +12,10 @@ class Slice()(implicit p: Parameters) extends DSUModule {
     val valid         = Output(Bool())
     // snpCtrl <-> cpuslave
     val snpTask       = Decoupled(new TaskBundle())
-    val snpResp       = Flipped(ValidIO(new TaskRespBundle()))
+    val snpResp       = Flipped(ValidIO(new RespBundle()))
     // mainpipe <-> cpuslave
     val cpuTask       = Flipped(Decoupled(new TaskBundle()))
-    val cpuResp       = Decoupled(new TaskRespBundle())
+    val cpuResp       = Decoupled(new RespBundle())
     // dataBuffer <-> CPUSLAVE
     val dbSigs2Cpu    = Flipped(new DBBundle())
     // dataBuffer <-> DSUMASTER
@@ -36,7 +36,7 @@ class Slice()(implicit p: Parameters) extends DSUModule {
   val reqArb = Module(new RequestArbiter())
   val snpCtl = Module(new SnoopCtlWrapper())
   val mpReqQueue = Module(new Queue(gen = new TaskBundle(), entries = mpReqQDepth, pipe = true, flow = true))
-  val mpRespQueue = Module(new Queue(gen = new TaskRespBundle(),entries = mpRespQDepth, pipe = true, flow = true))
+  val mpRespQueue = Module(new Queue(gen = new RespBundle(),entries = mpRespQDepth, pipe = true, flow = true))
 
   dontTouch(dataBuffer.io)
   dontTouch(dataStorage.io)

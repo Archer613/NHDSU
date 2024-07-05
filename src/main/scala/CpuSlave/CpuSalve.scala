@@ -14,13 +14,13 @@ class ReqBufSelector(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle() {
     val idle = Input(Vec(dsuparam.nrReqBuf, Bool()))
     val idleNum = Output(UInt((reqBufIdBits+1).W))
-    val out0 = UInt(dsuparam.nrReqBuf.W)
-    val out1 = UInt(dsuparam.nrReqBuf.W)
+    val out0 = UInt(reqBufIdBits.W)
+    val out1 = UInt(reqBufIdBits.W)
   })
-  io.idleNum := PopCount(io.idle.asUInt)
+  io.idleNum := PopCount(io.idle)
   io.out0 := PriorityEncoder(io.idle)
   val idle1 = WireInit(io.idle)
-  idle1(io.out0.asUInt) := false.B
+  idle1(io.out0) := false.B
   io.out1 := PriorityEncoder(idle1)
 }
 
@@ -35,10 +35,10 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
     val chiLinkCtrl   = Flipped(new CHILinkCtrlIO())
     // snpCtrl
     val snpTask       = Flipped(Decoupled(new TaskBundle()))
-    val snpResp       = Decoupled(new TaskRespBundle())
+    val snpResp       = Decoupled(new RespBundle())
     // mainpipe
     val mpTask        = Decoupled(new TaskBundle())
-    val mpResp        = Flipped(ValidIO(new TaskRespBundle()))
+    val mpResp        = Flipped(ValidIO(new RespBundle()))
     // dataBuffer
     val dbSigs        = new DBBundle()
   })

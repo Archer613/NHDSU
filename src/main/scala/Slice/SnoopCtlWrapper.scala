@@ -10,7 +10,7 @@ class SnoopCtlWrapper()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     // snpCtrl <-> cpuslave
     val snpTask       = Decoupled(new TaskBundle())
-    val snpResp       = Flipped(ValidIO(new TaskRespBundle()))
+    val snpResp       = Flipped(ValidIO(new RespBundle()))
     // mainpipe <-> snpCtrl
     val mpTask        = Flipped(Decoupled(new TaskBundle()))
     val mpResp        = Decoupled(new TaskBundle())

@@ -190,7 +190,7 @@ object CHIOp {
     }
   }
 
-  object DATOpcodes {
+  object DAT {
     val width = 3
 
     def DataLCrdReturn    = 0x0.U(width.W)

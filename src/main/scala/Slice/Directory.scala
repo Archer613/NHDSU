@@ -186,6 +186,7 @@ val io = IO(new Bundle {
 
   /*
    * connect selfDirs/clientDirs.io.dirResp <-> io.dirResp
+   * TODO: selfDir and clientDir can be read independent
    */
   // self
   sdRespValVec := selfDirs.map(_.io.dirResp.valid)

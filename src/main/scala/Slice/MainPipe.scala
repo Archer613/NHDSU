@@ -21,7 +21,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     // Task to snpCtrl
     val snpTask     = Decoupled(new TaskBundle())
     // Resp to CpuSlave
-    val cpuResp     = Decoupled(new TaskRespBundle())
+    val cpuResp     = Decoupled(new RespBundle())
     // Task to Master
     val msTask      = Decoupled(new TaskBundle())
     // Req to dataBuffer
@@ -56,10 +56,11 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val task_s3_g = RegInit(0.U.asTypeOf(Valid(new TaskBundle())))
   val dirRes_s3 = WireInit(0.U.asTypeOf(Valid(new DirResp())))
   // s3 can deal tasks
-  val TYPE_READ = "b001".U
-  val TYPE_WRITE = "b010".U
-  val TYPE_RESP = "b100".U
-  val taskTypeVec = Wire(Vec(3, Bool()))
+  val TYPE_READ   = "b0001".U
+  val TYPE_WRITE  = "b0010".U
+  val TYPE_SRESP  = "b0100".U // Snp Resp
+  val TYPE_RRESP  = "b1000".U // Read Resp
+  val taskTypeVec = Wire(Vec(4, Bool()))
   // s3 need to do signals
   val needSnoop = WireInit(false.B)
   val needReadDS = WireInit(false.B)
@@ -71,6 +72,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val client_s3 = dirRes_s3.bits.client
   // s3 task signals
   val taskReq_s3 = WireInit(0.U.asTypeOf(new TaskBundle()))
+  val taskResp_s3 = WireInit(0.U.asTypeOf(new RespBundle()))
 
 
   dontTouch(task_s3_g)
@@ -108,16 +110,22 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
 
 
   /*
-   * Determine task_s3 is [ taskRead_s3 / taskWrite_s3 / taskResp_s3 ]
+   * Determine task_s3 is [ taskRead_s3 / taskWrite_s3 / taskRespMs_s3 / taskRespSnp_s3 ]
    */
   taskTypeVec(0) := task_s3_g.valid & task_s3_g.bits.isR & dirRes_s3.valid & task_s3_g.bits.isTxReq // Default taskRead_s3 needs to read directory
   taskTypeVec(1) := false.B // TODO
-  taskTypeVec(2) := false.B // TODO
-
+  taskTypeVec(2) := task_s3_g.valid & task_s3_g.bits.from.idL0 === IdL0.MASTER & Mux(task_s3_g.bits.readDir, dirRes_s3.valid, true.B)
+  taskTypeVec(3) := false.B // TODO
 
   /*
    * Write or Read DS logic
    */
+
+
+  /*
+   * Write Directory
+   */
+
 
 
   /*
@@ -128,6 +136,15 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   /*
    * Output to resp logic
    */
+  switch(taskTypeVec.asUInt) {
+    // TODO: TYPE_READ
+    // TODO: TYPE_WRITE
+    is(TYPE_RRESP) { needResp := true.B }
+    // TODO: TYPE_SRESP
+  }
+  // taskResp_s3.addr := task_s3_g.bits.addr
+  // taskResp_s3.opcode := CHIOp.DAT.CompData
+  // taskResp_s3.resp :=
 
 
   /*
@@ -135,6 +152,9 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
    */
   switch(taskTypeVec.asUInt) {
     is(TYPE_READ) { needReq := !self_s3.hit & !client_s3.hitVec.asUInt.orR } // Not hit in all cache
+    // TODO: TYPE_WRITE
+    is(TYPE_RRESP) { needReq := false.B } // TODO: consider need to replace
+    // TODO: TYPE_SRESP
   }
   // bits
   taskReq_s3.opcode   := task_s3_g.bits.opcode

@@ -7,7 +7,7 @@ import chisel3.util.{Cat, Decoupled, is, log2Ceil, switch}
 import org.chipsalliance.cde.config._
 
 class DsuChiTxReqBundle(implicit p: Parameters) extends DSUBundle {
-  // TODO: TaskRespBundle
+  // TODO: RespBundle
   val opcode      = UInt(5.W)
   val addr        = UInt(addressBits.W)
   val txnid       = UInt(8.W)

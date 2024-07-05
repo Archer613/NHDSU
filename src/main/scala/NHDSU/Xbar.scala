@@ -69,8 +69,8 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
             val out = Vec(dsuparam.nrCore, Decoupled(new TaskBundle()))
         }
         val snpResp = new Bundle {
-            val in = Vec(dsuparam.nrCore, Flipped(Decoupled(new TaskRespBundle())))
-            val out = Vec(dsuparam.nrBank, ValidIO(new TaskRespBundle()))
+            val in = Vec(dsuparam.nrCore, Flipped(Decoupled(new RespBundle())))
+            val out = Vec(dsuparam.nrBank, ValidIO(new RespBundle()))
         }
         // mainpipe
         val mpTask = new Bundle {
@@ -78,8 +78,8 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
             val out = Vec(dsuparam.nrBank, Decoupled(new TaskBundle()))
         }
         val mpResp = new Bundle {
-            val in = Vec(dsuparam.nrBank, Flipped(Decoupled(new TaskRespBundle())))
-            val out = Vec(dsuparam.nrCore, ValidIO(new TaskRespBundle()))
+            val in = Vec(dsuparam.nrBank, Flipped(Decoupled(new RespBundle())))
+            val out = Vec(dsuparam.nrCore, ValidIO(new RespBundle()))
         }
         // dataBuffer
         val dbSigs = new Bundle {
@@ -94,9 +94,9 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
     // --------------------- Wire declaration ------------------------//
     val mpTaskRemap     = Wire(Vec(dsuparam.nrCore, Decoupled(new TaskBundle())))
     val mpTaskRedir     = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new TaskBundle()))))
-    val mpRespRedir     = Wire(Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new TaskRespBundle()))))
+    val mpRespRedir     = Wire(Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new RespBundle()))))
     val snpTaskRedir    = Wire(Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new TaskBundle()))))
-    val snpRespRedir    = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new TaskRespBundle()))))
+    val snpRespRedir    = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new RespBundle()))))
     val dbSigsRedir     = Wire(new Bundle {
             val rcReq       = Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new DBRCReq())))
             val wReq        = Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new DBWReq())))

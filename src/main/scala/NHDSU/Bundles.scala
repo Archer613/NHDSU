@@ -47,10 +47,12 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
 }
 
 
-class TaskRespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel{
-    // TODO: TaskRespBundle
+class RespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel{
+    // TODO: RespBundle
     val opcode      = UInt(5.W)
+    val resp        = UInt(3.W)
     val addr        = UInt(addressBits.W)
+    val btWay       = UInt(blockWayBits.W) // block table
 }
 
 
