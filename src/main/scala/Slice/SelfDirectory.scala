@@ -131,8 +131,8 @@ val io = IO(new Bundle {
 
   val tagMatchVec               = metaAll_s3.map(_.tag(sTagBits - 1, 0) === reqRead_s3_reg.tag)
   val bankMatchVec              = metaAll_s3.map(_.bank === reqRead_s3_reg.bank)
-  val metaValidVec              = metaAll_s3.map(_.state(1, 0) =/= ChiState.I(1, 0))
-  val metaInvalidVec            = metaAll_s3.map(_.state(1, 0) === ChiState.I(1, 0))
+  val metaValidVec              = metaAll_s3.map(!_.isInvalid)
+  val metaInvalidVec            = metaAll_s3.map(_.isInvalid)
   val has_invalid_way           = Cat(metaInvalidVec).orR
   val invalid_way               = PriorityMuxDefault(metaInvalidVec.zipWithIndex.map(x => x._1 -> x._2.U(sWayBits.W)), 0.U)
   val hit_tag_bank              = tagMatchVec.zip(bankMatchVec).map(x => x._1 && x._2)

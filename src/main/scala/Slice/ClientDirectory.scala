@@ -133,7 +133,7 @@ val io = IO(new Bundle {
   val hit_tag_bank_vec      = tagMatchVec.zip(bankMatchVec).map(x => x._1 && x._2)
   val hit_tag_bank          = Cat(hit_tag_bank_vec).orR
   val hit_tag_bank_way      = Mux(hit_tag_bank, OHToUInt(hit_tag_bank_vec), 0.U(cWayBits.W))
-  val hitWayState           = stateAll_s3(hit_tag_bank_way).metas.map(_.state(1, 0) =/= ChiState.I(1, 0))
+  val hitWayState           = stateAll_s3(hit_tag_bank_way).metas.map(!_.isInvalid)
 
   /* 
   Replace logic
@@ -142,7 +142,7 @@ val io = IO(new Bundle {
   val useRandomWay          = (dsuparam.replacementPolicy == "random").asBool
   val randomWay             = RegInit(0.U(cWayBits.W))
   randomWay                := Mux(refillReqValid_s2, LFSR(log2Ceil(ways))(cWayBits - 1, 0), 0.U(cWayBits.W))
-  val metaInvalidVec        = stateAll_s3.map(_.metas.map(x => x.state(1, 0) === ChiState.I(1, 0)))
+  val metaInvalidVec        = stateAll_s3.map(_.metas.map(_.isInvalid))
   val has_invalid_way_vec   = metaInvalidVec.map(Cat(_).orR)
   val has_invalid_way       = Cat(has_invalid_way_vec).orR
   val invalid_way           = PriorityMuxDefault(has_invalid_way_vec.zipWithIndex.map(x => x._1 -> x._2.U(cWayBits.W)),0.U)
