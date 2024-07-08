@@ -170,6 +170,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     // TODO: TYPE_SRESP
   }
   // bits
+  taskResp_s3.channel   := respChnl
   taskResp_s3.addr      := task_s3_g.bits.addr
   taskResp_s3.opcode    := respOp
   taskResp_s3.resp      := respResp

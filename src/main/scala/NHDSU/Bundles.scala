@@ -114,9 +114,12 @@ class RBFSMState(implicit p: Parameters) extends Bundle {
     // schedule
     val s_rReq2mp = Bool()
     val s_wReq2mp = Bool()
+    val s_rResp   = Bool()
 
     // wait
     val w_rResp = Bool()
+    val w_data  = Bool()
+    val w_compAck = Bool()
 }
 
 

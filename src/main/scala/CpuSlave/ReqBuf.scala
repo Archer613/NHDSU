@@ -4,7 +4,7 @@ import NHDSU._
 import _root_.NHDSU.CHI._
 import chisel3._
 import org.chipsalliance.cde.config._
-import chisel3.util.{Decoupled, RegEnable, ValidIO}
+import chisel3.util.{Decoupled, RegEnable, ValidIO, log2Ceil}
 
 class ReqBuf()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
@@ -38,34 +38,27 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   io.wResp := DontCare
   dontTouch(io)
 
-  // --------------------- Modules declaration ---------------------//
+// --------------------- Modules declaration ---------------------//
 
 
-  // --------------------- Reg and Wire declaration ------------------------//
+// --------------------- Reg and Wire declaration ------------------------//
   val freeReg         = RegInit(true.B)
   val reqTxnIDReg     = WireInit(0.U.asTypeOf(io.chi.txreq.bits.txnID))
-  val taskReg         = RegInit(0.U.asTypeOf(io.mpTask.bits))
+  val taskReg         = RegInit(0.U.asTypeOf(new TaskBundle()))
+  val respReg         = RegInit(0.U.asTypeOf(new RespBundle()))
   val fsmReg          = RegInit(0.U.asTypeOf(new RBFSMState()))
   val reqValid        = WireInit(false.B)
   val alloc           = WireInit(false.B)
   val release         = WireInit(false.B)
   val task            = WireInit(0.U.asTypeOf(io.mpTask.bits))
+  val getAllData      = WireInit(false.B)
+  val getDataNumReg   = RegInit(0.U(log2Ceil(nrBeat+1).W))
 
-  // --------------------- Logic -----------------------------------//
-  /*
-   * ReqBuf release logic
-   */
-  alloc := !RegNext(reqValid) & reqValid
-  freeReg := Mux(release, true.B, Mux(alloc, false.B, freeReg))
-  io.free := freeReg
-  when(release) {
-    reqTxnIDReg   := 0.U
-    taskReg       := 0.U.asTypeOf(taskReg)
-    fsmReg        := 0.U.asTypeOf(fsmReg)
-  }
+  dontTouch(fsmReg)
 
+// ---------------------------  Receive Req/Resp Logic --------------------------------//
   /*
-   * Req Input
+   * Receive Cpu/Snp Req
    */
   reqValid := io.chi.txreq.valid | io.snpTask.valid
   when(io.chi.txreq.valid) {
@@ -96,18 +89,18 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
 
 
   /*
-   * Alloc and Release state
+   * Receive Cpu Resp
    */
-  when(io.chi.txreq.valid) {
-    fsmReg.s_rReq2mp  := task.isR
-    fsmReg.s_wReq2mp  := task.isWB
-    fsmReg.w_rResp    := true.B
-  }.otherwise {
-    fsmReg.s_rReq2mp := Mux(io.mpTask.fire, false.B, fsmReg.s_rReq2mp)
-    fsmReg.s_wReq2mp := Mux(io.mpTask.fire, false.B, fsmReg.s_wReq2mp)
-    fsmReg.w_rResp := Mux(io.mpResp.fire, false.B, fsmReg.w_rResp)
-  }
+  respReg := Mux(io.mpResp.fire, io.mpResp.bits, respReg)
 
+  /*
+   * Receive and Count Data Valid
+   */
+  getDataNumReg := Mux(release, 0.U, getDataNumReg + io.dbDataValid)
+  getAllData := getDataNumReg === nrBeat.U
+
+
+// ---------------------------  Output Req/Resp Logic --------------------------------//
   /*
    * task or resp output
    */
@@ -115,22 +108,49 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   io.mpTask.bits      := taskReg
 
   /*
-   * io.chi.fire ctrl logic
+   * IO ready ctrl logic
+   * Whether the io.chi.txreq and io.snpTask can be input is determined by io.free in ReqBufSel
    */
-  io.chi.txreq.ready := freeReg
-  io.chi.txdat.ready := true.B
-  io.chi.txrsp.ready := true.B
+  io.snpTask.ready   := true.B // Always be true
+  io.chi.txreq.ready := true.B // Always be true
+  io.chi.txdat.ready := true.B // Always be true
+  io.chi.txrsp.ready := true.B // Always be true
   io.chi.rxdat.valid := false.B // TODO
   io.chi.rxrsp.valid := false.B // TODO
   io.chi.rxsnp.valid := false.B // TODO
 
-  // Whether the io.chi.txreq and io.snpTask can be input is determined by io.free in ReqBufSel
-  // So DontCare the following signals
-  io.chi.txreq.ready := true.B
-  io.snpTask.ready := true.B
+
+// ---------------------------  ReqBuf State release/alloc/set logic --------------------------------//
+  /*
+   * ReqBuf release logic
+   */
+  alloc := !RegNext(reqValid) & reqValid
+  release := !RegNext(release) & fsmReg.asUInt === 0.U // all s_task/w_task done
+  freeReg := Mux(release, true.B, Mux(alloc, false.B, freeReg))
+  io.free := freeReg
 
 
-  // --------------------- Assertion ------------------------------- //
+  /*
+   * Alloc or Set state
+   */
+  when(io.chi.txreq.valid) {
+    fsmReg.s_rReq2mp  := task.isR
+    fsmReg.s_wReq2mp  := task.isWB
+    fsmReg.s_rResp    := true.B
+    fsmReg.w_rResp    := true.B
+    fsmReg.w_data     := false.B
+    fsmReg.w_compAck  := io.chi.txreq.bits.expCompAck
+  }.otherwise {
+    fsmReg.s_rReq2mp  := Mux(io.mpTask.fire, false.B, fsmReg.s_rReq2mp)
+    fsmReg.s_wReq2mp  := Mux(io.mpTask.fire, false.B, fsmReg.s_wReq2mp)
+    fsmReg.s_rResp    := Mux(io.chi.rxrsp.fire | io.chi.rxdat.fire, false.B, fsmReg.s_rResp)
+    fsmReg.w_rResp    := Mux(io.mpResp.fire, false.B, fsmReg.w_rResp)
+    fsmReg.w_data     := Mux(io.mpResp.fire & io.mpResp.bits.isRxDat, true.B, Mux(getAllData, false.B, fsmReg.w_data))
+    fsmReg.w_compAck  := Mux(io.chi.rxrsp.fire & io.chi.rxrsp.bits.opcode === CHIOp.RSP.CompAck, false.B, fsmReg.w_compAck)
+  }
+
+
+// --------------------- Assertion ------------------------------- //
   assert(Mux(!freeReg, !(io.chi.txreq.valid | io.snpTask.valid), true.B), "When ReqBuf valid, it cant input new req")
   assert(Mux(io.chi.txreq.valid | io.snpTask.valid, io.free, true.B), "Reqbuf cant block req input")
   assert(!(io.chi.txreq.valid & io.snpTask.valid), "Reqbuf cant receive txreq and snpTask at the same time")
@@ -138,4 +158,5 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     assert(fsmReg.asUInt === 0.U, "when ReqBuf release, all task should be done")
   }
   assert(!(task.isR & task.isWB), "Cant alloc r and wb task at the same time")
+  assert(Mux(getDataNumReg === nrBeat.U, !io.dbDataValid, true.B), "ReqBuf get data from DataBuf overflow")
 }
