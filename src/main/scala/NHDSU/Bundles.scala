@@ -33,7 +33,7 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     def tgtID       = 0.U(chiBundleParams.nodeIdBits.W)
     def srcID       = 0.U(chiBundleParams.nodeIdBits.W)
     // value in use
-    val opcode      = UInt(5.W)
+    val opcode      = UInt(6.W)
     val addr        = UInt(addressBits.W)
     val dbid        = UInt(dbIdBits.W)
     val isR         = Bool()
@@ -49,7 +49,7 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
 
 class RespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel{
     // TODO: RespBundle
-    val opcode      = UInt(5.W)
+    val opcode      = UInt(6.W)
     val resp        = UInt(3.W)
     val addr        = UInt(addressBits.W)
     val btWay       = UInt(blockWayBits.W) // block table
@@ -141,7 +141,7 @@ object RCState { // Read Ctl State
 }
 
 class ReadCtlTableEntry(implicit p: Parameters) extends DSUBundle with HasFromIDBits {
-    val opcode  = UInt(5.W)
+    val opcode  = UInt(6.W)
     val state   = UInt(RCState.width.W)
     val txnid   = UInt(8.W)
     val addr    = UInt(addressBits.W)
