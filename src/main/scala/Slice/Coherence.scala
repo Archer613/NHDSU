@@ -105,20 +105,20 @@ object Coherence {
     switch(reqOp) {
       is(CHIOp.REQ.ReadNotSharedDirty) {
         switch(rnNS) {
-          is(ChiState.SC) { channel := CHIChannel.TXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.SC }
-          is(ChiState.UC) { channel := CHIChannel.TXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UC }
-          is(ChiState.UD) { channel := CHIChannel.TXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UD_PD }
+          is(ChiState.SC) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.SC }
+          is(ChiState.UC) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UC }
+          is(ChiState.UD) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UD_PD }
         }
       }
       is(CHIOp.REQ.ReadUnique) {
         switch(rnNS) {
-          is(ChiState.UC) { channel := CHIChannel.TXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UC }
-          is(ChiState.UD) { channel := CHIChannel.TXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UD_PD }
+          is(ChiState.UC) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UC }
+          is(ChiState.UD) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UD_PD }
         }
       }
       is(CHIOp.REQ.MakeUnique) {
         switch(rnNS) {
-          is(ChiState.UC) { channel := CHIChannel.TXRSP; op := CHIOp.RSP.Comp; resp := ChiResp.UC }
+          is(ChiState.UC) { channel := CHIChannel.RXRSP; op := CHIOp.RSP.Comp; resp := ChiResp.UC }
         }
       }
     }
