@@ -156,7 +156,6 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
   io.mpResp.bits.readDir    := true.B
   io.mpResp.bits.wirteSDir  := false.B
   io.mpResp.bits.wirteCDir  := true.B
-  io.mpResp.bits.wirteDS    := true.B
   io.mpResp.bits.btWay      := fsmSel.btWay
 
   /*

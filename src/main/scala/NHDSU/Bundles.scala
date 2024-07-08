@@ -42,7 +42,6 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     val readDir     = Bool()
     val wirteSDir   = Bool()
     val wirteCDir   = Bool()
-    val wirteDS     = Bool()
     val btWay       = UInt(blockWayBits.W) // block table
 }
 
