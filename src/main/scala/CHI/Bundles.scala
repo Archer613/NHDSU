@@ -216,6 +216,7 @@ object ChiResp {
     def UC = "b010".U(width.W)
     def UD = "b010".U(width.W)
     def SD = "b011".U(width.W)
+    def ERROR = "b100".U(width.W)
 
     def PassDirty = "b100".U(width.W)
 
@@ -241,6 +242,7 @@ trait HasChiResp { this: Bundle =>
     def isUnique = state(baseWidth, 0) === ChiResp.UC(baseWidth, 0) | state(baseWidth, 0) === ChiResp.UD(baseWidth, 0)
     def isClean = state(baseWidth, 0) === ChiResp.SC(baseWidth, 0) | state(baseWidth, 0) === ChiResp.UC(baseWidth, 0)
     def isDirty = state(baseWidth, 0) === ChiResp.UD(baseWidth, 0) | state(baseWidth, 0) === ChiResp.SD(baseWidth, 0)
+    def isError: Bool = state === ChiResp.ERROR
     def passDirty = state(ChiResp.width-1)
 }
 
@@ -255,6 +257,7 @@ object ChiState {
     def UC = "b101".U(width.W)
     def SD = "b011".U(width.W)
     def UD = "b111".U(width.W)
+    def ERROR = "b110".U(width.W)
 }
 
 trait HasChiStates { this: Bundle =>
@@ -270,11 +273,12 @@ trait HasChiStates { this: Bundle =>
      * RN(isClean)   -> HN(isInvalid / isClean)
      * RN(isDirty)   -> HN(isInvalid / isDirty)
      */
-    def isInvalid   = state === ChiState.I
+    def isInvalid   = state(0) === ChiState.I(0)
     def isisShared  = state(ChiState.width-1) === 0.U & !isInvalid
     def isUnique    = state(ChiState.width-1) === 1.U & !isInvalid
     def isClean     = state(ChiState.width-2) === 0.U & !isInvalid
     def isDirty     = state(ChiState.width-2) === 1.U & !isInvalid
+    def isError     = isInvalid & state =/= ChiState.I // when state(0) === 0.U, state must be 0.U
 }
 
 class CHIStateBundle extends Bundle with HasChiStates

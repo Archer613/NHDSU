@@ -96,6 +96,7 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
     /*
     * connect slices <--[ctrl/db signals]--> dsuMasters
     */
+    slices.zipWithIndex.foreach{ case(s, i) => s.io.sliceId := i.U}
     slices.zip(dsuMasters).foreach {
         case (s, m) =>
             s.io.msTask <> m.io.mpTask

@@ -1,7 +1,8 @@
 package NHDSU.SLICE
 
 import NHDSU._
-import _root_.NHDSU.CHI.CHIOp
+import NHDSU.CHI._
+import NHDSU.SLICE.Coherence._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
@@ -9,6 +10,7 @@ import org.chipsalliance.cde.config._
 class MainPipe()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
+    val sliceId     = Input(UInt(bankBits.W))
     // Task From Arb
     val arbTask     = Flipped(Decoupled(new TaskBundle))
     // TODO: Lock signals to Arb
@@ -41,7 +43,6 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
 
 
 // --------------------- Modules declaration ------------------------//
-
   val taskQ = Module(new Queue(new TaskBundle(), entries = nrMPQBeat, pipe = true, flow = true))
   val dirResQ = Module(new Queue(new DirResp(), entries = nrMPQBeat, pipe = true, flow = true))
 
@@ -58,25 +59,38 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   // s3 can deal tasks
   val TYPE_READ   = "b0001".U
   val TYPE_WRITE  = "b0010".U
-  val TYPE_SRESP  = "b0100".U // Snp Resp
-  val TYPE_RRESP  = "b1000".U // Read Resp
+  val TYPE_RRESP  = "b0100".U // Snp Resp
+  val TYPE_SRESP  = "b1000".U // Read Resp
   val taskTypeVec = Wire(Vec(4, Bool()))
   // s3 need to do signals
-  val needSnoop = WireInit(false.B)
-  val needReadDS = WireInit(false.B)
-  val needReadDB = WireInit(false.B)
-  val needResp = WireInit(false.B)
-  val needReq = WireInit(false.B)
+  val needSnoop   = WireInit(false.B)
+  val needReadDS  = WireInit(false.B)
+  val needReadDB  = WireInit(false.B)
+  val needResp    = WireInit(false.B)
+  val needReq     = WireInit(false.B)
   // s3 dir signals
   val self_s3 = dirRes_s3.bits.self
   val client_s3 = dirRes_s3.bits.client
+  val rnNS = WireInit(ChiState.ERROR) // RN Next State
+  val hnNS = WireInit(ChiState.ERROR) // HN Next State
   // s3 task signals
   val taskReq_s3 = WireInit(0.U.asTypeOf(new TaskBundle()))
   val taskResp_s3 = WireInit(0.U.asTypeOf(new RespBundle()))
+  val respChnl = WireInit(0.U(CHIChannel.width.W))
+  val respOp = WireInit(0.U(4.W)) // DAT.op.width = 3; RSP.op.width = 4
+  val respResp = WireInit(0.U(3.W)) // resp.width = 3
+
 
 
   dontTouch(task_s3_g)
   dontTouch(dirRes_s3)
+  dontTouch(needSnoop)
+  dontTouch(needReadDS)
+  dontTouch(needReadDB)
+  dontTouch(needResp)
+  dontTouch(needReq)
+  dontTouch(taskTypeVec)
+
 
 
 // ------------------------ S2: Buffer input task/dirRes --------------------------//
@@ -118,6 +132,19 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   taskTypeVec(3) := false.B // TODO
 
   /*
+   * generate (rnNS, hnNS) cpuResp:(channel, op, resp)
+   */
+  val selfState = Mux(dirRes_s3.bits.self.hit, dirRes_s3.bits.self.state, ChiState.I)
+  val (rnRNS, hnRNS) = genNewCohWithoutSnp(task_s3_g.bits.opcode, selfState)
+  val (respRChnl, respROp, respRResp) = genRnRespBundle(task_s3_g.bits.opcode, rnNS)
+  rnNS      := Mux(taskTypeVec(OHToUInt(TYPE_SRESP)), 0.U, rnRNS)
+  hnNS      := Mux(taskTypeVec(OHToUInt(TYPE_SRESP)), 0.U, hnRNS)
+  respChnl  := Mux(taskTypeVec(OHToUInt(TYPE_SRESP)), 0.U, respRChnl)
+  respOp    := Mux(taskTypeVec(OHToUInt(TYPE_SRESP)), 0.U, respROp)
+  respResp  := Mux(taskTypeVec(OHToUInt(TYPE_SRESP)), 0.U, respRResp)
+
+
+  /*
    * Write or Read DS logic
    */
 
@@ -142,9 +169,18 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(TYPE_RRESP) { needResp := true.B }
     // TODO: TYPE_SRESP
   }
-  // taskResp_s3.addr := task_s3_g.bits.addr
-  // taskResp_s3.opcode := CHIOp.DAT.CompData
-  // taskResp_s3.resp :=
+  // bits
+  taskResp_s3.addr      := task_s3_g.bits.addr
+  taskResp_s3.opcode    := respOp
+  taskResp_s3.resp      := respResp
+  taskResp_s3.btWay     := task_s3_g.bits.btWay
+  taskResp_s3.from.idL0 := IdL0.SLICE
+  taskResp_s3.from.idL1 := io.sliceId
+  taskResp_s3.from.idL2 := DontCare
+  taskResp_s3.to        := task_s3_g.bits.from
+  // io
+  io.cpuResp.valid      := needResp
+  io.cpuResp.bits       := taskResp_s3
 
 
   /*
@@ -180,7 +216,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
 // -------------------------- Assertion ------------------------------- //
   assert(PopCount(taskTypeVec.asUInt) <= 1.U, "State 3: Task can only be one type")
   assert(Mux(task_s3_g.valid & canGo_s3, PopCount(done_s3).orR, true.B), "State 3: when task_s3 go, must has some task done")
-
-
-
+  assert(Mux(taskTypeVec.asUInt.orR, rnNS =/= ChiState.ERROR, true.B), "When task s3 valid, RN Next State cant be error")
+  assert(Mux(taskTypeVec.asUInt.orR, hnNS =/= ChiState.ERROR, true.B), "When task s3 valid, HN Next State cant be error")
+  assert(Mux(io.cpuResp.fire, io.cpuResp.bits.resp =/= ChiResp.ERROR, true.B), "CpuResp.resp cant be error")
 }
