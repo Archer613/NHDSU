@@ -46,21 +46,26 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   val dataTDBVec  = Seq(io.ms2db.dataTDB, io.ds2db.dataTDB, io.cpu2db.dataTDB)
 
   dontTouch(dataBuffer)
+  dontTouch(dbFreeVec)
+  dontTouch(dbFreeNum)
 
 // ----------------------------- Logic ------------------------------ //
   /*
-  * TODO: Consider the legitimacy of request priority
-  * select free db for alloc, Priority: [DSUMASTER] > [DataStorage] > [CPUSLAVE]
-  */
+   * TODO: Consider the legitimacy of request priority
+   * select free db for alloc, Priority: [DSUMASTER] > [DS] > [CPUSLAVE]
+   */
   // get free dbid
+  dbFreeNum := PopCount(dbFreeVec(0).asUInt)
+  canAllocVec.zipWithIndex.foreach { case (v, i) => v := dbFreeNum > i.U }
   dbFreeVec(0) := dataBuffer.map(_.state === DBState.FREE)
-  dbFreeVec(1)(dbAllocId(0)) := false.B
-  dbFreeVec(2)(dbAllocId(1)) := false.B
-  dbFreeVec(1) := dbFreeVec(0)
-  dbFreeVec(2) := dbFreeVec(1)
-  dbFreeNum := PopCount(dbFreeVec.asUInt)
-  canAllocVec.zipWithIndex.foreach{ case(v, i) => v := dbFreeNum > i.U }
-  dbAllocId.zip(dbFreeVec).foreach{ case(id, vec) => id := PriorityEncoder(vec) }
+  dbAllocId.zipWithIndex.foreach{ case(id, i) =>
+    if(i > 0) {
+      dbFreeVec(i) := dbFreeVec(i-1)
+//      dbFreeVec(i)(dbAllocId(i - 1)) := false.B
+      dbFreeVec(i)(dbAllocId(i-1)) := !wReqVec(i-1).valid
+    }
+    id := PriorityEncoder(dbFreeVec(i))
+  }
   // set wReq ready
   wReqVec.map(_.ready).zip(canAllocVec).foreach{ case(r, v) => r := v }
   if(bankOver1) io.cpu2db.wReq.ready := cpuWRespQ.get.io.enq.ready
