@@ -68,6 +68,11 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val needReadDB  = WireInit(false.B)
   val needResp    = WireInit(false.B)
   val needReq     = WireInit(false.B)
+  val doneSnoop   = RegInit(false.B)
+  val doneReadDS  = RegInit(false.B)
+  val doneReadDB  = RegInit(false.B)
+  val doneResp    = RegInit(false.B)
+  val doneReq     = RegInit(false.B)
   // s3 dir signals
   val self_s3 = dirRes_s3.bits.self
   val client_s3 = dirRes_s3.bits.client
@@ -91,6 +96,11 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   dontTouch(needReadDB)
   dontTouch(needResp)
   dontTouch(needReq)
+  dontTouch(doneSnoop)
+  dontTouch(doneReadDS)
+  dontTouch(doneReadDB)
+  dontTouch(doneResp)
+  dontTouch(doneReq)
   dontTouch(taskTypeVec)
 
 
@@ -151,9 +161,10 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
    */
 
   /*
-   * Read DB logic
+   * Read/Clean DB logic
    */
-  io.dbRCReq.valid := io.cpuResp.fire & io.cpuResp.bits.isRxDat
+  needReadDB := needResp & io.cpuResp.bits.isRxDat
+  io.dbRCReq.valid := needReadDB & !doneReadDB
   io.dbRCReq.bits.to := io.cpuResp.bits.to
   io.dbRCReq.bits.dbid := task_s3_g.bits.dbid
   io.dbRCReq.bits.isRead := true.B
@@ -192,7 +203,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   taskResp_s3.from.idL2 := DontCare
   taskResp_s3.to        := task_s3_g.bits.from
   // io
-  io.cpuResp.valid      := needResp
+  io.cpuResp.valid      := needResp & !doneResp
   io.cpuResp.bits       := taskResp_s3
 
 
@@ -213,15 +224,24 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   taskReq_s3.from     := task_s3_g.bits.from
   taskReq_s3.to       := DontCare
   // io
-  io.msTask.valid     := needReq
+  io.msTask.valid     := needReq & !doneReq
   io.msTask.bits      := taskReq_s3
 
 
   /*
    * Update can go s3 logic
    */
+  doneSnoop   := Mux(doneSnoop,  !canGo_s3, io.snpTask.fire  & !canGo_s3)
+  doneReadDS  := Mux(doneReadDS, !canGo_s3, io.dsReq.fire    & !canGo_s3)
+  doneReadDB  := Mux(doneReadDB, !canGo_s3, io.dbRCReq.fire  & !canGo_s3)
+  doneResp    := Mux(doneResp,   !canGo_s3, io.cpuResp.fire  & !canGo_s3)
+  doneReq     := Mux(doneReq,    !canGo_s3, io.msTask.fire   & !canGo_s3)
   val needToDo_s3 = Seq(needSnoop, needReadDS, needReadDB, needResp, needReq)
-  val done_s3 = Seq(io.snpTask.fire, io.dsReq.fire, io.dbRCReq.fire, io.cpuResp.fire, io.msTask.fire)
+  val done_s3 = Seq(io.snpTask.fire | doneSnoop,
+                    io.dsReq.fire   | doneReadDS,
+                    io.dbRCReq.fire | doneReadDB,
+                    io.cpuResp.fire | doneResp,
+                    io.msTask.fire  | doneReq)
   canGo_s3 := needToDo_s3.zip(done_s3).map(a => !a._1 | a._2).reduce(_ & _) & taskTypeVec.asUInt.orR
 
 
