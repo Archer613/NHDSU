@@ -79,6 +79,8 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val respChnl = WireInit(0.U(CHIChannel.width.W))
   val respOp = WireInit(0.U(4.W)) // DAT.op.width = 3; RSP.op.width = 4
   val respResp = WireInit(0.U(3.W)) // resp.width = 3
+  // s3 data signals
+  val wirteDS_s3 = WireInit(false.B)
 
 
 
@@ -147,6 +149,16 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   /*
    * Write or Read DS logic
    */
+
+  /*
+   * Read DB logic
+   */
+  io.dbRCReq.valid := io.cpuResp.fire & io.cpuResp.bits.isRxDat
+  io.dbRCReq.bits.to := io.cpuResp.bits.to
+  io.dbRCReq.bits.dbid := task_s3_g.bits.dbid
+  io.dbRCReq.bits.isRead := true.B
+  io.dbRCReq.bits.isClean := !wirteDS_s3
+
 
 
   /*

@@ -16,7 +16,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
     val mpTask        = Flipped(Decoupled(new TaskBundle())) // Consider splitting the Bundle into rReq and wbReq
     val mpResp        = Decoupled(new TaskBundle())
     // dataBuffer
-    val dbSigs        = new DBBundle()
+    val dbSigs        = new MsDBBundle()
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -70,7 +70,6 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
 
   txDat.io.chi <> io.chi.txdat
   txDat.io.txState := chiCtrl.io.txState
-  txDat.io.dbRCReq <> io.dbSigs.rcReq
   txDat.io.dataFDB <> io.dbSigs.dataFDB
 
   txReq.io.chi <> io.chi.txreq

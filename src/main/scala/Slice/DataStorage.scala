@@ -17,13 +17,15 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
     // Req From MainPipe
     val mpReq         = Flipped(Decoupled(new DSRequest()))
     // dataBuffer <-> DataStorage
-    val dbSigs2DB     = new DBBundle()
+    val dbSigs2DB     = new DsDBBundle()
+    // rcReq to dataBuffer
+    val dbRCReq = ValidIO(new DBRCReq())
   })
 
   // TODO: Delete the following code when the coding is complete
   io.mpReq <> DontCare
   io.dbSigs2DB <> DontCare
-
+  io.dbRCReq <> DontCare
 
 // --------------------- Modules declaration ------------------------//
 

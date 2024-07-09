@@ -12,7 +12,7 @@ class DsuChiRxDat()(implicit p: Parameters) extends DSUModule {
     val rxState         = Input(UInt(LinkStates.width.W))
     val allLcrdRetrun   = Output(Bool()) // Deactive Done
     val resp            = ValidIO(new CHIBundleDAT(chiBundleParams))
-    val dataTDB         = Decoupled(new DBInData())
+    val dataTDB         = Decoupled(new MsDBInData())
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -68,9 +68,7 @@ class DsuChiRxDat()(implicit p: Parameters) extends DSUModule {
    */
   io.dataTDB.valid := flitvReg
   io.dataTDB.bits.data := flitReg.data
-  io.dataTDB.bits.to.idL0 := IdL0.SLICE
-  io.dataTDB.bits.to.idL1 := DontCare
-  io.dataTDB.bits.to.idL2 := flitReg.txnID
+  io.dataTDB.bits.dbid := flitReg.txnID
   io.dataTDB.bits.dataID := flitReg.dataID
 
 

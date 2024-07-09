@@ -14,8 +14,8 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
     val txReqRead = Decoupled(new DsuChiTxReqBundle())
     val rxRspResp = Flipped(ValidIO(new CHIBundleRSP(chiBundleParams)))
     val rxDatResp = Flipped(ValidIO(new CHIBundleDAT(chiBundleParams)))
-    val dbWReq    = Decoupled(new DBWReq())
-    val dbWResp   = Flipped(Decoupled(new DBWResp()))
+    val dbWReq    = Decoupled(new MsDBWReq())
+    val dbWResp   = Flipped(Decoupled(new MsDBWResp()))
     val readCtlFsmVal = Output(Bool())
   })
 
@@ -111,20 +111,17 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
    * fsm state: GET_ID deal logic
    */
   io.dbWReq.valid := stateVec(RCState.GET_ID).asUInt.orR
-  io.dbWReq.bits.from := DontCare
-  io.dbWReq.bits.to := DontCare
 
   /*
    * fsm state: WAIT_ID deal logic
    * io.dbWResp.ready always be true.B
-   * [DataBuffer(dbid)] ---(idL2)---->  [ReadCtl(txnid)]
    */
   io.dbWResp.ready := true.B
   when(io.dbWResp.fire){
     when(stateVec(RCState.WAIT_ID).asUInt.orR){
-      fsmReg(selIdVec(RCState.WAIT_ID)).txnid := io.dbWResp.bits.from.idL2
+      fsmReg(selIdVec(RCState.WAIT_ID)).txnid := io.dbWResp.bits.dbid
     }.otherwise {
-      fsmReg(selIdVec(RCState.GET_ID)).txnid := io.dbWResp.bits.from.idL2
+      fsmReg(selIdVec(RCState.GET_ID)).txnid := io.dbWResp.bits.dbid
     }
   }
 

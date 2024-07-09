@@ -18,9 +18,9 @@ class Slice()(implicit p: Parameters) extends DSUModule {
     val cpuTask       = Flipped(Decoupled(new TaskBundle()))
     val cpuResp       = Decoupled(new RespBundle())
     // dataBuffer <-> CPUSLAVE
-    val dbSigs2Cpu    = Flipped(new DBBundle())
+    val dbSigs2Cpu    = Flipped(new CpuDBBundle())
     // dataBuffer <-> DSUMASTER
-    val dbSigs2Ms     = Flipped(new DBBundle())
+    val dbSigs2Ms     = Flipped(new MsDBBundle())
     val msTask        = Decoupled(new TaskBundle())
     val msResp        = Flipped(Decoupled(new TaskBundle()))
   })
@@ -50,6 +50,7 @@ class Slice()(implicit p: Parameters) extends DSUModule {
   dataBuffer.io.cpu2db <> io.dbSigs2Cpu
   dataBuffer.io.ms2db <> io.dbSigs2Ms
   dataBuffer.io.mpRCReq <> mainPipe.io.dbRCReq
+  dataBuffer.io.dsRCReq <> dataStorage.io.dbRCReq
   dataBuffer.io.ds2db <> dataStorage.io.dbSigs2DB
 
   dataStorage.io.mpReq <> mainPipe.io.dsReq

@@ -9,13 +9,14 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     // CPUSLAVE <-> dataBuffer
-    val cpu2db    = Flipped(new DBBundle())
+    val cpu2db    = Flipped(new CpuDBBundle())
     // DSUMASTER <-> dataBuffer
-    val ms2db     = Flipped(new DBBundle())
+    val ms2db     = Flipped(new MsDBBundle())
     // DataStorage <-> dataBuffer
-    val ds2db     = Flipped(new DBBundle())
+    val ds2db     = Flipped(new DsDBBundle())
     // MainPipe <-> dataBuffer
     val mpRCReq   = Flipped(ValidIO(new DBRCReq()))
+    val dsRCReq   = Flipped(ValidIO(new DBRCReq()))
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -23,11 +24,12 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   io.ms2db <> DontCare
   io.ds2db <> DontCare
   io.mpRCReq <> DontCare
+  io.dsRCReq <> DontCare
 
 // ----------------------- Modules declaration ------------------------ //
   // TODO: Consider remove cpuWRespQ because cpu wResp.ready is false rare occurrence
   val bankOver1 = dsuparam.nrBank > 1
-  val cpuWRespQ = if(bankOver1) { Some(Module(new Queue(gen = new DBWResp(), entries = dsuparam.nrBank-1, flow = true, pipe = true))) } else { None }
+  val cpuWRespQ = if(bankOver1) { Some(Module(new Queue(gen = new CpuDBWResp(), entries = dsuparam.nrBank-1, flow = true, pipe = true))) } else { None }
 
 
 // --------------------- Reg/Wire declaration ------------------------ //
@@ -68,14 +70,11 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
    * dontCare ready, when resp valid ready should be true
    * ms2db.wResp.ready and ds2db.wResp.ready should be true forever
    */
-  wRespVec.zipWithIndex.foreach {
-    case(resp, i) =>
-      resp.valid := wReqVec(i).valid
-      resp.bits.to := wReqVec(i).bits.from
-      resp.bits.from := wReqVec(i).bits.to
-      resp.bits.from.idL2 := dbAllocId(i)
-  }
+  wRespVec.zip(wReqVec).foreach { case(resp, req) => resp.valid := req.valid }
+  wRespVec.zip(dbAllocId).foreach { case(resp, id) => resp.bits.dbid := id}
   if(bankOver1) io.cpu2db.wResp <> cpuWRespQ.get.io.deq
+  cpuWRespQ.get.io.enq.bits.to   := io.cpu2db.wReq.bits.from
+  cpuWRespQ.get.io.enq.bits.from := io.cpu2db.wReq.bits.to
 
 
   /*
@@ -87,10 +86,15 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
     case t =>
       t.ready := true.B
       when(t.valid) {
-        dataBuffer(t.bits.to.idL2).beatVals(t.bits.beatNum) := true.B
-        dataBuffer(t.bits.to.idL2).beats(t.bits.beatNum) := t.bits.data
+        dataBuffer(t.bits.dbid).beatVals(t.bits.beatNum) := true.B
+        dataBuffer(t.bits.dbid).beats(t.bits.beatNum) := t.bits.data
       }
   }
+
+  /*
+   * receive MainPipe Read/Clean Req
+   */
+
 
 
   /*
@@ -104,11 +108,11 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
           db.state := Mux(hit, DBState.ALLOC, DBState.FREE)
         }
         is(DBState.ALLOC) {
-          val hit = dataTDBVec.map( t => t.valid & t.bits.to.idL2 === i.U).reduce(_ | _)
+          val hit = dataTDBVec.map( t => t.valid & t.bits.dbid === i.U).reduce(_ | _)
           db.state := Mux(hit, DBState.WRITTING, DBState.ALLOC)
         }
         is(DBState.WRITTING) {
-          val hit = dataTDBVec.map(t => t.valid & t.bits.to.idL2 === i.U).reduce(_ | _)
+          val hit = dataTDBVec.map(t => t.valid & t.bits.dbid === i.U).reduce(_ | _)
           val writeDone = PopCount(db.beatVals) + 1.U === nrBeat.U
           db.state := Mux(hit & writeDone, DBState.WRITE_DONE, DBState.WRITTING)
         }

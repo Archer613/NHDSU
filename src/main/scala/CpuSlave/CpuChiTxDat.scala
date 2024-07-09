@@ -12,7 +12,7 @@ class CpuChiTxDat()(implicit p: Parameters) extends DSUModule {
     val txState = Input(UInt(LinkStates.width.W))
     val allLcrdRetrun = Output(Bool()) // Deactive Done
     val flit = Decoupled(new CHIBundleDAT(chiBundleParams))
-    val dataTDB = Decoupled(new DBInData())
+    val dataTDB = Decoupled(new CpuDBInData())
   })
 
   // TODO: Delete the following code when the coding is complete

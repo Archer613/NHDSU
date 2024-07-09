@@ -40,7 +40,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
     val mpTask        = Decoupled(new TaskBundle())
     val mpResp        = Flipped(ValidIO(new RespBundle()))
     // dataBuffer
-    val dbSigs        = new DBBundle()
+    val dbSigs        = new CpuDBBundle()
   })
 
 
@@ -139,7 +139,6 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   // snpResp ---[fastArb]---> snpCtrl
   fastArbDec2Dec(reqBufs.map(_.io.snpResp), io.snpResp, Some("snpRespArb"))
   // dbReq ---[fastArb]---> dataBuffer
-  fastArbDec2Dec(reqBufs.map(_.io.rcReq), io.dbSigs.rcReq, Some("dbRCReqArb"))
   fastArbDec2Dec(reqBufs.map(_.io.wReq), io.dbSigs.wReq, Some("dbWReqArb"))
   // dataFromDB --(sel by dataFromDB.bits.id.l2)--> dbDataValid
   reqBufs.zipWithIndex.foreach {

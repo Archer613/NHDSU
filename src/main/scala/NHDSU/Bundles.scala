@@ -19,7 +19,7 @@ object IdL0 {
 class IDBundle(implicit p: Parameters) extends DSUBundle {
     val idL0 = UInt(IdL0.width.W) // Module: IDL0
     val idL1 = UInt(max(coreIdBits, bankBits).W) // SubModule: CpuSlaves, Slices
-    val idL2 = UInt(max(max(reqBufIdBits, snoopCtlIdBits), dbIdBits).W) // SubSubModule: ReqBufs, SnpCtls, dbid
+    val idL2 = UInt(max(reqBufIdBits, snoopCtlIdBits).W) // SubSubModule: ReqBufs, SnpCtls
 }
 
 trait HasFromIDBits extends DSUBundle { this: Bundle => val from = new IDBundle() }
@@ -28,14 +28,15 @@ trait HasToIDBits extends DSUBundle { this: Bundle => val to = new IDBundle() }
 
 trait HasIDBits extends DSUBundle with HasFromIDBits with HasToIDBits
 
-class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel{
+trait HasDBID extends DSUBundle { this: Bundle => val dbid = UInt(dbIdBits.W) }
+
+class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel with HasDBID {
     // constants related to CHI
     def tgtID       = 0.U(chiBundleParams.nodeIdBits.W)
     def srcID       = 0.U(chiBundleParams.nodeIdBits.W)
     // value in use
     val opcode      = UInt(6.W)
     val addr        = UInt(addressBits.W)
-    val dbid        = UInt(dbIdBits.W)
     val isR         = Bool()
     val isWB        = Bool() // write back
     val isClean     = Bool()
@@ -74,38 +75,57 @@ trait HasDBRCOp extends DSUBundle { this: Bundle =>
     val isRead = Bool()
     val isClean = Bool()
 }
-// CPU DB Bundle
-class DBRCReq(implicit p: Parameters) extends DSUBundle with HasIDBits with HasDBRCOp       // DataBuffer Read Req
-class DBWReq(implicit p: Parameters) extends DSUBundle with HasIDBits                       // DataBuffer Write Req
-class DBWResp(implicit p: Parameters) extends DSUBundle with HasIDBits                      // DataBuffer Write Resp
-class DBOutData(beat: Int = 1)(implicit p: Parameters) extends DSUBundle with HasToIDBits {
-    val data = UInt((beatBits*beat).W)
+// Base Data Bundle
+trait HasDBData extends DSUBundle { this: Bundle =>
+    val data = UInt((beatBits).W)
     val dataID = UInt(2.W)
     def beatNum: UInt = {
-        if (dataBits / beatBits*beat == 1) { 0.U }
-        else if(dataBits / beatBits*beat == 2) { OHToUInt(dataID) }
+        if (nrBeat == 1) { 0.U }
+        else if (nrBeat == 2) { OHToUInt(dataID) }
         else { dataID }
     }
 }
-class DBInData(beat: Int = 1)(implicit p: Parameters) extends DSUBundle with HasToIDBits {
-    val data = UInt((beatBits*beat).W)
-    val dataID = UInt(2.W)
-    def beatNum: UInt = {
-        if (dataBits / beatBits * beat == 1) { 0.U }
-        else if (dataBits / beatBits * beat == 2) { OHToUInt(dataID) }
-        else { dataID }
-    }
+// DataBuffer Read/Clean Req
+class DBRCReq(implicit p: Parameters) extends DSUBundle with HasDBRCOp with HasDBID with HasToIDBits
+
+// CPU Bundle
+class CpuDBWReq(implicit p: Parameters) extends DSUBundle with HasIDBits                                // CPU  ---[wReq] ---> DB
+class CpuDBWResp(implicit p: Parameters) extends DSUBundle with HasIDBits with HasDBID                  // DB   ---[wResp] --> CPU
+class CpuDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData with HasToIDBits            // DB   ---[Data] ---> CPU
+class CpuDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasIDBits with HasDBID  // CPU  ---[Data] ---> DB
+
+class CpuDBBundle(beat: Int = 1)(implicit p: Parameters) extends DSUBundle {
+    val wReq        = Decoupled(new CpuDBWReq)                      // from[CPU][coreID][reqBufID];     to[SLICE][sliceId][dontCare];
+    val wResp       = Flipped(Decoupled(new CpuDBWResp))            // from[SLICE][sliceId][dontCare];  to[CPU][coreID][reqBufID];      hasDBID
+    val dataFDB     = Flipped(Decoupled(new CpuDBOutData))          // from[None];                      to[CPU][coreID][reqBufID];
+    val dataTDB     = Decoupled(new CpuDBInData)                    // from[None];                      to[SLICE][sliceId][dontCare];   hasDBID
 }
-class DBBundle(beat: Int = 1)(implicit p: Parameters) extends DSUBundle {
-    val rcReq       = Decoupled(new DBRCReq())
-    val wReq        = Decoupled(new DBWReq())
-    val wResp       = Flipped(Decoupled(new DBWResp()))
-    val dataFDB     = Flipped(Decoupled(new DBOutData(beat)))
-    val dataTDB     = Decoupled(new DBInData(beat))
+
+// MASTER Bundle
+class MsDBWReq(implicit p: Parameters) extends DSUBundle                                        // CPU  ---[wReq] ---> DB
+class MsDBWResp(implicit p: Parameters) extends DSUBundle with HasDBID                          // DB   ---[wResp] --> CPU
+class MsDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData                      // DB   ---[Data] ---> CPU
+class MsDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasDBID          // CPU  ---[Data] ---> DB
+
+class MsDBBundle(beat: Int = 1)(implicit p: Parameters) extends DSUBundle {
+    val wReq        = Decoupled(new MsDBWReq)                        // from[None];  to[None];
+    val wResp       = Flipped(Decoupled(new MsDBWResp))              // from[None];  to[None];   hasDBID
+    val dataFDB     = Flipped(Decoupled(new MsDBOutData))            // from[None];  to[None];
+    val dataTDB     = Decoupled(new MsDBInData)                      // from[None];  to[None];   hasDBID
 }
-// TODO: Simplifying the Bundle for MASTER and DS
-// TODO: MASTER DB Bundle
-// TODO: DS DB Bundle
+
+// DS Bundle
+class DsDBWReq(implicit p: Parameters) extends DSUBundle                                                // CPU  ---[wReq] ---> DB
+class DsDBWResp(implicit p: Parameters) extends DSUBundle with HasDBID                                  // DB   ---[wResp] --> CPU
+class DsDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData                              // DB   ---[Data] ---> CPU
+class DsDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasToIDBits with HasDBID // CPU  ---[Data] ---> DB
+
+class DsDBBundle(beat: Int = 1)(implicit p: Parameters) extends DSUBundle {
+    val wReq        = Decoupled(new DsDBWReq)                        // from[None];  to[None];
+    val wResp       = Flipped(Decoupled(new DsDBWResp))              // from[None];  to[None];   hasDBID
+    val dataFDB     = Flipped(Decoupled(new DsDBOutData))            // from[None];  to[None];
+    val dataTDB     = Decoupled(new DsDBInData)                      // from[None];  to[CPU/MASTER][coreID/dontCare][reqBufID/dontCare];    hasDBID
+}
 
 
 // ---------------------- ReqBuf Bundle ------------------- //

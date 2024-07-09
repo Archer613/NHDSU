@@ -20,9 +20,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     val snpTask     = Flipped(Decoupled(new TaskBundle()))
     val snpResp     = Decoupled(new RespBundle())
     // dataBuffer
-    val rcReq       = Decoupled(new DBRCReq())
-    val wReq        = Decoupled(new DBWReq())
-    val wResp       = Flipped(Decoupled(new DBWResp()))
+    val wReq        = Decoupled(new CpuDBWReq())
+    val wResp       = Flipped(Decoupled(new CpuDBWResp()))
     val dbDataValid = Input(Bool())
   })
 
@@ -33,7 +32,6 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   io.snpResp := DontCare
   io.mpTask := DontCare
   io.mpResp := DontCare
-  io.rcReq := DontCare
   io.wReq := DontCare
   io.wResp := DontCare
   dontTouch(io)
