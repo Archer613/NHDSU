@@ -19,7 +19,7 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
     // dataBuffer <-> DataStorage
     val dbSigs2DB     = new DsDBBundle()
     // rcReq to dataBuffer
-    val dbRCReq = ValidIO(new DBRCReq())
+    val dbRCReq       = Decoupled(new DBRCReq())
   })
 
   // TODO: Delete the following code when the coding is complete

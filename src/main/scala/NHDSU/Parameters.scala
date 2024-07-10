@@ -9,7 +9,7 @@ case object DSUParamKey extends Field[DSUParam](DSUParam())
 
 case class IDMap
 (
-    RNID: Seq[Int] = Seq(0),
+    RNID: Seq[Int] = Seq(0), // TODO: muticore with diff RNID
     HNID: Int = 0,
     SNID: Int = 0
 )
