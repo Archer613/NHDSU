@@ -27,7 +27,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     // Task to Master
     val msTask      = Decoupled(new TaskBundle())
     // Req to dataBuffer
-    val dbRCReq     = ValidIO(new DBRCReq())
+    val dbRCReq     = Decoupled(new DBRCReq())
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -165,9 +165,8 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
    */
   needReadDB := needResp & io.cpuResp.bits.isRxDat
   io.dbRCReq.valid := needReadDB & !doneReadDB
-  io.dbRCReq.bits.to := io.cpuResp.bits.to
+  io.dbRCReq.bits.to := task_s3_g.bits.to
   io.dbRCReq.bits.dbid := task_s3_g.bits.dbid
-  io.dbRCReq.bits.isRead := true.B
   io.dbRCReq.bits.isClean := !wirteDS_s3
 
 
@@ -201,7 +200,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   taskResp_s3.from.idL0 := IdL0.SLICE
   taskResp_s3.from.idL1 := io.sliceId
   taskResp_s3.from.idL2 := DontCare
-  taskResp_s3.to        := task_s3_g.bits.from
+  taskResp_s3.to        := task_s3_g.bits.to
   // io
   io.cpuResp.valid      := needResp & !doneResp
   io.cpuResp.bits       := taskResp_s3
