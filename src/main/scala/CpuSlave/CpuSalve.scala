@@ -61,6 +61,11 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
 
 // --------------------- Connection ------------------------//
   /*
+   * connect chiXXX <-> reqBufs <-> io.xxx(signals from or to slice)
+   */
+  // TODO: Connect chi <-> reqBufs
+  reqBufs.foreach(_.io.chi <> DontCare)
+  /*
    * connect io.chi <-> chiXXX <-> dataBuffer
    */
   chiCtrl.io.chiLinkCtrl <> io.chiLinkCtrl
@@ -69,11 +74,15 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
 
   txReq.io.chi <> io.chi.txreq
   txReq.io.txState := chiCtrl.io.txState
-  txReq.io.flit <> DontCare
 
   txRsp.io.chi <> io.chi.txrsp
   txRsp.io.txState := chiCtrl.io.txState
-  txRsp.io.flit <> DontCare
+  reqBufs.map(_.io.chi.txrsp).zipWithIndex.foreach {
+    case(txrsp, i) =>
+      txrsp.valid := txRsp.io.flit.valid & txRsp.io.flit.bits.txnID === i.U
+      txrsp.bits := txRsp.io.flit.bits
+  }
+  txRsp.io.flit.ready := true.B
 
   txDat.io.chi <> io.chi.txdat
   txDat.io.txState := chiCtrl.io.txState
@@ -82,22 +91,16 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
 
   io.chi.rxsnp <> rxSnp.io.chi
   rxSnp.io.rxState := chiCtrl.io.rxState
-  rxSnp.io.flit <> DontCare
+  fastArbDec2Dec(reqBufs.map(_.io.chi.rxsnp), rxSnp.io.flit)
 
   io.chi.rxrsp <> rxRsp.io.chi
   rxRsp.io.rxState := chiCtrl.io.rxState
-  rxRsp.io.flit <> DontCare
+  fastArbDec2Dec(reqBufs.map(_.io.chi.rxrsp), rxRsp.io.flit)
 
   io.chi.rxdat <> rxDat.io.chi
   rxDat.io.rxState := chiCtrl.io.rxState
-  rxDat.io.flit <> DontCare
   rxDat.io.dataFDB <> io.dbSigs.dataFDB
-
-  /*
-   * connect chiXXX <-> reqBufs <-> io.xxx(signals from or to slice)
-   */
-  // TODO: Connect chi <-> reqBufs
-  reqBufs.foreach(_.io.chi <> DontCare)
+  fastArbDec2Dec(reqBufs.map(_.io.chi.rxdat), rxDat.io.flit)
 
 
   // snpTask(Priority)  ---> |----------------| ---> reqBuf(N)
