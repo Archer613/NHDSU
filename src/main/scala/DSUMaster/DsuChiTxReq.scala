@@ -22,8 +22,8 @@ class DsuChiTxReq()(implicit p: Parameters) extends DSUModule {
 
 // ------------------- Reg/Wire declaration ---------------------- //
   val lcrdFreeNumReg  = RegInit(0.U(snTxlcrdBits.W))
-  val filtReg         = RegInit(0.U.asTypeOf(new CHIBundleREQ(chiBundleParams)))
-  val filtvReg        = RegInit(false.B)
+  val flitReg         = RegInit(0.U.asTypeOf(new CHIBundleREQ(chiBundleParams)))
+  val flitvReg        = RegInit(false.B)
   val flit            = WireInit(0.U.asTypeOf(new CHIBundleREQ(chiBundleParams)))
   val flitv           = WireInit(false.B)
   val taskReady       = WireInit(false.B)
@@ -50,8 +50,8 @@ class DsuChiTxReq()(implicit p: Parameters) extends DSUModule {
   /*
    * set reg value
    */
-  filtvReg := flitv
-  filtReg := Mux(flitv, flit, filtReg)
+  flitvReg := flitv
+  flitReg := Mux(flitv, flit, flitReg)
 
 
   /*
@@ -78,8 +78,8 @@ class DsuChiTxReq()(implicit p: Parameters) extends DSUModule {
    * Output chi flit
    */
   io.chi.flitpend := flitv
-  io.chi.flitv := filtvReg
-  io.chi.flit := filtReg
+  io.chi.flitv := flitvReg
+  io.chi.flit := flitReg
 
 
 
