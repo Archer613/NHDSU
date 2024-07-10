@@ -15,8 +15,8 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
     // DataStorage <-> dataBuffer
     val ds2db     = Flipped(new DsDBBundle())
     // MainPipe <-> dataBuffer
-    val mpRCReq   = Flipped(ValidIO(new DBRCReq()))
-    val dsRCReq   = Flipped(ValidIO(new DBRCReq()))
+    val mpRCReq   = Flipped(Decoupled(new DBRCReq()))
+    val dsRCReq   = Flipped(Decoupled(new DBRCReq()))
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -31,7 +31,6 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   val bankOver1 = dsuparam.nrBank > 1
   val cpuWRespQ = if(bankOver1) { Some(Module(new Queue(gen = new CpuDBWResp(), entries = dsuparam.nrBank-1, flow = true, pipe = true))) } else { None }
 
-
 // --------------------- Reg/Wire declaration ------------------------ //
   // base
   val dataBuffer  = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U.asTypeOf(new DBEntry()) }))
@@ -44,6 +43,13 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   val wRespVec    = Seq(io.ms2db.wResp, io.ds2db.wResp, if(bankOver1) cpuWRespQ.get.io.enq else io.cpu2db.wResp)
   // dataTDB
   val dataTDBVec  = Seq(io.ms2db.dataTDB, io.ds2db.dataTDB, io.cpu2db.dataTDB)
+  // dataFDB
+  val outDsValVec = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
+  val outMsValVec = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
+  val outCpuValVec = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
+  val outDsID     = Wire(UInt(dbIdBits.W))
+  val outMsID     = Wire(UInt(dbIdBits.W))
+  val outCpuID     = Wire(UInt(dbIdBits.W))
 
   dontTouch(dataBuffer)
   dontTouch(dbFreeVec)
@@ -97,9 +103,37 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   }
 
   /*
-   * receive MainPipe Read/Clean Req
+   * receive MainPipe/DataStroage Read/Clean Req
    */
+  io.mpRCReq.ready := dataBuffer(io.mpRCReq.bits.dbid).state === DBState.WRITE_DONE |
+                      dataBuffer(io.mpRCReq.bits.dbid).state === DBState.READ_DONE
+  io.dsRCReq.ready := dataBuffer(io.dsRCReq.bits.dbid).state === DBState.WRITE_DONE |
+                      dataBuffer(io.dsRCReq.bits.dbid).state === DBState.READ_DONE
 
+  /*
+   * send data to DS/MS/CPU
+   */
+  outDsValVec := dataBuffer.map( d => d.state === DBState.READING & d.to.idL0 === IdL0.SLICE )
+  outMsValVec := dataBuffer.map( d => d.state === DBState.READING & d.to.idL0 === IdL0.MASTER )
+  outCpuValVec := dataBuffer.map( d => d.state === DBState.READING & d.to.idL0 === IdL0.CPU )
+
+  outDsID := PriorityEncoder(outDsValVec)
+  outMsID := PriorityEncoder(outMsValVec)
+  outCpuID := PriorityEncoder(outCpuValVec)
+
+  io.ds2db.dataFDB.valid := outDsValVec.reduce(_ | _)
+  io.ms2db.dataFDB.valid := outMsValVec.reduce(_ | _)
+  io.cpu2db.dataFDB.valid := outCpuValVec.reduce(_ | _)
+
+  io.ds2db.dataFDB.bits.data := dataBuffer(outDsID).getBeat
+  io.ms2db.dataFDB.bits.data := dataBuffer(outDsID).getBeat
+  io.cpu2db.dataFDB.bits.data := dataBuffer(outDsID).getBeat
+
+  io.ds2db.dataFDB.bits.dataID := dataBuffer(outDsID).toDataID
+  io.ms2db.dataFDB.bits.dataID := dataBuffer(outMsID).toDataID
+  io.cpu2db.dataFDB.bits.dataID := dataBuffer(outCpuID).toDataID
+
+  io.cpu2db.dataFDB.bits.to := dataBuffer(outCpuID).to
 
 
   /*
@@ -109,17 +143,36 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
     case(db, i) =>
       switch(db.state) {
         is(DBState.FREE) {
-          val hit = dbAllocId.zip(wReqVec.map(_.fire)).map(a => a._1 === i.U & a._2).reduce(_ | _)
-          db.state := Mux(hit, DBState.ALLOC, DBState.FREE)
+          val hit       = dbAllocId.zip(wReqVec.map(_.fire)).map(a => a._1 === i.U & a._2).reduce(_ | _)
+          db.state      := Mux(hit, DBState.ALLOC, DBState.FREE)
         }
         is(DBState.ALLOC) {
-          val hit = dataTDBVec.map( t => t.valid & t.bits.dbid === i.U).reduce(_ | _)
-          db.state := Mux(hit, DBState.WRITTING, DBState.ALLOC)
+          val hit       = dataTDBVec.map( t => t.valid & t.bits.dbid === i.U).reduce(_ | _)
+          db.state      := Mux(hit, DBState.WRITTING, DBState.ALLOC)
         }
         is(DBState.WRITTING) {
-          val hit = dataTDBVec.map(t => t.valid & t.bits.dbid === i.U).reduce(_ | _)
+          val hit       = dataTDBVec.map(t => t.valid & t.bits.dbid === i.U).reduce(_ | _)
           val writeDone = PopCount(db.beatVals) + 1.U === nrBeat.U
-          db.state := Mux(hit & writeDone, DBState.WRITE_DONE, DBState.WRITTING)
+          db.state      := Mux(hit & writeDone, DBState.WRITE_DONE, DBState.WRITTING)
+        }
+        is(DBState.WRITE_DONE) {
+          val mpHit     = io.mpRCReq.valid & io.mpRCReq.bits.dbid === i.U
+          val dsHit     = io.dsRCReq.valid & io.dsRCReq.bits.dbid === i.U
+          val to        = Mux(io.mpRCReq.valid, io.mpRCReq.bits.to, io.dsRCReq.bits.to)
+          val needClean = Mux(io.mpRCReq.valid, io.mpRCReq.bits.isClean, io.dsRCReq.bits.isClean)
+          db.state      := Mux(mpHit | dsHit, DBState.READING, DBState.WRITE_DONE)
+          db.to         := Mux(mpHit | dsHit, to, db.to)
+          db.beatRNum   := 0.U
+          db.needClean  := Mux(mpHit | dsHit, needClean, db.needClean)
+        }
+        is(DBState.READING) {
+          val dsHit     = io.ds2db.dataFDB.fire & outDsID === i.U
+          val msHit     = io.ms2db.dataFDB.fire & outMsID === i.U
+          val cpuHit    = io.cpu2db.dataFDB.fire & outCpuID === i.U
+          val hit       = dsHit | msHit |cpuHit
+          val readDone  = db.beatRNum === (nrBeat - 1).U
+          db.state      := Mux(hit & readDone, Mux(db.needClean, DBState.FREE, DBState.READ_DONE), DBState.READING)
+          db.beatRNum   := db.beatRNum + hit.asUInt
         }
       }
   }
@@ -127,4 +180,5 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
 
 // ----------------------------- Assertion ------------------------------ //
   assert(wReqVec.zip(wRespVec).map{ a => Mux(a._1.fire, a._2.fire, true.B) }.reduce(_ & _), "When wReq fire, wResp must also fire too")
+  assert(!(io.mpRCReq.valid & io.dsRCReq.valid & io.mpRCReq.bits.dbid === io.dsRCReq.bits.dbid), "DS and MP cant read or clean at the same time")
 }
