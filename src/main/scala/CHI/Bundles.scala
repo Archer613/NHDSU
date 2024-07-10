@@ -300,6 +300,7 @@ object CHIChannel {
     def RXSNP = "b100".U(width.W)
     def RXRSP = "b101".U(width.W)
     def RXDAT = "b110".U(width.W)
+    def CHNLSELF = "b111".U(width.W)
 }
 
 trait HasCHIChannel {
@@ -312,4 +313,7 @@ trait HasCHIChannel {
     def isRxSnp = channel === CHIChannel.RXSNP
     def isRxRsp = channel === CHIChannel.RXRSP
     def isRxDat = channel === CHIChannel.RXDAT
+    def isChnlSelf = channel === CHIChannel.CHNLSELF
+
+    def isChnlError = !(isTxReq | isTxRsp | isTxDat | isRxSnp | isRxRsp | isRxDat | isChnlSelf)
 }

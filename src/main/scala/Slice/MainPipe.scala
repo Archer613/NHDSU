@@ -216,12 +216,18 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     // TODO: TYPE_SRESP
   }
   // bits
-  taskReq_s3.opcode   := task_s3_g.bits.opcode
-  taskReq_s3.addr     := task_s3_g.bits.addr
-  taskReq_s3.isR      := true.B
-  taskReq_s3.isWB     := false.B
-  taskReq_s3.from     := task_s3_g.bits.from
-  taskReq_s3.to       := DontCare
+  taskReq_s3.opcode     := task_s3_g.bits.opcode
+  taskReq_s3.addr       := task_s3_g.bits.addr
+  taskReq_s3.isR        := true.B
+  taskReq_s3.isWB       := false.B
+  taskReq_s3.from       := task_s3_g.bits.from
+  taskReq_s3.to         := DontCare
+  taskReq_s3.cleanBt    := DontCare
+  taskReq_s3.writeBt    := DontCare
+  taskReq_s3.readDir    := DontCare
+  taskReq_s3.wirteSDir  := DontCare
+  taskReq_s3.wirteCDir  := DontCare
+  taskReq_s3.btWay      := task_s3_g.bits.btWay
   // io
   io.msTask.valid     := needReq & !doneReq
   io.msTask.bits      := taskReq_s3

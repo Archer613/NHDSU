@@ -83,7 +83,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     task.to.idL1    := DontCare
     task.to.idL2    := DontCare
     // task other
-    task.isClean    := false.B
+    task.cleanBt    := false.B
+    task.writeBt    := true.B
     task.readDir    := true.B
     task.btWay      := DontCare
     // other
@@ -106,9 +107,17 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   /*
    * task or resp output
    */
-  cleanTask.isClean   := true.B
+  cleanTask.channel   := CHIChannel.CHNLSELF
+  cleanTask.from.idL0 := IdL0.CPU
+  cleanTask.from.idL1 := io.cpuSlvId
+  cleanTask.from.idL2 := io.reqBufId
+  cleanTask.to.idL0   := IdL0.SLICE
+  cleanTask.to.idL1   := DontCare
+  cleanTask.to.idL2   := DontCare
   cleanTask.addr      := taskReg.addr
   cleanTask.btWay     := respReg.btWay
+  cleanTask.cleanBt   := true.B
+  cleanTask.writeBt   := false.B
   cleanTaskVal        := fsmReg.s_clean & PopCount(fsmReg.asUInt) === 1.U // only clean need to do
   io.mpTask.valid     := fsmReg.s_wReq2mp | fsmReg.s_rReq2mp | cleanTaskVal
   io.mpTask.bits      := Mux(cleanTaskVal, cleanTask, taskReg)
@@ -164,7 +173,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     fsmReg.s_rReq2mp  := Mux(io.mpTask.fire, false.B, fsmReg.s_rReq2mp)
     fsmReg.s_wReq2mp  := Mux(io.mpTask.fire, false.B, fsmReg.s_wReq2mp)
     fsmReg.s_rResp    := Mux(io.chi.rxrsp.fire | (io.chi.rxdat.fire & getAllData), false.B, fsmReg.s_rResp)
-    fsmReg.s_clean    := Mux(io.mpTask.fire & io.mpTask.bits.isClean, false.B, fsmReg.s_clean)
+    fsmReg.s_clean    := Mux(io.mpTask.fire & io.mpTask.bits.cleanBt, false.B, fsmReg.s_clean)
     // wait
     fsmReg.w_rResp    := Mux(io.mpResp.fire, false.B, fsmReg.w_rResp)
     fsmReg.w_data     := Mux(io.mpResp.fire & io.mpResp.bits.isRxDat, true.B, Mux(getAllData, false.B, fsmReg.w_data))
@@ -182,4 +191,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   assert(!(task.isR & task.isWB), "Cant alloc r and wb task at the same time")
   assert(Mux(getDataNumReg === nrBeat.U, !io.dbDataValid, true.B), "ReqBuf get data from DataBuf overflow")
   assert(Mux(io.dbDataValid, fsmReg.s_rResp & fsmReg.w_data, true.B), "When dbDataValid, ReqBuf should set s_rResp and w_data")
+
+  val cntReg = RegInit(0.U(64.W))
+  cntReg := Mux(io.free, 0.U, cntReg + 1.U)
+  assert(cntReg < 5000.U, "REQBUF TIMEOUT")
 }
