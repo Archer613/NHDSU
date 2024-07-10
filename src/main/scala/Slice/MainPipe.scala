@@ -64,11 +64,16 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val taskTypeVec = Wire(Vec(4, Bool()))
   // s3 need to do signals
   val needSnoop   = WireInit(false.B)
+  val needWSDir   = WireInit(false.B)
+  val needWCDir   = WireInit(false.B)
   val needReadDS  = WireInit(false.B)
   val needReadDB  = WireInit(false.B)
   val needResp    = WireInit(false.B)
   val needReq     = WireInit(false.B)
+  // s3 done signals
   val doneSnoop   = RegInit(false.B)
+  val doneWSDir   = RegInit(false.B)
+  val doneWCDir   = RegInit(false.B)
   val doneReadDS  = RegInit(false.B)
   val doneReadDB  = RegInit(false.B)
   val doneResp    = RegInit(false.B)
@@ -92,6 +97,8 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   dontTouch(task_s3_g)
   dontTouch(dirRes_s3)
   dontTouch(needSnoop)
+  dontTouch(needWSDir)
+  dontTouch(needWCDir)
   dontTouch(needReadDS)
   dontTouch(needReadDB)
   dontTouch(needResp)
@@ -148,7 +155,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
    */
   val selfState = Mux(dirRes_s3.bits.self.hit, dirRes_s3.bits.self.state, ChiState.I)
   val (rnRNS, hnRNS) = genNewCohWithoutSnp(task_s3_g.bits.opcode, selfState)
-  val (respRChnl, respROp, respRResp) = genRnRespBundle(task_s3_g.bits.opcode, rnNS)
+  val (respRChnl, respROp, respRResp) = genRnResp(task_s3_g.bits.opcode, rnNS)
   rnNS      := Mux(taskTypeVec(OHToUInt(TYPE_SRESP)), 0.U, rnRNS)
   hnNS      := Mux(taskTypeVec(OHToUInt(TYPE_SRESP)), 0.U, hnRNS)
   respChnl  := Mux(taskTypeVec(OHToUInt(TYPE_SRESP)), 0.U, respRChnl)
@@ -169,10 +176,13 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   io.dbRCReq.bits.dbid := task_s3_g.bits.dbid
   io.dbRCReq.bits.isClean := !wirteDS_s3
 
+  /*
+   * Write Self Directory
+   */
 
 
   /*
-   * Write Directory
+   * Write Client Directory
    */
 
 
@@ -236,17 +246,21 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   /*
    * Update can go s3 logic
    */
-  doneSnoop   := Mux(doneSnoop,  !canGo_s3, io.snpTask.fire  & !canGo_s3)
-  doneReadDS  := Mux(doneReadDS, !canGo_s3, io.dsReq.fire    & !canGo_s3)
-  doneReadDB  := Mux(doneReadDB, !canGo_s3, io.dbRCReq.fire  & !canGo_s3)
-  doneResp    := Mux(doneResp,   !canGo_s3, io.cpuResp.fire  & !canGo_s3)
-  doneReq     := Mux(doneReq,    !canGo_s3, io.msTask.fire   & !canGo_s3)
-  val needToDo_s3 = Seq(needSnoop, needReadDS, needReadDB, needResp, needReq)
-  val done_s3 = Seq(io.snpTask.fire | doneSnoop,
-                    io.dsReq.fire   | doneReadDS,
-                    io.dbRCReq.fire | doneReadDB,
-                    io.cpuResp.fire | doneResp,
-                    io.msTask.fire  | doneReq)
+  doneSnoop   := Mux(doneSnoop,  !canGo_s3, io.snpTask.fire   & !canGo_s3)
+  doneWSDir   := Mux(doneWSDir,  !canGo_s3, io.sDirWrite.fire & !canGo_s3)
+  doneWCDir   := Mux(doneWCDir,  !canGo_s3, io.cDirWrite.fire & !canGo_s3)
+  doneReadDS  := Mux(doneReadDS, !canGo_s3, io.dsReq.fire     & !canGo_s3)
+  doneReadDB  := Mux(doneReadDB, !canGo_s3, io.dbRCReq.fire   & !canGo_s3)
+  doneResp    := Mux(doneResp,   !canGo_s3, io.cpuResp.fire   & !canGo_s3)
+  doneReq     := Mux(doneReq,    !canGo_s3, io.msTask.fire    & !canGo_s3)
+  val needToDo_s3 = Seq(needSnoop, needWSDir, needWCDir, needReadDS, needReadDB, needResp, needReq)
+  val done_s3 = Seq(io.snpTask.fire   | doneSnoop,
+                    io.sDirWrite.fire | doneWSDir,
+                    io.cDirWrite.fire | doneWCDir,
+                    io.dsReq.fire     | doneReadDS,
+                    io.dbRCReq.fire   | doneReadDB,
+                    io.cpuResp.fire   | doneResp,
+                    io.msTask.fire    | doneReq)
   canGo_s3 := needToDo_s3.zip(done_s3).map(a => !a._1 | a._2).reduce(_ & _) & taskTypeVec.asUInt.orR
 
 
