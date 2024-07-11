@@ -1,7 +1,7 @@
 package NHDSU.CPUSALVE
 
 import NHDSU._
-import _root_.NHDSU.CHI._
+import NHDSU.CHI._
 import chisel3._
 import org.chipsalliance.cde.config._
 import chisel3.util.{Decoupled, PopCount, RegEnable, ValidIO, log2Ceil}
@@ -124,7 +124,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   /*
    * chi rxdat output
    */
-  io.chi.rxdat.valid        := fsmReg.s_resp & fsmReg.w_data & io.dbDataValid
+  io.chi.rxdat.valid        := fsmReg.s_resp & fsmReg.w_data & io.dbDataValid & !fsmReg.w_mpResp
   io.chi.rxdat.bits.opcode  := respReg.opcode
   // IDs
   io.chi.rxdat.bits.tgtID   := dsuparam.idmap.RNID(0).U
@@ -133,6 +133,19 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   io.chi.rxdat.bits.homeNID := dsuparam.idmap.HNID.U
   io.chi.rxdat.bits.dbID    := io.reqBufId
   io.chi.rxdat.bits.resp    := respReg.resp
+
+  /*
+   * chi rxrsp output
+   */
+  io.chi.rxrsp.valid          := fsmReg.s_resp & !fsmReg.w_mpResp
+  io.chi.rxrsp.bits.opcode    := respReg.opcode
+  // IDs
+  io.chi.rxrsp.bits.tgtID     := dsuparam.idmap.RNID(0).U
+  io.chi.rxrsp.bits.srcID     := dsuparam.idmap.HNID.U
+  io.chi.rxrsp.bits.txnID     := reqTxnIDReg
+  io.chi.rxrsp.bits.dbID      := io.reqBufId
+  io.chi.rxrsp.bits.pCrdType  := 0.U // This system dont support Transaction Retry
+  io.chi.rxrsp.bits.resp      := respReg.resp
 
 
   /*
