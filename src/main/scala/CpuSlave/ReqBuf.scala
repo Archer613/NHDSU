@@ -48,7 +48,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   val reqValid        = WireInit(false.B)
   val alloc           = WireInit(false.B)
   val release         = WireInit(false.B)
-  val task            = WireInit(0.U.asTypeOf(io.mpTask.bits))
+  val task            = WireInit(0.U.asTypeOf(new TaskBundle()))
   val getAllData      = WireInit(false.B)
   val getDataNumReg   = RegInit(0.U(log2Ceil(nrBeat+1).W))
   val cleanTask       = WireInit(0.U.asTypeOf(new TaskBundle()))
@@ -81,6 +81,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     task.to.idL1    := DontCare
     task.to.idL2    := DontCare
     // task other
+    task.snpResp    := DontCare
     task.cleanBt    := false.B
     task.writeBt    := true.B
     task.readDir    := true.B

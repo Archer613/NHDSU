@@ -37,6 +37,7 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     // value in use
     val opcode      = UInt(6.W)
     val addr        = UInt(addressBits.W)
+    val snpResp     = UInt(3.W) // resp.width = 3
     val isWB        = Bool() // write back
     val cleanBt     = Bool() // clean block table in ReqArb
     val writeBt     = Bool() // write block table in ReqArb
