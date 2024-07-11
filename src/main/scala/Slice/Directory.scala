@@ -128,6 +128,8 @@ val io = IO(new Bundle {
   dontTouch(cWDirBank)
   dontTouch(sdReadFreeVec)
   dontTouch(cdReadFreeVec)
+  dontTouch(sdWriteFreeVec)
+  dontTouch(cdWriteFreeVec)
 
   // ------------------------------------------ Connection  ----------------------------------------------//
   /*
@@ -165,7 +167,7 @@ val io = IO(new Bundle {
   selfDirs.zipWithIndex.foreach {
     case (s, i) =>
       s.io.dirWrite.valid := io.sDirWrite.valid & sWDirBank === i.U
-      sdWriteFreeVec(i) := s.io.dirRead.ready
+      sdWriteFreeVec(i) := s.io.dirWrite.ready
   }
   io.sDirWrite.ready := sdWriteFreeVec(sWDirBank)
 
@@ -179,7 +181,7 @@ val io = IO(new Bundle {
   clientDirs.zipWithIndex.foreach {
     case (s, i) =>
       s.io.dirWrite.valid := io.cDirWrite.valid & cWDirBank === i.U
-      cdWriteFreeVec(i) := s.io.dirRead.ready
+      cdWriteFreeVec(i) := s.io.dirWrite.ready
   }
   io.cDirWrite.ready := cdWriteFreeVec(sWDirBank)
 
