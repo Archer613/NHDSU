@@ -255,7 +255,6 @@ object ChiState {
     def UC = "b101".U(width.W)
     def SD = "b011".U(width.W)
     def UD = "b111".U(width.W)
-    def ERROR = "b110".U(width.W)
 }
 
 trait HasChiStates { this: Bundle =>
@@ -276,7 +275,6 @@ trait HasChiStates { this: Bundle =>
     def isUnique    = state(ChiState.width-1) === 1.U & !isInvalid
     def isClean     = state(ChiState.width-2) === 0.U & !isInvalid
     def isDirty     = state(ChiState.width-2) === 1.U & !isInvalid
-    def isError     = isInvalid & state =/= ChiState.I // when state(0) === 0.U, state must be 0.U
 }
 
 class CHIStateBundle extends Bundle with HasChiStates

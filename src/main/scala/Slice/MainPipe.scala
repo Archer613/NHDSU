@@ -46,14 +46,14 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
 
 // --------------------- Reg/Wire declaration ------------------------//
   // s2 signals
-  val canGo_s2 = WireInit(false.B)
-  val task_s2 = WireInit(0.U.asTypeOf(Valid(new TaskBundle())))
+  val canGo_s2    = WireInit(false.B)
+  val task_s2     = WireInit(0.U.asTypeOf(Valid(new TaskBundle())))
   // s3 basic signals
-  val canGo_s3 = WireInit(false.B)
+  val canGo_s3    = WireInit(false.B)
   val dirCanGo_s3 = WireInit(false.B)
   val taskNext_s3 = WireInit(0.U.asTypeOf(new TaskBundle()))
-  val task_s3_g = RegInit(0.U.asTypeOf(Valid(new TaskBundle())))
-  val dirRes_s3 = WireInit(0.U.asTypeOf(Valid(new DirResp())))
+  val task_s3_g   = RegInit(0.U.asTypeOf(Valid(new TaskBundle())))
+  val dirRes_s3   = WireInit(0.U.asTypeOf(Valid(new DirResp())))
   // s3 can deal task types
   val CPU_REQ_OH    = "b0001".U
   val CPU_WRITE_OH  = "b0010".U
@@ -68,7 +68,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val needSnoop   = WireInit(false.B)
   val needWSDir   = WireInit(false.B)
   val needWCDir   = WireInit(false.B)
-  val needDSReq  = WireInit(false.B)
+  val needDSReq   = WireInit(false.B)
   val needReadDB  = WireInit(false.B)
   val needResp    = WireInit(false.B)
   val needReq     = WireInit(false.B)
@@ -76,27 +76,27 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val doneSnoop   = RegInit(false.B)
   val doneWSDir   = RegInit(false.B)
   val doneWCDir   = RegInit(false.B)
-  val doneDSReq  = RegInit(false.B)
+  val doneDSReq   = RegInit(false.B)
   val doneReadDB  = RegInit(false.B)
   val doneResp    = RegInit(false.B)
   val doneReq     = RegInit(false.B)
   // s3 dir signals
-  val self_s3 = dirRes_s3.bits.self
-  val client_s3 = dirRes_s3.bits.client
-  val srcRnNS = WireInit(ChiState.ERROR) // source RN Next State
-  val othRnNS = WireInit(ChiState.ERROR) // other RN Next State
-  val hnNS = WireInit(ChiState.ERROR) // HN Next State
-  val sourceID = WireInit(0.U(coreIdBits.W))
+  val self_s3     = dirRes_s3.bits.self
+  val client_s3   = dirRes_s3.bits.client
+  val srcRnNS     = WireInit(ChiState.I) // source RN Next State
+  val othRnNS     = WireInit(ChiState.I) // other RN Next State
+  val hnNS        = WireInit(ChiState.I) // HN Next State
+  val sourceID    = WireInit(0.U(coreIdBits.W))
   val sourceHit_s3 = WireInit(false.B) // Req source hit
   val otherHit_s3 = WireInit(false.B) // Client expect req source hit
-  val hnState = WireInit(ChiState.ERROR)
-  val otherState = WireInit(ChiState.ERROR)
-  val srcState = WireInit(ChiState.ERROR)
+  val hnState     = WireInit(ChiState.I)
+  val otherState  = WireInit(ChiState.I)
+  val srcState    = WireInit(ChiState.I)
   // s3 task signals
-  val taskReq_s3 = WireInit(0.U.asTypeOf(new TaskBundle()))
+  val taskReq_s3  = WireInit(0.U.asTypeOf(new TaskBundle()))
   val taskResp_s3 = WireInit(0.U.asTypeOf(new RespBundle()))
   // s3 data signals
-  val wirteDS_s3 = WireInit(false.B)
+  val wirteDS_s3  = WireInit(false.B)
 
 
 
@@ -173,9 +173,9 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   // Base signals
   sourceID      := Mux(task_s3_g.bits.from.idL0 === IdL0.CPU, task_s3_g.bits.from.idL2, task_s3_g.bits.to.idL2)
   sourceHit_s3  := client_s3.hitVec(sourceID)
-  otherHit_s3   := PopCount(client_s3.hitVec) > 1.U | (client_s3.hitVec.asUInt.orR & !sourceHit_s3)
-  hnState     := Mux(self_s3.hit, self_s3.state, ChiState.I)
-  otherState    := Mux(otherHit_s3, client_s3.metas(PriorityEncoder(client_s3.hitVec)).state, ChiState.I)
+  if(dsuparam.nrCore > 1) otherHit_s3 := PopCount(client_s3.hitVec) > 1.U | (client_s3.hitVec.asUInt.orR & !sourceHit_s3)
+  hnState       := Mux(self_s3.hit, self_s3.state, ChiState.I)
+  if(dsuparam.nrCore > 1) otherState := Mux(otherHit_s3, client_s3.metas(PriorityEncoder(client_s3.hitVec)).state, ChiState.I)
   srcState      := client_s3.metas(sourceID).state
   // Gen new state and resp
   val (snpOp, doNotGoToSD, retToSrc, needSnp, genSnpReqError)               = genSnpReq(task_s3_g.bits.opcode, hnState, otherState)
@@ -222,7 +222,8 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   io.cDirWrite.bits.addr := task_s3_g.bits.addr
   io.cDirWrite.bits.metas.map(_.state).zipWithIndex.foreach {
     case(state, i) =>
-      state := Mux(task_s3_g.bits.to.idL1 === i.U, srcRnNS, Mux(client_s3.hitVec(i), othRnNS, ChiState.I))
+      if(dsuparam.nrCore > 1) state := Mux(task_s3_g.bits.to.idL1 === i.U, srcRnNS, Mux(client_s3.hitVec(i), othRnNS, ChiState.I))
+      else                    state := srcRnNS
   }
   io.cDirWrite.bits.wayOH := client_s3.wayOH
 

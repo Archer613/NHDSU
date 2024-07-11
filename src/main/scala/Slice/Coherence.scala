@@ -210,9 +210,9 @@ object Coherence {
    * gen new coherence when req need snoop
    */
   def genNewCohWithSnp(reqOp: UInt, snpResp: UInt): (UInt, UInt, UInt, Bool) = {
-    val srcRnNS = WireInit(ERROR)
-    val othRnNS = WireInit(ERROR)
-    val hnNS    = WireInit(ERROR)
+    val srcRnNS = WireInit(I)
+    val othRnNS = WireInit(I)
+    val hnNS    = WireInit(I)
     val error   = WireInit(true.B)
     switch(reqOp) {
       is(CHIOp.REQ.ReadNotSharedDirty) {
@@ -243,8 +243,8 @@ object Coherence {
    * gen new coherence when req dont need snoop
    */
   def genNewCohWithoutSnp(reqOp: UInt, self: UInt, otherCHit: Bool): (UInt, UInt, Bool, Bool) = {
-    val rnNS      = WireInit(ERROR)
-    val hnNS      = WireInit(ERROR)
+    val rnNS      = WireInit(I)
+    val hnNS      = WireInit(I)
     val readDown  = WireInit(false.B)
     val error     = WireInit(true.B)
     switch(reqOp) {
