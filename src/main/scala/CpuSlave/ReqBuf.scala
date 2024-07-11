@@ -70,8 +70,6 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     // task base message
     task.channel    := CHIChannel.TXREQ
     task.opcode     := txreq.opcode
-    task.isR        := (CHIOp.REQ.ReadShared <= txreq.opcode & txreq.opcode <= CHIOp.REQ.ReadUnique) |
-                       (CHIOp.REQ.ReadOnceCleanInvalid <= txreq.opcode & txreq.opcode <= CHIOp.REQ.ReadNotSharedDirty)
     task.isWB       := CHIOp.REQ.WriteEvictFull <= txreq.opcode & txreq.opcode <= CHIOp.REQ.WriteUniquePtlStash
     // task addr
     task.addr       := txreq.addr
@@ -119,7 +117,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   cleanTask.cleanBt   := true.B
   cleanTask.writeBt   := false.B
   cleanTaskVal        := fsmReg.s_clean & PopCount(fsmReg.asUInt) === 1.U // only clean need to do
-  io.mpTask.valid     := fsmReg.s_wReq2mp | fsmReg.s_rReq2mp | cleanTaskVal
+  io.mpTask.valid     := fsmReg.s_wbReq2mp | fsmReg.s_req2mp | cleanTaskVal
   io.mpTask.bits      := Mux(cleanTaskVal, cleanTask, taskReg)
 
   /*
@@ -160,8 +158,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
    */
   when(io.chi.txreq.valid) {
     // send
-    fsmReg.s_rReq2mp  := task.isR
-    fsmReg.s_wReq2mp  := task.isWB
+    fsmReg.s_req2mp  := !task.isWB
+    fsmReg.s_wbReq2mp  := task.isWB
     fsmReg.s_rResp    := true.B
     fsmReg.s_clean    := true.B // TODO: consider send clean before all task done
     // wait
@@ -170,8 +168,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     fsmReg.w_compAck  := io.chi.txreq.bits.expCompAck
   }.otherwise {
     // send
-    fsmReg.s_rReq2mp  := Mux(io.mpTask.fire, false.B, fsmReg.s_rReq2mp)
-    fsmReg.s_wReq2mp  := Mux(io.mpTask.fire, false.B, fsmReg.s_wReq2mp)
+    fsmReg.s_req2mp  := Mux(io.mpTask.fire, false.B, fsmReg.s_req2mp)
+    fsmReg.s_wbReq2mp  := Mux(io.mpTask.fire, false.B, fsmReg.s_wbReq2mp)
     fsmReg.s_rResp    := Mux(io.chi.rxrsp.fire | (io.chi.rxdat.fire & getAllData), false.B, fsmReg.s_rResp)
     fsmReg.s_clean    := Mux(io.mpTask.fire & io.mpTask.bits.cleanBt, false.B, fsmReg.s_clean)
     // wait
@@ -188,7 +186,6 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   when(release) {
     assert(fsmReg.asUInt === 0.U, "when ReqBuf release, all task should be done")
   }
-  assert(!(task.isR & task.isWB), "Cant alloc r and wb task at the same time")
   assert(Mux(getDataNumReg === nrBeat.U, !io.dbDataValid, true.B), "ReqBuf get data from DataBuf overflow")
   assert(Mux(io.dbDataValid, fsmReg.s_rResp & fsmReg.w_data, true.B), "When dbDataValid, ReqBuf should set s_rResp and w_data")
 

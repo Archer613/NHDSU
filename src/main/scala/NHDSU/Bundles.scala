@@ -37,7 +37,6 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     // value in use
     val opcode      = UInt(6.W)
     val addr        = UInt(addressBits.W)
-    val isR         = Bool()
     val isWB        = Bool() // write back
     val cleanBt     = Bool() // clean block table in ReqArb
     val writeBt     = Bool() // write block table in ReqArb
@@ -143,8 +142,8 @@ class DsDBBundle(beat: Int = 1)(implicit p: Parameters) extends DSUBundle {
 // ---------------------- ReqBuf Bundle ------------------- //
 class RBFSMState(implicit p: Parameters) extends Bundle {
     // schedule
-    val s_rReq2mp = Bool()
-    val s_wReq2mp = Bool()
+    val s_req2mp = Bool() // expect write back req
+    val s_wbReq2mp = Bool()
     val s_rResp   = Bool()
     val s_clean   = Bool()
 
