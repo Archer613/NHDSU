@@ -2,6 +2,7 @@ package NHDSU.SLICE
 
 import NHDSU._
 import NHDSU.CHI._
+import NHDSU.CHI.ChiState._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
@@ -21,7 +22,7 @@ import org.chipsalliance.cde.config._
  * HN(UC)
  * *** RN_0(I)  ---[ReadNotSharedDirty]--->   HN(UC -> I)  (RN_1-I)             ---[CompData(UC)]--->     RN_0(UC)
  * HN(DD)
- * *** RN_0(I)  ---[ReadNotSharedDirty]--->   HN(UD -> SD) (RN_1-I)             ---[CompData(SC)]--->     RN_0(SC)
+ * *** RN_0(I)  ---[ReadNotSharedDirty]--->   HN(UD -> I)  (RN_1-I)             ---[CompData(UD_PD)]--->  RN_0(UD)
  *
  *
  * --- [ReadUnique]: We dont care others permitted state
@@ -35,7 +36,7 @@ import org.chipsalliance.cde.config._
  * *** RN_0(SC) ---[ReadUnique]---> HN(SC -> I) (RN_1-SC) (Snoop)
  * HN(SD)
  * *** RN_0(I)  ---[ReadUnique]---> HN(SD -> I) (RN_1-SC) (Snoop)
- * *** RN_0(SC) ---[ReadUnique]---> HN(SD -> I) (RN_1-I)              ---[CompData(UD_PD)]---> RN_0(UC)
+ * *** RN_0(SC) ---[ReadUnique]---> HN(SD -> I) (RN_1-I)              ---[CompData(UD_PD)]---> RN_0(UD)
  * *** RN_0(SC) ---[ReadUnique]---> HN(SD -> I) (RN_1-SC) (Snoop)
  * HN(UC)
  * *** RN_0(I)  ---[ReadUnique]---> HN(UC -> I) (RN_1-I)              ---[CompData(UC)]--->    RN_0(UC)
@@ -120,7 +121,7 @@ import org.chipsalliance.cde.config._
 /*
  * Snoop transactions:
  * *** TODO: RN_1 return SnpResp when SnpNotSharedDirty set RetToSrc, so it require RN must return Data when RetToSrc has been set
- * *** TODO: If snoop RN is I (HN receive Comp(I)), snoop transaction transfer to Read transaction, it shouldn't be happening in this coherence system
+ * *** TODO: If snoop RN is I (HN receive Comp(I)), snoop transaction transfer to Read transaction(it will be happening in this coherence system because of Evict)
  * *** All snoop in DSU set DoNotGoToSD, RN cant be SD in DSU coherence system
  *
  *
@@ -131,9 +132,9 @@ import org.chipsalliance.cde.config._
  *
  *
  * ---[SnpUnique]:
- * *** HN(I)  ---[SnpUnique(RetToSrc)]--->  RN_1(UC -> I) ---[SnpRespData(I)]--->    HN(I)       ---[CompData(UC)]--->    RN_0(UC)
- * *** HN(I)  ---[SnpUnique(RetToSrc)]--->  RN_1(UD -> I) ---[SnpRespData(I_PD)]---> HN(I)       ---[CompData(UD_PD)]---> RN_0(UD)
- * *** HN(SC) ---[SnpUnique(RetToSrc)]--->  RN_1(SC -> I) ---[SnpResp(I)]--->        HN(SC -> I) ---[CompData(UC)]--->    RN_0(UC)
+ * *** HN(I)        ---[SnpUnique(RetToSrc)]--->  RN_1(UC -> I) ---[SnpRespData(I)]--->    HN(I)       ---[CompData(UC)]--->            RN_0(UC)
+ * *** HN(I)        ---[SnpUnique(RetToSrc)]--->  RN_1(UD -> I) ---[SnpRespData(I_PD)]---> HN(I)       ---[CompData(UD_PD)]--->         RN_0(UD)
+ * *** HN(SC / SD)  ---[SnpUnique]--->            RN_1(SC -> I) ---[SnpResp(I)]--->        HN(I)       ---[CompData(UC / UD_PD)]--->    RN_0(UC / UD)
  *
  *
  * ---[SnpUnique]:Use in snoop helper
@@ -143,9 +144,9 @@ import org.chipsalliance.cde.config._
  *
  *
  * ---[SnpMakeInvalid]:
- * *** HN(I)  ---[SnpMakeInvalid]---> RN_1(UC -> I) ---[SnpResp(I)]---> HN(I) ---[Comp(UC)]---> RN_0(UC)
- * *** HN(I)  ---[SnpMakeInvalid]---> RN_1(UD -> I) ---[SnpResp(I)]---> HN(I) ---[Comp(UC)]---> RN_0(UC)
- * *** HN(SC) ---[SnpMakeInvalid]---> RN_1(SC -> I) ---[SnpResp(I)]---> HN(I) ---[Comp(UC)]---> RN_0(UC)
+ * *** HN(I)       ---[SnpMakeInvalid]---> RN_1(UC -> I) ---[SnpResp(I)]---> HN(I) ---[Comp(UC)]---> RN_0(UD)
+ * *** HN(I)       ---[SnpMakeInvalid]---> RN_1(UD -> I) ---[SnpResp(I)]---> HN(I) ---[Comp(UC)]---> RN_0(UD)
+ * *** HN(SC / SD) ---[SnpMakeInvalid]---> RN_1(SC -> I) ---[SnpResp(I)]---> HN(I) ---[Comp(UC)]---> RN_0(UD)
  *
  *
  */
@@ -166,70 +167,166 @@ import org.chipsalliance.cde.config._
  */
 object Coherence {
   /*
-   * req not hit in client(dont need snoop)
+   * req gen snoop
    */
-  def genNewCohWithoutSnp(reqOp: UInt, selfState: UInt): (UInt, UInt) = {
-    val rnNS = WireInit(ChiState.ERROR)
-    val hnNS = WireInit(ChiState.ERROR)
+  def genSnpReq(reqOp: UInt, self: UInt, other: UInt): (UInt, Bool, Bool, Bool, Bool) = {
+    val snpOp       = WireInit(0x18.U(5.W)) // SNP.op.width = 5
+    val doNotGoToSD = WireInit(true.B)
+    val retToSrc    = WireInit(false.B)
+    val needSnp     = WireInit(false.B)
+    val error       = WireInit(true.B)
     switch(reqOp) {
       is(CHIOp.REQ.ReadNotSharedDirty) {
-        switch(selfState) {
-          is(ChiState.I)  { rnNS := ChiState.UC; hnNS := ChiState.I }
-          is(ChiState.UC) { rnNS := ChiState.UC; hnNS := ChiState.I }
-          is(ChiState.UD) { rnNS := ChiState.UD; hnNS := ChiState.I }
+        snpOp     := CHIOp.SNP.SnpNotSharedDirty
+        retToSrc  := true.B
+        switch(other) {
+          is(UC) { needSnp := self === I; error := false.B }
+          is(UD) { needSnp := self === I; error := false.B }
         }
       }
       is(CHIOp.REQ.ReadUnique) {
-        switch(selfState) {
-          is(ChiState.I)  { rnNS := ChiState.UC; hnNS := ChiState.I }
-          is(ChiState.UC) { rnNS := ChiState.UC; hnNS := ChiState.I }
-          is(ChiState.UD) { rnNS := ChiState.UD; hnNS := ChiState.I }
+        snpOp := CHIOp.SNP.SnpUnique
+        switch(other) {
+          is(UC) { needSnp := self === I; retToSrc := true.B; error := false.B }
+          is(UD) { needSnp := self === I; retToSrc := true.B; error := false.B }
+          is(SC) { needSnp := self === SC | self === SD; retToSrc := false.B; error := false.B }
         }
       }
       is(CHIOp.REQ.MakeUnique) {
-        switch(selfState) {
-          is(ChiState.I)  { rnNS := ChiState.UC; hnNS := ChiState.I }
-          is(ChiState.UC) { rnNS := ChiState.UC; hnNS := ChiState.I }
-          is(ChiState.UD) { rnNS := ChiState.UD; hnNS := ChiState.I }
+        snpOp     := CHIOp.SNP.SnpMakeInvalid
+        retToSrc  := false.B
+        switch(other) {
+          is(UC) { needSnp := self === I; error := false.B }
+          is(UD) { needSnp := self === I; error := false.B }
+          is(SC) { needSnp := self === SC | self === SD; error := false.B }
         }
       }
+      // TODO: Snoop Helper
     }
-    (rnNS, hnNS)
+    (snpOp, doNotGoToSD, retToSrc, needSnp, error)
   }
+
+  /*
+   * gen new coherence when req need snoop
+   */
+  def genNewCohWithSnp(reqOp: UInt, snpResp: UInt): (UInt, UInt, UInt, Bool) = {
+    val srcRnNS = WireInit(ERROR)
+    val othRnNS = WireInit(ERROR)
+    val hnNS    = WireInit(ERROR)
+    val error   = WireInit(true.B)
+    switch(reqOp) {
+      is(CHIOp.REQ.ReadNotSharedDirty) {
+        switch(snpResp) {
+          is(ChiResp.SC)    { othRnNS := SC; hnNS := SC; srcRnNS := SC; error := false.B }
+          is(ChiResp.SC_PD) { othRnNS := SC; hnNS := SD; srcRnNS := SC; error := false.B }
+          is(ChiResp.I)     { othRnNS := I; hnNS := I; srcRnNS := UC; error := false.B }
+          is(ChiResp.I_PD)  { othRnNS := I; hnNS := I; srcRnNS := UD; error := false.B }
+        }
+      }
+      is(CHIOp.REQ.ReadUnique) {
+        switch(snpResp) {
+          is(ChiResp.I)     { othRnNS := I; hnNS := I; srcRnNS := UC; error := false.B }
+          is(ChiResp.I_PD)  { othRnNS := I; hnNS := I; srcRnNS := UD; error := false.B }
+        }
+      }
+      is(CHIOp.REQ.MakeUnique) {
+          othRnNS := I; hnNS := I; srcRnNS := UD; error := snpResp === ChiResp.I
+      }
+    }
+    (srcRnNS, othRnNS, hnNS, error)
+  }
+
+
+
+
+  /*
+   * gen new coherence when req dont need snoop
+   */
+  def genNewCohWithoutSnp(reqOp: UInt, selfState: UInt, otherCHit: Bool): (UInt, UInt, Bool, Bool) = {
+    val rnNS      = WireInit(ERROR)
+    val hnNS      = WireInit(ERROR)
+    val readDown  = WireInit(false.B)
+    val error     = WireInit(true.B)
+    switch(reqOp) {
+      is(CHIOp.REQ.ReadNotSharedDirty) {
+        switch(selfState) {
+          is(I)  { rnNS := UC; hnNS := I; readDown := !otherCHit }
+          is(SC) { rnNS := SC; hnNS := SC }
+          is(SD) { rnNS := SC; hnNS := SD }
+          is(UC) { rnNS := UC; hnNS := I }
+          is(UD) { rnNS := UD; hnNS := I }
+        }
+        error := false.B
+      }
+      is(CHIOp.REQ.ReadUnique) {
+        switch(selfState) {
+          is(I)  { rnNS := UC; hnNS := I; readDown := !otherCHit }
+          is(SC) { rnNS := UC; hnNS := I }
+          is(SD) { rnNS := UD; hnNS := I }
+          is(UC) { rnNS := UC; hnNS := I }
+          is(UD) { rnNS := UD; hnNS := I }
+        }
+        error := false.B
+      }
+      is(CHIOp.REQ.MakeUnique) {
+        switch(selfState) {
+          is(I)  { rnNS := UD; hnNS := I }
+          is(SC) { rnNS := UD; hnNS := I }
+          is(SD) { rnNS := UD; hnNS := I }
+          is(UC) { rnNS := UD; hnNS := I }
+          is(UD) { rnNS := UD; hnNS := I }
+        }
+        error := false.B
+      }
+      is(CHIOp.REQ.Evict) {
+        switch(selfState) {
+          is(I)  { rnNS := I; hnNS := I }
+          is(SC) { rnNS := I; hnNS := Mux(otherCHit, SC, UC) }
+          is(SD) { rnNS := I; hnNS := Mux(otherCHit, SD, UD) }
+          is(UC) { rnNS := I; hnNS := UC }
+          is(UD) { rnNS := I; hnNS := UD }
+        }
+        error := false.B
+      }
+    }
+    (rnNS, hnNS, readDown, error)
+  }
+
 
   /*
    * return (channel, op, resp)
    */
-  def genRnResp(reqOp: UInt, rnNS: UInt): (UInt, UInt, UInt) = {
+  def genRnResp(reqOp: UInt, rnNS: UInt): (UInt, UInt, UInt, Bool) = {
     val channel = WireInit(0.U(CHIChannel.width.W))
     val op      = WireInit(0.U(4.W)) // DAT.op.width = 3; RSP.op.width = 4
-    val resp    = WireInit(ChiResp.ERROR) // resp.width = 3
+    val resp    = WireInit(ChiResp.I) // resp.width = 3
+    val error   = WireInit(true.B)
     switch(reqOp) {
       is(CHIOp.REQ.ReadNotSharedDirty) {
         switch(rnNS) {
-          is(ChiState.SC) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.SC }
-          is(ChiState.UC) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UC }
-          is(ChiState.UD) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UD_PD }
+          is(SC) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.SC; error := false.B }
+          is(UC) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UC; error := false.B }
+          is(UD) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UD_PD; error := false.B }
         }
       }
       is(CHIOp.REQ.ReadUnique) {
         switch(rnNS) {
-          is(ChiState.UC) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UC }
-          is(ChiState.UD) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UD_PD }
+          is(UC) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UC; error := false.B }
+          is(UD) { channel := CHIChannel.RXDAT; op := CHIOp.DAT.CompData; resp := ChiResp.UD_PD; error := false.B }
         }
       }
       is(CHIOp.REQ.MakeUnique) {
         switch(rnNS) {
-          is(ChiState.UC) { channel := CHIChannel.RXRSP; op := CHIOp.RSP.Comp; resp := ChiResp.UC }
+          is(UD) { channel := CHIChannel.RXRSP; op := CHIOp.RSP.Comp; resp := ChiResp.UC; error := false.B }
         }
       }
+      is(CHIOp.REQ.Evict) {
+        channel := CHIChannel.RXRSP; op := CHIOp.RSP.Comp; resp := ChiResp.I; error := false.B
+      }
     }
-    (channel, op, resp)
+    (channel, op, resp, error)
   }
 
 
-  /*
-   *
-   */
 
 }
