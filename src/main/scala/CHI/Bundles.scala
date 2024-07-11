@@ -216,15 +216,14 @@ object ChiResp {
     def UC = "b010".U(width.W)
     def UD = "b010".U(width.W)
     def SD = "b011".U(width.W)
-    def ERROR = "b100".U(width.W)
 
     def PassDirty = "b100".U(width.W)
 
-    def I_PD = setPD(I)
-    def SC_PD = setPD(SC)
-    def UC_PD = setPD(UC)
-    def UD_PD = setPD(UD)
-    def SD_PD = setPD(SD)
+    def I_PD = "b100".U(width.W)
+    def SC_PD = "b101".U(width.W)
+    def UC_PD = "b110".U(width.W)
+    def UD_PD = "b110".U(width.W)
+    def SD_PD = "b111".U(width.W)
 
     def setPD(state: UInt, pd: Bool = true.B): UInt = {
         require(state.getWidth == width)
@@ -242,7 +241,6 @@ trait HasChiResp { this: Bundle =>
     def isUnique = state(baseWidth, 0) === ChiResp.UC(baseWidth, 0) | state(baseWidth, 0) === ChiResp.UD(baseWidth, 0)
     def isClean = state(baseWidth, 0) === ChiResp.SC(baseWidth, 0) | state(baseWidth, 0) === ChiResp.UC(baseWidth, 0)
     def isDirty = state(baseWidth, 0) === ChiResp.UD(baseWidth, 0) | state(baseWidth, 0) === ChiResp.SD(baseWidth, 0)
-    def isError: Bool = state === ChiResp.ERROR
     def passDirty = state(ChiResp.width-1)
 }
 
