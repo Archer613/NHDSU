@@ -32,9 +32,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
 
   // TODO: Delete the following code when the coding is complete
   io.arbTask <> DontCare
-  io.sDirWrite <> DontCare
   io.dirResp <> DontCare
-  io.cDirWrite <> DontCare
   io.dsReq <> DontCare
   io.snpTask <> DontCare
   io.msTask <> DontCare
@@ -56,17 +54,21 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val taskNext_s3 = WireInit(0.U.asTypeOf(new TaskBundle()))
   val task_s3_g = RegInit(0.U.asTypeOf(Valid(new TaskBundle())))
   val dirRes_s3 = WireInit(0.U.asTypeOf(Valid(new DirResp())))
-  // s3 can deal tasks
-  val TYPE_READ   = "b0001".U
-  val TYPE_WRITE  = "b0010".U
-  val TYPE_RRESP  = "b0100".U // Snp Resp
-  val TYPE_SRESP  = "b1000".U // Read Resp
-  val taskTypeVec = Wire(Vec(4, Bool()))
+  // s3 can deal task types
+  val CPU_REQ_OH    = "b0001".U
+  val CPU_WRITE_OH  = "b0010".U
+  val MS_RESP_OH    = "b0100".U
+  val SNP_RESP_OH   = "b1000".U
+  val CPU_REQ       = 0
+  val CPU_WRITE     = 1
+  val MS_RESP       = 2
+  val SNP_RESP      = 3
+  val taskTypeVec   = Wire(Vec(4, Bool()))
   // s3 need to do signals
   val needSnoop   = WireInit(false.B)
   val needWSDir   = WireInit(false.B)
   val needWCDir   = WireInit(false.B)
-  val needReadDS  = WireInit(false.B)
+  val needDSReq  = WireInit(false.B)
   val needReadDB  = WireInit(false.B)
   val needResp    = WireInit(false.B)
   val needReq     = WireInit(false.B)
@@ -74,7 +76,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val doneSnoop   = RegInit(false.B)
   val doneWSDir   = RegInit(false.B)
   val doneWCDir   = RegInit(false.B)
-  val doneReadDS  = RegInit(false.B)
+  val doneDSReq  = RegInit(false.B)
   val doneReadDB  = RegInit(false.B)
   val doneResp    = RegInit(false.B)
   val doneReq     = RegInit(false.B)
@@ -87,7 +89,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val sourceID = WireInit(0.U(coreIdBits.W))
   val sourceHit_s3 = WireInit(false.B) // Req source hit
   val otherHit_s3 = WireInit(false.B) // Client expect req source hit
-  val selfState = WireInit(ChiState.ERROR)
+  val hnState = WireInit(ChiState.ERROR)
   val otherState = WireInit(ChiState.ERROR)
   val srcState = WireInit(ChiState.ERROR)
   // s3 task signals
@@ -103,12 +105,12 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   dontTouch(needSnoop)
   dontTouch(needWSDir)
   dontTouch(needWCDir)
-  dontTouch(needReadDS)
+  dontTouch(needDSReq)
   dontTouch(needReadDB)
   dontTouch(needResp)
   dontTouch(needReq)
   dontTouch(doneSnoop)
-  dontTouch(doneReadDS)
+  dontTouch(doneDSReq)
   dontTouch(doneReadDB)
   dontTouch(doneResp)
   dontTouch(doneReq)
@@ -147,12 +149,23 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
 
 
   /*
-   * Determine task_s3 is [ taskRead_s3 / taskWrite_s3 / taskRespMs_s3 / taskRespSnp_s3 ]
+   * Determine task_s3 is [ CPU_REQ / CPU_WRITE / MS_RESP / SNP_RESP ]
+   * io.arbTask:
+   * [CPU_REQ]    |  from: [CPU]    [coreId]    [reqBufId]   | to: [SLICE]  [sliceId] [DontCare]
+   * [CPU_WRITE]  |  from: [CPU]    [coreId]    [reqBufId]   | to: [SLICE]  [sliceId] [DontCare]
+   * [MS_RESP]    |  from: [MASTER] [DontCare]  [DontCare]   | to: [CPU]    [coreId]  [reqBufId]
+   * [SNP_RESP]   |  from: [SLICE]  [DontCare]  [DontCare]   | to: [CPU]    [coreId]  [reqBufId]
+   * other:
+   * [io.dsReq]   |  from: None                              | to: [CPU]    [coreId]  [reqBufId] // TODO
+   * [io.snpTask] |  from: [CPU]    [coreId]  [reqBufId]     | to: None                          // TODO
+   * [io.cpuResp] |  from: None                              | to: [CPU]    [coreId]  [reqBufId]
+   * [io.msTask]  |  from: [CPU]    [coreId]  [reqBufId]     | to: None                          // TODO
+   * [io.dbRCReq] |  from: None                              | to: [CPU]    [coreId]  [reqBufId]
    */
-  taskTypeVec(0) := task_s3_g.valid & !task_s3_g.bits.isWB & dirRes_s3.valid & task_s3_g.bits.isTxReq // Default taskRead_s3 needs to read directory
-  taskTypeVec(1) := false.B // TODO
-  taskTypeVec(2) := task_s3_g.valid & task_s3_g.bits.from.idL0 === IdL0.MASTER & Mux(task_s3_g.bits.readDir, dirRes_s3.valid, true.B)
-  taskTypeVec(3) := false.B // TODO
+  taskTypeVec(CPU_REQ)    := task_s3_g.valid & dirRes_s3.valid & !task_s3_g.bits.isWB & task_s3_g.bits.from.idL0 === IdL0.CPU
+  taskTypeVec(CPU_WRITE)  := task_s3_g.valid & dirRes_s3.valid & task_s3_g.bits.isWB & task_s3_g.bits.from.idL0 === IdL0.CPU
+  taskTypeVec(MS_RESP)    := task_s3_g.valid & dirRes_s3.valid & task_s3_g.bits.from.idL0 === IdL0.MASTER
+  taskTypeVec(SNP_RESP)   := task_s3_g.valid & dirRes_s3.valid & task_s3_g.bits.from.idL0 === IdL0.SLICE
 
   /*
    * generate (rnNS, hnNS) cpuResp:(channel, op, resp)
@@ -161,23 +174,25 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   sourceID      := Mux(task_s3_g.bits.from.idL0 === IdL0.CPU, task_s3_g.bits.from.idL2, task_s3_g.bits.to.idL2)
   sourceHit_s3  := client_s3.hitVec(sourceID)
   otherHit_s3   := PopCount(client_s3.hitVec) > 1.U | (client_s3.hitVec.asUInt.orR & !sourceHit_s3)
-  selfState     := Mux(self_s3.hit, self_s3.state, ChiState.I)
+  hnState     := Mux(self_s3.hit, self_s3.state, ChiState.I)
   otherState    := Mux(otherHit_s3, client_s3.metas(PriorityEncoder(client_s3.hitVec)).state, ChiState.I)
   srcState      := client_s3.metas(sourceID).state
   // Gen new state and resp
-  val (snpOp, doNotGoToSD, retToSrc, needSnp, genSnpReqError)               = genSnpReq(task_s3_g.bits.opcode, selfState, otherState)
+  val (snpOp, doNotGoToSD, retToSrc, needSnp, genSnpReqError)               = genSnpReq(task_s3_g.bits.opcode, hnState, otherState)
   val (srcRnNSWithSnp, othRnNSWithSnp, hSNSWithSnp, genNewCohWithSnpError)  = genNewCohWithSnp(task_s3_g.bits.opcode, task_s3_g.bits.snpResp)
-  val (rnNSWithoutSnp, hnNSWithoutSnp, readDown, genNewCohWithoutSnpError)  = genNewCohWithoutSnp(task_s3_g.bits.opcode, selfState, otherHit_s3)
+  val (rnNSWithoutSnp, hnNSWithoutSnp, readDown, genNewCohWithoutSnpError)  = genNewCohWithoutSnp(task_s3_g.bits.opcode, hnState, otherHit_s3)
   val (respChnl, respOp, respResp, genRnRespError)                          = genRnResp(task_s3_g.bits.opcode, srcRnNS)
   // Mux
-  srcRnNS   := Mux(taskTypeVec(OHToUInt(TYPE_SRESP)), srcRnNSWithSnp, rnNSWithoutSnp)
-  hnNS      := Mux(taskTypeVec(OHToUInt(TYPE_SRESP)), hSNSWithSnp, hnNSWithoutSnp)
+  srcRnNS   := Mux(taskTypeVec(SNP_RESP), srcRnNSWithSnp, rnNSWithoutSnp)
+  hnNS      := Mux(taskTypeVec(SNP_RESP), hSNSWithSnp, hnNSWithoutSnp)
   othRnNS   := othRnNSWithSnp
 
 
   /*
    * Write or Read DS logic
    */
+  // TODO
+
 
   /*
    * Read/Clean DB logic
@@ -188,15 +203,28 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   io.dbRCReq.bits.dbid := task_s3_g.bits.dbid
   io.dbRCReq.bits.isClean := !wirteDS_s3
 
+
   /*
    * Write Self Directory
    */
+  needWSDir := hnNS =/= hnState & needResp
+  io.sDirWrite.valid := needWSDir & !doneWSDir
+  io.sDirWrite.bits.state := hnNS
+  io.sDirWrite.bits.addr := task_s3_g.bits.addr
+  io.sDirWrite.bits.wayOH := self_s3.wayOH
 
 
   /*
    * Write Client Directory
    */
-
+  needWCDir := (srcRnNS =/= srcState | othRnNS =/= otherState) & needResp
+  io.cDirWrite.valid := needWCDir & !doneWCDir
+  io.cDirWrite.bits.addr := task_s3_g.bits.addr
+  io.cDirWrite.bits.metas.map(_.state).zipWithIndex.foreach {
+    case(state, i) =>
+      state := Mux(task_s3_g.bits.to.idL1 === i.U, srcRnNS, Mux(client_s3.hitVec(i), othRnNS, ChiState.I))
+  }
+  io.cDirWrite.bits.wayOH := client_s3.wayOH
 
 
   /*
@@ -208,10 +236,10 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
    * Output to resp logic
    */
   switch(taskTypeVec.asUInt) {
-    // TODO: TYPE_READ
-    // TODO: TYPE_WRITE
-    is(TYPE_RRESP) { needResp := true.B }
-    // TODO: TYPE_SRESP
+    is(CPU_REQ_OH)    { needResp := !readDown & !needSnp }
+    is(CPU_WRITE_OH)  { needResp := true.B }
+    is(MS_RESP_OH)    { needResp := true.B }
+    is(SNP_RESP_OH)   { needResp := true.B }
   }
   // bits
   taskResp_s3.channel   := respChnl
@@ -232,10 +260,10 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
    * Output to req logic
    */
   switch(taskTypeVec.asUInt) {
-    is(TYPE_READ) { needReq := readDown } // Not hit in all cache
-    // TODO: TYPE_WRITE
-    is(TYPE_RRESP) { needReq := false.B } // TODO: consider need to replace
-    // TODO: TYPE_SRESP
+    is(CPU_REQ_OH)    { needReq := readDown }
+    is(CPU_WRITE_OH)  { needReq := false.B } // TODO: consider need to replace
+    is(MS_RESP_OH)    { needReq := false.B } // TODO: consider need to replace
+    is(SNP_RESP_OH)   { needReq := false.B } // TODO: consider need to replace
   }
   // bits
   taskReq_s3.opcode     := task_s3_g.bits.opcode
@@ -260,15 +288,15 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   doneSnoop   := Mux(doneSnoop,  !canGo_s3, io.snpTask.fire   & !canGo_s3)
   doneWSDir   := Mux(doneWSDir,  !canGo_s3, io.sDirWrite.fire & !canGo_s3)
   doneWCDir   := Mux(doneWCDir,  !canGo_s3, io.cDirWrite.fire & !canGo_s3)
-  doneReadDS  := Mux(doneReadDS, !canGo_s3, io.dsReq.fire     & !canGo_s3)
+  doneDSReq   := Mux(doneDSReq,  !canGo_s3, io.dsReq.fire     & !canGo_s3)
   doneReadDB  := Mux(doneReadDB, !canGo_s3, io.dbRCReq.fire   & !canGo_s3)
   doneResp    := Mux(doneResp,   !canGo_s3, io.cpuResp.fire   & !canGo_s3)
   doneReq     := Mux(doneReq,    !canGo_s3, io.msTask.fire    & !canGo_s3)
-  val needToDo_s3 = Seq(needSnoop, needWSDir, needWCDir, needReadDS, needReadDB, needResp, needReq)
+  val needToDo_s3 = Seq(needSnoop, needWSDir, needWCDir, needDSReq, needReadDB, needResp, needReq)
   val done_s3 = Seq(io.snpTask.fire   | doneSnoop,
                     io.sDirWrite.fire | doneWSDir,
                     io.cDirWrite.fire | doneWCDir,
-                    io.dsReq.fire     | doneReadDS,
+                    io.dsReq.fire     | doneDSReq,
                     io.dbRCReq.fire   | doneReadDB,
                     io.cpuResp.fire   | doneResp,
                     io.msTask.fire    | doneReq)
@@ -281,6 +309,9 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   assert(Mux(task_s3_g.valid & canGo_s3, PopCount(done_s3).orR, true.B), "State 3: when task_s3 go, must has some task done")
   assert(Mux(io.cpuResp.fire, !genRnRespError, true.B), "GenRnRespError")
   assert(Mux(io.snpTask.fire, !genSnpReqError, true.B), "GenSnpReqError")
-  assert(Mux(io.cDirWrite.fire | io.sDirWrite.fire, Mux(taskTypeVec(TYPE_RRESP), !genNewCohWithSnpError, !genNewCohWithoutSnpError), true.B),
+  assert(Mux(io.cDirWrite.fire | io.sDirWrite.fire, Mux(taskTypeVec(SNP_RESP), !genNewCohWithSnpError, !genNewCohWithoutSnpError), true.B),
           "GenNewCohWithSnpError or GenNewCohWithoutSnpError")
+  // TODO: Delete the following code when the coding is complete
+  assert(!needSnp)
+  assert(!needDSReq)
 }

@@ -143,15 +143,16 @@ class DsDBBundle(beat: Int = 1)(implicit p: Parameters) extends DSUBundle {
 // ---------------------- ReqBuf Bundle ------------------- //
 class RBFSMState(implicit p: Parameters) extends Bundle {
     // schedule
-    val s_req2mp = Bool() // expect write back req
-    val s_wbReq2mp = Bool()
-    val s_rResp   = Bool()
-    val s_clean   = Bool()
+    val s_req2mp    = Bool() // expect write back req
+    val s_wbReq2mp  = Bool()
+    val s_resp      = Bool()
+    val s_wbResp    = Bool()
+    val s_clean     = Bool()
 
     // wait
-    val w_rResp = Bool()
-    val w_data  = Bool()
-    val w_compAck = Bool()
+    val w_mpResp    = Bool()
+    val w_data      = Bool()
+    val w_compAck   = Bool()
 }
 
 

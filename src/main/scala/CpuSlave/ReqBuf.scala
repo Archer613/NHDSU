@@ -124,7 +124,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   /*
    * chi rxdat output
    */
-  io.chi.rxdat.valid        := fsmReg.s_rResp & fsmReg.w_data & io.dbDataValid
+  io.chi.rxdat.valid        := fsmReg.s_resp & fsmReg.w_data & io.dbDataValid
   io.chi.rxdat.bits.opcode  := respReg.opcode
   // IDs
   io.chi.rxdat.bits.tgtID   := dsuparam.idmap.RNID(0).U
@@ -159,22 +159,24 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
    */
   when(io.chi.txreq.valid) {
     // send
-    fsmReg.s_req2mp  := !task.isWB
-    fsmReg.s_wbReq2mp  := task.isWB
-    fsmReg.s_rResp    := true.B
+    fsmReg.s_req2mp   := !task.isWB
+    fsmReg.s_wbReq2mp := task.isWB
+    fsmReg.s_resp     := !task.isWB
+    fsmReg.s_wbResp   := task.isWB
     fsmReg.s_clean    := true.B // TODO: consider send clean before all task done
     // wait
-    fsmReg.w_rResp    := true.B
+    fsmReg.w_mpResp   := true.B
     fsmReg.w_data     := false.B
     fsmReg.w_compAck  := io.chi.txreq.bits.expCompAck
   }.otherwise {
     // send
-    fsmReg.s_req2mp  := Mux(io.mpTask.fire, false.B, fsmReg.s_req2mp)
-    fsmReg.s_wbReq2mp  := Mux(io.mpTask.fire, false.B, fsmReg.s_wbReq2mp)
-    fsmReg.s_rResp    := Mux(io.chi.rxrsp.fire | (io.chi.rxdat.fire & getAllData), false.B, fsmReg.s_rResp)
+    fsmReg.s_req2mp   := Mux(io.mpTask.fire, false.B, fsmReg.s_req2mp)
+    fsmReg.s_wbReq2mp := Mux(io.mpTask.fire, false.B, fsmReg.s_wbReq2mp)
+    fsmReg.s_resp     := Mux(io.chi.rxrsp.fire | (io.chi.rxdat.fire & getAllData), false.B, fsmReg.s_resp)
+    fsmReg.s_wbResp   := false.B // TODO
     fsmReg.s_clean    := Mux(io.mpTask.fire & io.mpTask.bits.cleanBt, false.B, fsmReg.s_clean)
     // wait
-    fsmReg.w_rResp    := Mux(io.mpResp.fire, false.B, fsmReg.w_rResp)
+    fsmReg.w_mpResp   := Mux(io.mpResp.fire, false.B, fsmReg.w_mpResp)
     fsmReg.w_data     := Mux(io.mpResp.fire & io.mpResp.bits.isRxDat, true.B, Mux(getAllData, false.B, fsmReg.w_data))
     fsmReg.w_compAck  := Mux(io.chi.txrsp.fire & io.chi.txrsp.bits.opcode === CHIOp.RSP.CompAck, false.B, fsmReg.w_compAck)
   }
@@ -188,7 +190,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     assert(fsmReg.asUInt === 0.U, "when ReqBuf release, all task should be done")
   }
   assert(Mux(getDataNumReg === nrBeat.U, !io.dbDataValid, true.B), "ReqBuf get data from DataBuf overflow")
-  assert(Mux(io.dbDataValid, fsmReg.s_rResp & fsmReg.w_data, true.B), "When dbDataValid, ReqBuf should set s_rResp and w_data")
+  assert(Mux(io.dbDataValid, fsmReg.s_resp & fsmReg.w_data, true.B), "When dbDataValid, ReqBuf should set s_rResp and w_data")
 
   val cntReg = RegInit(0.U(64.W))
   cntReg := Mux(io.free, 0.U, cntReg + 1.U)

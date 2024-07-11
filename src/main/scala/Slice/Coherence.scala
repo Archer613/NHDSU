@@ -242,14 +242,14 @@ object Coherence {
   /*
    * gen new coherence when req dont need snoop
    */
-  def genNewCohWithoutSnp(reqOp: UInt, selfState: UInt, otherCHit: Bool): (UInt, UInt, Bool, Bool) = {
+  def genNewCohWithoutSnp(reqOp: UInt, self: UInt, otherCHit: Bool): (UInt, UInt, Bool, Bool) = {
     val rnNS      = WireInit(ERROR)
     val hnNS      = WireInit(ERROR)
     val readDown  = WireInit(false.B)
     val error     = WireInit(true.B)
     switch(reqOp) {
       is(CHIOp.REQ.ReadNotSharedDirty) {
-        switch(selfState) {
+        switch(self) {
           is(I)  { rnNS := UC; hnNS := I; readDown := !otherCHit }
           is(SC) { rnNS := SC; hnNS := SC }
           is(SD) { rnNS := SC; hnNS := SD }
@@ -259,7 +259,7 @@ object Coherence {
         error := false.B
       }
       is(CHIOp.REQ.ReadUnique) {
-        switch(selfState) {
+        switch(self) {
           is(I)  { rnNS := UC; hnNS := I; readDown := !otherCHit }
           is(SC) { rnNS := UC; hnNS := I }
           is(SD) { rnNS := UD; hnNS := I }
@@ -269,7 +269,7 @@ object Coherence {
         error := false.B
       }
       is(CHIOp.REQ.MakeUnique) {
-        switch(selfState) {
+        switch(self) {
           is(I)  { rnNS := UD; hnNS := I }
           is(SC) { rnNS := UD; hnNS := I }
           is(SD) { rnNS := UD; hnNS := I }
@@ -279,7 +279,7 @@ object Coherence {
         error := false.B
       }
       is(CHIOp.REQ.Evict) {
-        switch(selfState) {
+        switch(self) {
           is(I)  { rnNS := I; hnNS := I }
           is(SC) { rnNS := I; hnNS := Mux(otherCHit, SC, UC) }
           is(SD) { rnNS := I; hnNS := Mux(otherCHit, SD, UD) }
