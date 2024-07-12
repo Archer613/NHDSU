@@ -144,11 +144,16 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
       switch(db.state) {
         is(DBState.FREE) {
           val hit       = dbAllocId.zip(wReqVec.map(_.fire)).map(a => a._1 === i.U & a._2).reduce(_ | _)
+          db            := 0.U.asTypeOf(db)
           db.state      := Mux(hit, DBState.ALLOC, DBState.FREE)
         }
         is(DBState.ALLOC) {
           val hit       = dataTDBVec.map( t => t.valid & t.bits.dbid === i.U).reduce(_ | _)
-          db.state      := Mux(hit, DBState.WRITTING, DBState.ALLOC)
+          if(nrBeat > 1) {
+            db.state    := Mux(hit, DBState.WRITTING, DBState.ALLOC)
+          } else {
+            db.state    := Mux(hit, DBState.WRITE_DONE, DBState.ALLOC)
+          }
         }
         is(DBState.WRITTING) {
           val hit       = dataTDBVec.map(t => t.valid & t.bits.dbid === i.U).reduce(_ | _)
