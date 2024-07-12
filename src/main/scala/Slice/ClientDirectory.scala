@@ -160,7 +160,7 @@ val io = IO(new Bundle {
   val repl_state_s3         = RegEnable(repl_sram_r, 0.U(repl.nBits.W), refillReqValid_s2)
   replaceWay               := repl.get_replace_way(repl_state_s3)
 
-  val way_s3                = Mux(refillReqValid_s3, chosenWay, hit_tag_bank_way)
+  val way_s3                = Mux(refillReqValid_s3 | !hit_tag_bank, chosenWay, hit_tag_bank_way)
   val failState             = VecInit(Seq.fill(dsuparam.nrCore)(false.B))
 
 
@@ -174,11 +174,12 @@ val io = IO(new Bundle {
     io.dirResp.bits.hitVec := failState
   }
 
-   io.dirResp.bits.tag     := Mux(refillReqValid_s3, stateAll_s3(chosenWay).tag, reqRead_s3_reg.tag)
+   io.dirResp.bits.tag     := Mux(refillReqValid_s3 & !hit_tag_bank, stateAll_s3(chosenWay).tag, reqRead_s3_reg.tag)
    io.dirResp.bits.set     := reqRead_s3_reg.set
    io.dirResp.bits.bank    := reqRead_s3_reg.bank
    io.dirResp.bits.wayOH   := UIntToOH(way_s3)
-   io.dirResp.bits.metas   := stateAll_s3(hit_tag_bank_way).metas
+  //  io.dirResp.bits.metas   := stateAll_s3(hit_tag_bank_way).metas
+   io.dirResp.bits.metas   := Mux(hit_tag_bank, stateAll_s3(hit_tag_bank_way).metas, 0.U.asTypeOf(io.dirResp.bits.metas))
    io.dirResp.valid        := reqReadValid_s3
 
 // -----------------------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
 import xs.utils.ParallelPriorityMux
+import os.truncate
 
 class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
