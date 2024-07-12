@@ -137,7 +137,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   /*
    * chi rxrsp output
    */
-  io.chi.rxrsp.valid          := fsmReg.s_resp & !fsmReg.w_mpResp
+  io.chi.rxrsp.valid          := fsmReg.s_resp & !fsmReg.w_mpResp & !fsmReg.w_data
   io.chi.rxrsp.bits.opcode    := respReg.opcode
   // IDs
   io.chi.rxrsp.bits.tgtID     := dsuparam.idmap.RNID(0).U
@@ -203,7 +203,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     assert(fsmReg.asUInt === 0.U, "when ReqBuf release, all task should be done")
   }
   assert(Mux(getDataNumReg === nrBeat.U, !io.dbDataValid, true.B), "ReqBuf get data from DataBuf overflow")
-  assert(Mux(io.dbDataValid, fsmReg.s_resp & fsmReg.w_data, true.B), "When dbDataValid, ReqBuf should set s_rResp and w_data")
+  assert(Mux(io.dbDataValid, fsmReg.s_resp & fsmReg.w_data, true.B), "When dbDataValid, ReqBuf should set s_resp and w_data")
+  assert(Mux(io.dbDataValid, !fsmReg.w_mpResp, true.B), "When dbDataValid, ReqBuf should has been receive mpResp")
 
   val cntReg = RegInit(0.U(64.W))
   cntReg := Mux(io.free, 0.U, cntReg + 1.U)
