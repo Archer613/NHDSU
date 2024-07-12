@@ -100,6 +100,9 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
 
 
 
+  dontTouch(otherState)
+  dontTouch(othRnNS)
+  dontTouch(srcState)
   dontTouch(task_s3_g)
   dontTouch(dirRes_s3)
   dontTouch(needSnoop)

@@ -26,7 +26,7 @@ case class DSUParam(
                     nrClientDirBank: Int = 2,
                     nrDSBank: Int = 2,
                     ways: Int = 8,
-                    sets: Int = 256,
+                    sets: Int = 64,
                     clientWays: Int = 8,
                     clientSets: Int = 8,
                     replacementPolicy: String = "plru",
