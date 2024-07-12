@@ -155,13 +155,13 @@ import org.chipsalliance.cde.config._
 /*
  * Coherence:
  *
- * Read Or Dataless Req: [ReadNotSharedDirty / ReadUnique / MakeUnique]
+ * Read Or Dataless Req: [ReadNotSharedDirty / ReadUnique / MakeUnique / Evict]
  * 0. genSnpReq: [SnpNotSharedDirty, SnpUnique, SnpMakeInvalid]
  * 1. genNewCohWithoutSnp
  * 2. genNewCohWithSnp
  * 3. genRnResp: [Comp, CompData]
  *
- * CopyBack Req: [WriteBackFull, Evict]
+ * CopyBack Req: [WriteBackFull]
  * 0. genCopyBackNewCoh
  * 1. genCopyBackRnResp
  */

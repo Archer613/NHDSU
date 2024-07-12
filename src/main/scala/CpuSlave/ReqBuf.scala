@@ -70,7 +70,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     // task base message
     task.channel    := CHIChannel.TXREQ
     task.opcode     := txreq.opcode
-    task.isWB       := CHIOp.REQ.WriteEvictFull <= txreq.opcode & txreq.opcode <= CHIOp.REQ.WriteUniquePtlStash
+    task.isWB       := txreq.opcode === CHIOp.REQ.WriteBackFull
     // task addr
     task.addr       := txreq.addr
     // task id

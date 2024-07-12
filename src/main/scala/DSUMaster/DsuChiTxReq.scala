@@ -81,6 +81,7 @@ class DsuChiTxReq()(implicit p: Parameters) extends DSUModule {
   io.chi.flitv := flitvReg
   io.chi.flit := flitReg
 
-
+// --------------------- Assertion ------------------------------- //
+  assert(Mux(io.task.valid, io.task.bits.opcode === CHIOp.REQ.ReadNoSnp, true.B), "DSU dont support TXREQ[0x%x]", io.task.bits.opcode)
 
 }

@@ -85,5 +85,10 @@ class CpuChiTxReq()(implicit p: Parameters) extends DSUModule {
   assert(lcrdSendNumReg <= dsuparam.nrRnTxLcrdMax.U, "Lcrd be send cant over than nrRnTxLcrdMax")
   assert(queue.io.count <= dsuparam.nrRnTxLcrdMax.U, "queue.io.count cant over than nrRnTxLcrdMax")
   assert(lcrdFreeNum <= dsuparam.nrRnTxLcrdMax.U, "lcrd free num cant over than nrRnTxLcrdMax")
-
+  assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.REQ.ReadNotSharedDirty |
+                            io.flit.bits.opcode === CHIOp.REQ.ReadUnique |
+                            io.flit.bits.opcode === CHIOp.REQ.MakeUnique |
+                            io.flit.bits.opcode === CHIOp.REQ.Evict |
+                            io.flit.bits.opcode === CHIOp.REQ.WriteBackFull,
+                            true.B), "DSU dont support TXREQ[0x%x]", io.flit.bits.opcode)
 }
