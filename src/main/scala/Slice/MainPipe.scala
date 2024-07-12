@@ -275,8 +275,6 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   taskReq_s3.cleanBt    := DontCare
   taskReq_s3.writeBt    := DontCare
   taskReq_s3.readDir    := DontCare
-  taskReq_s3.wirteSDir  := DontCare
-  taskReq_s3.wirteCDir  := DontCare
   taskReq_s3.btWay      := task_s3_g.bits.btWay
   // io
   io.msTask.valid     := needReq & !doneReq

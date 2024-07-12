@@ -42,8 +42,6 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     val cleanBt     = Bool() // clean block table in ReqArb
     val writeBt     = Bool() // write block table in ReqArb
     val readDir     = Bool()
-    val wirteSDir   = Bool()
-    val wirteCDir   = Bool()
     val btWay       = UInt(blockWayBits.W) // block table
 }
 

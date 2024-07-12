@@ -160,9 +160,9 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   io.dirRead.valid := task_s1_g.valid & !dirAlreadyReadReg & task_s1_g.bits.readDir
   io.dirRead.bits.addr := task_s1_g.bits.addr
   io.dirRead.bits.self.alreayUseWayOH := 0.U // TODO
-  io.dirRead.bits.self.refill := task_s1_g.bits.wirteSDir
+  io.dirRead.bits.self.refill := true.B
   io.dirRead.bits.client.alreayUseWayOH := 0.U // TODO
-  io.dirRead.bits.client.refill := task_s1_g.bits.wirteCDir
+  io.dirRead.bits.client.refill := true.B
 
 
 
