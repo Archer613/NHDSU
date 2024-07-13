@@ -19,17 +19,6 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
     val readCtlFsmVal = Output(Bool())
   })
 
-  // TODO: Delete the following code when the coding is complete
-  // io.mpTask := DontCare
-  // io.mpResp := DontCare
-  // io.txReqRead := DontCare
-  // io.rxRspResp := DontCare
-  // io.rxDatResp := DontCare
-  // io.dbWReq := DontCare
-  // io.dbWResp := DontCare
-  // dontTouch(io)
-
-
 
   // --------------------- Reg/Wire declaration ----------------------- //
   val fsmReg      = RegInit(VecInit(Seq.fill(nrReadCtlEntry) { 0.U.asTypeOf(new ReadCtlTableEntry()) }))

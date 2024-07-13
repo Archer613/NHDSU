@@ -102,7 +102,7 @@ class DBRCReq(implicit p: Parameters) extends DSUBundle with HasDBRCOp with HasD
 class CpuDBWReq(implicit p: Parameters) extends DSUBundle with HasIDBits                                // CPU  ---[wReq] ---> DB
 class CpuDBWResp(implicit p: Parameters) extends DSUBundle with HasIDBits with HasDBID                  // DB   ---[wResp] --> CPU
 class CpuDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData with HasToIDBits            // DB   ---[Data] ---> CPU
-class CpuDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasIDBits with HasDBID  // CPU  ---[Data] ---> DB
+class CpuDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasToIDBits with HasDBID  // CPU  ---[Data] ---> DB
 
 class CpuDBBundle(implicit p: Parameters) extends DSUBundle {
     val wReq        = Decoupled(new CpuDBWReq)                      // from[CPU][coreID][reqBufID];     to[SLICE][sliceId][dontCare];
@@ -144,12 +144,15 @@ class RBFSMState(implicit p: Parameters) extends Bundle {
     val s_req2mp    = Bool() // expect write back req
     val s_wbReq2mp  = Bool()
     val s_resp      = Bool()
-    val s_wbResp    = Bool()
     val s_clean     = Bool()
+    val s_getDBID   = Bool()
+    val s_dbidResp  = Bool()
 
     // wait
     val w_mpResp    = Bool()
-    val w_data      = Bool()
+    val w_dbid      = Bool()
+    val w_dbData    = Bool()
+    val w_rnData    = Bool()
     val w_compAck   = Bool()
 }
 

@@ -99,12 +99,14 @@ trait HasDSUParam {
     // ReadCtl
     val nrReadCtlEntry  = 8
     val rcEntryBits     = log2Ceil(nrReadCtlEntry)
-    // TXNID Width
+    // CHI TXNID Width
     val txnidBits       = 8
+    val dbidBits        = 8
 
     require(nrBlockSets <= dsuparam.sets)
     require(nrReadCtlEntry <= dsuparam.nrDataBufferEntry, "The maximum number of ReadCtl deal req logic is equal to nrDataBufferEntry")
     require(log2Ceil(dsuparam.nrReqBuf) <= txnidBits-1) // txnID width -1, retain the highest bit
+    require(bankBits + dbIdBits <= dbidBits)
 
     val chiBundleParams = CHIBundleParameters(
         nodeIdBits = 7,
