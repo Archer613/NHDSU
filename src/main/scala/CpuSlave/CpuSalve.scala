@@ -86,8 +86,13 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
 
   txDat.io.chi <> io.chi.txdat
   txDat.io.txState := chiCtrl.io.txState
-  txDat.io.flit <> DontCare
   txDat.io.dataTDB <> io.dbSigs.dataTDB
+  reqBufs.map(_.io.chi.txdat).zipWithIndex.foreach {
+    case (txdat, i) =>
+      txdat.valid := txDat.io.flit.valid & txDat.io.flit.bits.txnID === reqBufs(i).io.txDatId & !reqBufs(i).io.free
+      txdat.bits := txDat.io.flit.bits
+  }
+  txDat.io.flit.ready := true.B
 
   io.chi.rxsnp <> rxSnp.io.chi
   rxSnp.io.rxState := chiCtrl.io.rxState
@@ -149,6 +154,8 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
       reqbuf.io.dbDataValid := io.dbSigs.dataFDB.valid & io.dbSigs.dataFDB.bits.to.idL2 === i.U
   }
 
+// --------------------- Assertion ------------------------------- //
+  assert(PopCount(reqBufs.map(_.io.chi.txdat.fire)) <= 1.U, "txDat only can be send to one reqBuf")
 
 
 }
