@@ -163,7 +163,6 @@ import org.chipsalliance.cde.config._
  *
  * CopyBack Req: [WriteBackFull]
  * 0. genCopyBackNewCoh
- * 1. genCopyBackRnResp
  */
 object Coherence {
   /*
@@ -294,7 +293,7 @@ object Coherence {
 
 
   /*
-   * return (channel, op, resp)
+   * return rn resp (channel, op, resp)
    */
   def genRnResp(reqOp: UInt, rnNS: UInt): (UInt, UInt, UInt, Bool) = {
     val channel = WireInit(0.U(CHIChannel.width.W))
@@ -328,5 +327,24 @@ object Coherence {
   }
 
 
-
+  /*
+   * gen new coherence when req dont need snoop
+   */
+  def genCopyBackNewCoh(reqOp: UInt, self: UInt, resp: UInt, otherCHit: Bool): (UInt, UInt, Bool) = {
+    val rnNS      = WireInit(I)
+    val hnNS      = WireInit(I)
+    val error     = WireInit(true.B)
+    switch(reqOp) {
+      is(CHIOp.REQ.WriteBackFull) {
+        switch(resp) {
+          is(ChiResp.UD_PD) { rnNS := I; hnNS := UD }
+          is(ChiResp.UC)    { rnNS := I; hnNS := UC }
+          is(ChiResp.SC)    { rnNS := I; hnNS := Mux(otherCHit, self, Mux(self === SD, UD, UC)) }
+          is(ChiResp.I)     { rnNS := I; hnNS := self }
+        }
+        error := false.B
+      }
+    }
+    (rnNS, hnNS, error)
+  }
 }
