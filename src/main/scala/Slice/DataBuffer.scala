@@ -186,4 +186,8 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
 // ----------------------------- Assertion ------------------------------ //
   assert(wReqVec.zip(wRespVec).map{ a => Mux(a._1.fire, a._2.fire, true.B) }.reduce(_ & _), "When wReq fire, wResp must also fire too")
   assert(!(io.mpRCReq.valid & io.dsRCReq.valid & io.mpRCReq.bits.dbid === io.dsRCReq.bits.dbid), "DS and MP cant read or clean at the same time")
+
+  val cntVecReg  = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U(64.W) }))
+  cntVecReg.zip(dataBuffer.map(_.state)).foreach{ case(cnt, s) => cnt := Mux(s === DBState.FREE, 0.U, cnt + 1.U) }
+  cntVecReg.zipWithIndex.foreach{ case(cnt, i) => assert(cnt < 5000.U, "DATABUF[%d] TIMEOUT", i.U) }
 }
