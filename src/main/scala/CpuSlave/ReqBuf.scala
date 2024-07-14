@@ -110,10 +110,11 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   io.txDatId := dbidReg // for cpuTxDat determine destination
 
   /*
-   * Receive and Count txDat Data Valid
+   * Receive CputxDat.resp and Count txDat Data Valid
    */
   getDatNumReg := Mux(release, 0.U, getDatNumReg + io.chi.txdat.fire.asUInt)
   getAllDat := getDatNumReg === nrBeat.U | (getDatNumReg === (nrBeat - 1).U &  io.chi.txdat.fire)
+  taskReg.resp := Mux(io.chi.txdat.fire, io.chi.txdat.bits.resp, taskReg.resp)
 
 
 // ---------------------------  Output Req/Resp Logic --------------------------------//
