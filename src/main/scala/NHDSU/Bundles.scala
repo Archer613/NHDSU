@@ -37,12 +37,16 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     // value in use
     val opcode      = UInt(6.W)
     val addr        = UInt(addressBits.W)
-    val resp        = UInt(3.W) // snpResp or wbResp; resp.width = 3
+    val resp        = UInt(3.W) // snpResp or wbReq; resp.width = 3
     val isWB        = Bool() // write back
+    val isSnpHlp    = Bool() // req is from snoop helper
     val cleanBt     = Bool() // clean block table in ReqArb
     val writeBt     = Bool() // write block table in ReqArb
     val readDir     = Bool()
     val btWay       = UInt(blockWayBits.W) // block table
+    // use in snp
+    val snpDoNotGoToSD = Bool()
+    val snpRetToSrc    = Bool()
 }
 
 
