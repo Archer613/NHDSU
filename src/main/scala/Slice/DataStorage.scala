@@ -7,7 +7,9 @@ import org.chipsalliance.cde.config._
 
 class DSRequest(implicit p: Parameters) extends DSUBundle with HasToIDBits {
   val addr = UInt(addressBits.W)
+  val ren = Bool()
   val wen = Bool()
+  val dbid = UInt(dbIdBits.W)
 }
 
 
