@@ -137,10 +137,6 @@ import org.chipsalliance.cde.config._
  * *** HN(SC / SD)  ---[SnpUnique]--->            RN_1(SC -> I) ---[SnpResp(I)]--->        HN(I)       ---[CompData(UC / UD_PD)]--->    RN_0(UC / UD)
  *
  *
- * ---[SnpUnique]:Use in snoop helper
- * *** HN(I)        ---[SnpUnique(RetToSrc)]--->  RN_1(UC -> I) ---[SnpRespData(I)]--->    HN(UC)
- * *** HN(I)        ---[SnpUnique(RetToSrc)]--->  RN_1(UD -> I) ---[SnpRespData(I_PD)]---> HN(UD)
- * *** HN(SC / SD)  ---[SnpUnique]--->            RN_1(SC -> I) ---[SnpResp(I)]--->        HN(UC / UD)
  *
  *
  * ---[SnpMakeInvalid]:
@@ -150,6 +146,27 @@ import org.chipsalliance.cde.config._
  *
  *
  */
+
+
+/*
+ * ---[SnpUnique]: Use in snoop helper
+ * *** HN(I)        ---[SnpUnique(RetToSrc)]--->  RN_1(UC -> I) ---[SnpRespData(I)]--->    HN(UC)
+ * *** HN(I)        ---[SnpUnique(RetToSrc)]--->  RN_1(UD -> I) ---[SnpRespData(I_PD)]---> HN(UD)
+ * *** HN(SC / SD)  ---[SnpUnique]--->            RN_1(SC -> I) ---[SnpResp(I)]--->        HN(UC / UD)
+ *
+ */
+
+
+/*
+ * ---[WriteNoSnpFull]: Use in replace
+ * *** HN(UC -> I)
+ * *** HN(SC -> I)
+ * *** HN(UD -> I) ---[WriteNoSnpFull]---> SN  ---[DBIDResp]---> HN ---[WriteData]---> SN
+ * *** HN(SD -> I) ---[WriteNoSnpFull]---> SN  ---[DBIDResp]---> HN ---[WriteData]---> SN // TODO: Coherence should support RN[SC]-HN[I]
+ *
+ */
+
+
 
 
 /*
@@ -163,6 +180,13 @@ import org.chipsalliance.cde.config._
  *
  * CopyBack Req: [WriteBackFull]
  * 0. genCopyBackNewCoh
+ *
+ * snoopHelper:
+ * 0. genSnoopHelperReq: [SnpUnique, SnpMakeInvalid]
+ *
+ * Gen Replace:
+ * 0. genReplace: [WriteNoSnpFull]
+ *
  */
 object Coherence {
   /*
@@ -179,6 +203,7 @@ object Coherence {
         snpOp     := CHIOp.SNP.SnpNotSharedDirty
         retToSrc  := true.B
         switch(other) {
+          is(I)  { needSnp := false.B; error := false.B }
           is(UC) { needSnp := self === I; error := false.B }
           is(UD) { needSnp := self === I; error := false.B }
         }
@@ -186,6 +211,7 @@ object Coherence {
       is(CHIOp.REQ.ReadUnique) {
         snpOp := CHIOp.SNP.SnpUnique
         switch(other) {
+          is(I)  { needSnp := false.B; error := false.B }
           is(UC) { needSnp := self === I; retToSrc := true.B; error := false.B }
           is(UD) { needSnp := self === I; retToSrc := true.B; error := false.B }
           is(SC) { needSnp := self === SC | self === SD; retToSrc := false.B; error := false.B }
@@ -195,6 +221,7 @@ object Coherence {
         snpOp     := CHIOp.SNP.SnpMakeInvalid
         retToSrc  := false.B
         switch(other) {
+          is(I)  { needSnp := false.B; error := false.B }
           is(UC) { needSnp := self === I; error := false.B }
           is(UD) { needSnp := self === I; error := false.B }
           is(SC) { needSnp := self === SC | self === SD; error := false.B }
@@ -244,12 +271,12 @@ object Coherence {
   def genNewCohWithoutSnp(reqOp: UInt, self: UInt, otherCHit: Bool): (UInt, UInt, Bool, Bool) = {
     val rnNS      = WireInit(I)
     val hnNS      = WireInit(I)
-    val readDown  = WireInit(false.B)
+    val needRDown = WireInit(false.B)
     val error     = WireInit(true.B)
     switch(reqOp) {
       is(CHIOp.REQ.ReadNotSharedDirty) {
         switch(self) {
-          is(I)  { rnNS := UC; hnNS := I; readDown := !otherCHit }
+          is(I)  { rnNS := UC; hnNS := I; needRDown := !otherCHit }
           is(SC) { rnNS := SC; hnNS := SC }
           is(SD) { rnNS := SC; hnNS := SD }
           is(UC) { rnNS := UC; hnNS := I }
@@ -259,7 +286,7 @@ object Coherence {
       }
       is(CHIOp.REQ.ReadUnique) {
         switch(self) {
-          is(I)  { rnNS := UC; hnNS := I; readDown := !otherCHit }
+          is(I)  { rnNS := UC; hnNS := I; needRDown := !otherCHit }
           is(SC) { rnNS := UC; hnNS := I }
           is(SD) { rnNS := UD; hnNS := I }
           is(UC) { rnNS := UC; hnNS := I }
@@ -288,7 +315,7 @@ object Coherence {
         error := false.B
       }
     }
-    (rnNS, hnNS, readDown, error)
+    (rnNS, hnNS, needRDown, error)
   }
 
 
@@ -347,4 +374,55 @@ object Coherence {
     }
     (rnNS, hnNS, error)
   }
+
+  /*
+   * gen SnoopHelper Req
+   */
+  def genSnpHelperReq(rnNS: UInt, clientHit: Bool, clientState: UInt): (UInt, Bool, Bool, Bool, Bool) = {
+    val snpOp       = WireInit(CHIOp.SNP.SnpUnique) // SNP.op.width = 5
+    val doNotGoToSD = WireInit(true.B)
+    val retToSrc    = WireInit(false.B)
+    val needSnpHlp  = WireInit(false.B)
+    val error       = WireInit(true.B)
+    when(!clientHit & rnNS =/= I) {
+      switch(clientState) {
+        is(I)  { needSnpHlp := false.B; error := false.B }
+        is(UC) { needSnpHlp := true.B;  retToSrc := true.B;  error := false.B }
+        is(UD) { needSnpHlp := false.B; retToSrc := true.B;  error := false.B }
+        is(SC) { needSnpHlp := false.B; retToSrc := false.B; error := false.B }
+      }
+    }.otherwise {
+      needSnpHlp := false.B
+      error := false.B
+    }
+
+    (snpOp, doNotGoToSD, retToSrc, needSnpHlp, error)
+  }
+
+
+  /*
+   * gen Replace Req
+   */
+  def genReplaceReq(hnNS: UInt, selfHit: Bool, selfState: UInt): (UInt, Bool, Bool, Bool) = {
+    val needRepl = WireInit(false.B)
+    val needWDS  = WireInit(false.B)
+    val replOp   = WireInit(CHIOp.REQ.WriteNoSnpFull)
+    val error    = WireInit(true.B)
+    when(!selfHit & hnNS =/= I) {
+      switch(selfState) {
+        is(I)  { needRepl := false.B; error := false.B }
+        is(UC) { needRepl := false.B; error := false.B }
+        is(UD) { needRepl := true.B;  error := false.B }
+        is(SC) { needRepl := false.B; error := false.B }
+        is(SD) { needRepl := true.B;  error := false.B }
+      }
+      needWDS := true.B
+    }.otherwise {
+      needRepl := false.B
+      error := false.B
+    }
+
+    (replOp, needRepl, needWDS, error)
+  }
+
 }
