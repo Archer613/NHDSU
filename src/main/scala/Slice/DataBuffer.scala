@@ -103,7 +103,7 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   }
 
   /*
-   * receive MainPipe/DataStroage Read/Clean Req
+   * receive MainPipe/DataStorage Read/Clean Req
    */
   io.mpRCReq.ready := dataBuffer(io.mpRCReq.bits.dbid).state === DBState.WRITE_DONE |
                       dataBuffer(io.mpRCReq.bits.dbid).state === DBState.READ_DONE

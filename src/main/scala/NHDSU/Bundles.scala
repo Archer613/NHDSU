@@ -193,17 +193,19 @@ class ReadCtlTableEntry(implicit p: Parameters) extends DSUBundle with HasFromID
 
 // ------------------- DSReqEntry -------------------- //
 // TODO: Can it get id in advance
-// State Read DB: FREE -> RC_DB2DS -> WAIT_DATA -> FREE
-// State Write DB: FREE -> GET_ID -> RC_DB2OTH -> FREE
-// State Read & Write DB: FREE -> GET_ID -> RC_DB2OTH -> RC_DB2DS -> WAIT_DATA -> FREE
+// State Read DB: FREE -> RC_DB2DS -> WRITE_DS -> FREE
+// State Write DB: FREE -> GET_ID -> READ_DS -> WRITE_DB -> RC_DB2OTH -> FREE
+// State Read & Write DB: FREE -> GET_ID -> READ_DS -> WRITE_DB -> RC_DB2OTH -> RC_DB2DS -> WRITE_DS -> FREE
 object DSState {
     val width       = 3
-    val nrState     = 5
+    val nrState     = 7
     val FREE        = "b000".U
     val GET_ID      = "b001".U
-    val RC_DB2DS    = "b010".U
-    val RC_DB2OTH   = "b011".U
-    val WAIT_DATA   = "b100".U
+    val READ_DS     = "b010".U
+    val WRITE_DB    = "b011".U
+    val RC_DB2DS    = "b100".U
+    val RC_DB2OTH   = "b101".U
+    val WRITE_DS    = "b110".U
 }
 
 class DSReqEntry(implicit p: Parameters) extends DSUBundle with HasToIDBits {
@@ -211,10 +213,11 @@ class DSReqEntry(implicit p: Parameters) extends DSUBundle with HasToIDBits {
     val bank    = UInt(dsBankBits.W)
     val wayOH   = UInt(dsuparam.ways.W)
     val state   = UInt(DSState.width.W)
-    val ren     = Bool()
-    val wen     = Bool()
-    val rDBID   = UInt(dbIdBits.W)
-    val wDBID   = UInt(dbIdBits.W)
+    val ren     = Bool() // read DS
+    val wen     = Bool() // write DS
+    val rDBID   = UInt(dbIdBits.W) // read DataBuffer DBID
+    val wDBID   = UInt(dbIdBits.W) // write DataBuffer DBID
+    val rBeatNum = UInt(log2Ceil(nrBeat).W) // read DS Beat
 }
 
 

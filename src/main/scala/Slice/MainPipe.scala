@@ -68,7 +68,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val needSnoop_s3   = WireInit(false.B)
   val needWSDir_s3   = WireInit(false.B)
   val needWCDir_s3   = WireInit(false.B)
-  val needRWDS_s3    = WireInit(false.B) // read or write DataStroage
+  val needRWDS_s3    = WireInit(false.B) // read or write DataStorage
   val needReadDB_s3  = WireInit(false.B)
   val needResp_s3    = WireInit(false.B)
   val needReq_s3     = WireInit(false.B)

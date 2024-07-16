@@ -129,6 +129,12 @@ trait HasDSUParam {
         (tag(tagBits - 1, 0), set(setBits - 1, 0), modBank(modBankBits - 1, 0), bank(bankBits - 1, 0), offset(offsetBits - 1, 0))
     }
 
+    def toDataID(x: UInt): UInt = {
+        if (nrBeat == 1) { x }
+        else if (nrBeat == 2) { Mux(x === 0.U, 0.U, 2.U) }
+        else { 0.U }
+    }
+
     def widthCheck(in: UInt, width: Int) = {
         assert(in.getWidth == width)
     }
