@@ -178,4 +178,11 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   assert(Mux(io.taskMs.valid, io.taskMs.bits.from.idL0 === IdL0.MASTER, true.B), "taskMs should from MASTER")
   assert(Mux(io.taskSnp.valid, io.taskSnp.bits.from.idL0 === IdL0.SLICE, true.B), "taskSnp should from SLICE")
 
+  // TIMEOUT CHECK
+  blockTableReg.zipWithIndex.foreach {
+    case(vec, set) =>
+      val cntVecReg = RegInit(VecInit(Seq.fill(nrBlockWays) { 0.U(64.W) }))
+      cntVecReg.zip(vec.map(_.valid)).foreach { case (cnt, v) => cnt := Mux(!v, 0.U, cnt + 1.U) }
+      cntVecReg.zipWithIndex.foreach { case (cnt, way) => assert(cnt < 5000.U, "ReqArb blockTable[%d][%d] TIMEOUT", set.U, way.U) }
+  }
 }

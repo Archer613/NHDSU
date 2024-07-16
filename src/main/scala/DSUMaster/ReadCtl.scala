@@ -20,7 +20,7 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
   })
 
 
-  // --------------------- Reg/Wire declaration ----------------------- //
+// --------------------- Reg/Wire declaration ----------------------- //
   val fsmReg    = RegInit(VecInit(Seq.fill(nrReadCtlEntry) { 0.U.asTypeOf(new ReadCtlTableEntry()) }))
   val stateVec  = Wire(Vec(nrReadCtlEntry, Vec(RCState.nrState, Bool())))
   val selIdVec  = Wire(Vec(RCState.nrState, UInt(rcEntryBits.W)))
@@ -29,7 +29,7 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
   dontTouch(stateVec)
   dontTouch(selIdVec)
 
-  // ---------------------------- Logic  ------------------------------ //
+// ---------------------------- Logic  ------------------------------ //
   /*
    * Get stateVec and selIdVec
    * exa:
@@ -152,8 +152,11 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
   io.readCtlFsmVal := !stateVec(RCState.FREE).asUInt.andR
 
 
-  // -------------------------- Assertion ----------------------------- //
-
+// -------------------------- Assertion ----------------------------- //
+  // TIMEOUT CHECK
+  val cntVecReg = RegInit(VecInit(Seq.fill(nrReadCtlEntry) { 0.U(64.W) }))
+  cntVecReg.zip(fsmReg.map(_.state)).foreach { case (cnt, s) => cnt := Mux(s === RCState.FREE, 0.U, cnt + 1.U) }
+  cntVecReg.zipWithIndex.foreach { case (cnt, i) => assert(cnt < 5000.U, "READCTL[%d] TIMEOUT", i.U) }
 
 
 }
