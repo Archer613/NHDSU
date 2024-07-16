@@ -13,7 +13,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     val reqBufId    = Input(UInt(reqBufIdBits.W))
     // CHI
     val chi         = Flipped(CHIBundleDecoupled(chiBundleParams))
-    val txDatId     = Output(UInt((bankBits+dbIdBits).W))
+    val txDatId     = ValidIO(UInt((bankBits+dbIdBits).W))
     // mainpipe
     val mpTask      = Decoupled(new TaskBundle())
     val mpResp      = Flipped(ValidIO(new RespBundle()))
@@ -107,7 +107,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
    */
   dbidReg := Mux(io.wResp.fire, Cat(io.wResp.bits.from.idL1, io.wResp.bits.dbid), Mux(io.free, 0.U, dbidReg))
   taskReg.dbid := dbidReg
-  io.txDatId := dbidReg // for cpuTxDat determine destination
+  io.txDatId.valid := fsmReg.w_rnData
+  io.txDatId.bits := dbidReg // for cpuTxDat determine destination
 
   /*
    * Receive CputxDat.resp and Count txDat Data Valid

@@ -89,7 +89,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   txDat.io.dataTDB <> io.dbSigs.dataTDB
   reqBufs.map(_.io.chi.txdat).zipWithIndex.foreach {
     case (txdat, i) =>
-      txdat.valid := txDat.io.flit.valid & txDat.io.flit.bits.txnID === reqBufs(i).io.txDatId & !reqBufs(i).io.free
+      txdat.valid := txDat.io.flit.valid & txDat.io.flit.bits.txnID === reqBufs(i).io.txDatId.bits & reqBufs(i).io.txDatId.valid
       txdat.bits := txDat.io.flit.bits
   }
   txDat.io.flit.ready := true.B
@@ -156,6 +156,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
 
 // --------------------- Assertion ------------------------------- //
   assert(PopCount(reqBufs.map(_.io.chi.txdat.fire)) <= 1.U, "txDat only can be send to one reqBuf")
+  assert(Mux(txDat.io.flit.valid, PopCount(reqBufs.map(_.io.chi.txdat.fire)) === 1.U, true.B))
 
 
 }
