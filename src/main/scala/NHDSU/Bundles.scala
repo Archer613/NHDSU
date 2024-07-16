@@ -98,14 +98,15 @@ trait HasDBData extends DSUBundle { this: Bundle =>
         else if (nrBeat == 2) { Mux(dataID === 0.U, 0.U, 1.U) }
         else { dataID }
     }
+    def isLast: Bool = beatNum === (nrBeat - 1).U
 }
 // DataBuffer Read/Clean Req
 class DBRCReq(implicit p: Parameters) extends DSUBundle with HasDBRCOp with HasDBID with HasToIDBits
 
 // CPU Bundle
-class CpuDBWReq(implicit p: Parameters) extends DSUBundle with HasIDBits                                // CPU  ---[wReq] ---> DB
-class CpuDBWResp(implicit p: Parameters) extends DSUBundle with HasIDBits with HasDBID                  // DB   ---[wResp] --> CPU
-class CpuDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData with HasToIDBits            // DB   ---[Data] ---> CPU
+class CpuDBWReq(implicit p: Parameters) extends DSUBundle with HasIDBits                                  // CPU  ---[wReq] ---> DB
+class CpuDBWResp(implicit p: Parameters) extends DSUBundle with HasIDBits with HasDBID                    // DB   ---[wResp] --> CPU
+class CpuDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData with HasToIDBits              // DB   ---[Data] ---> CPU
 class CpuDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasToIDBits with HasDBID  // CPU  ---[Data] ---> DB
 
 class CpuDBBundle(implicit p: Parameters) extends DSUBundle {
@@ -116,29 +117,29 @@ class CpuDBBundle(implicit p: Parameters) extends DSUBundle {
 }
 
 // MASTER Bundle
-class MsDBWReq(implicit p: Parameters) extends DSUBundle                                        // CPU  ---[wReq] ---> DB
-class MsDBWResp(implicit p: Parameters) extends DSUBundle with HasDBID                          // DB   ---[wResp] --> CPU
-class MsDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData                      // DB   ---[Data] ---> CPU
-class MsDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasDBID          // CPU  ---[Data] ---> DB
+class MsDBWReq(implicit p: Parameters) extends DSUBundle                                        // MS  ---[wReq] ---> DB
+class MsDBWResp(implicit p: Parameters) extends DSUBundle with HasDBID                          // DB  ---[wResp] --> MS
+class MsDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData with HasDBID         // DB  ---[Data] ---> MS
+class MsDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasDBID          // MS  ---[Data] ---> DB
 
 class MsDBBundle(implicit p: Parameters) extends DSUBundle {
     val wReq        = Decoupled(new MsDBWReq)                        // from[None];  to[None];
     val wResp       = Flipped(Decoupled(new MsDBWResp))              // from[None];  to[None];   hasDBID
-    val dataFDB     = Flipped(Decoupled(new MsDBOutData))            // from[None];  to[None];
+    val dataFDB     = Flipped(Decoupled(new MsDBOutData))            // from[None];  to[None];   hasDBID
     val dataTDB     = Decoupled(new MsDBInData)                      // from[None];  to[None];   hasDBID
 }
 
 // DS Bundle
-class DsDBWReq(implicit p: Parameters) extends DSUBundle                                                // CPU  ---[wReq] ---> DB
-class DsDBWResp(implicit p: Parameters) extends DSUBundle with HasDBID                                  // DB   ---[wResp] --> CPU
-class DsDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData                              // DB   ---[Data] ---> CPU
-class DsDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasToIDBits with HasDBID // CPU  ---[Data] ---> DB
+class DsDBWReq(implicit p: Parameters) extends DSUBundle                                                // DS  ---[wReq] ---> DB
+class DsDBWResp(implicit p: Parameters) extends DSUBundle with HasDBID                                  // DB  ---[wResp] --> DS
+class DsDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData with HasDBID                 // DB  ---[Data] ---> DS
+class DsDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasDBID                  // DS  ---[Data] ---> DB
 
 class DsDBBundle(beat: Int = 1)(implicit p: Parameters) extends DSUBundle {
     val wReq        = Decoupled(new DsDBWReq)                        // from[None];  to[None];
     val wResp       = Flipped(Decoupled(new DsDBWResp))              // from[None];  to[None];   hasDBID
-    val dataFDB     = Flipped(Decoupled(new DsDBOutData))            // from[None];  to[None];
-    val dataTDB     = Decoupled(new DsDBInData)                      // from[None];  to[CPU/MASTER][coreID/dontCare][reqBufID/dontCare];    hasDBID
+    val dataFDB     = Flipped(Decoupled(new DsDBOutData))            // from[None];  to[None];   hasDBID
+    val dataTDB     = Decoupled(new DsDBInData)                      // from[None];  to[None];   hasDBID // TODO: Add to[CPU/MS], omit read requests
 }
 
 
@@ -190,6 +191,30 @@ class ReadCtlTableEntry(implicit p: Parameters) extends DSUBundle with HasFromID
 }
 
 
+// ------------------- DSReqEntry -------------------- //
+// TODO: Can it get id in advance
+// State Read DB: FREE -> RC_DB2DS -> WAIT_DATA -> FREE
+// State Write DB: FREE -> GET_ID -> RC_DB2OTH -> FREE
+// State Read & Write DB: FREE -> GET_ID -> RC_DB2OTH -> RC_DB2DS -> WAIT_DATA -> FREE
+object DSState {
+    val width       = 3
+    val nrState     = 5
+    val FREE        = "b000".U
+    val GET_ID      = "b001".U
+    val RC_DB2DS    = "b010".U
+    val RC_DB2OTH   = "b011".U
+    val WAIT_DATA   = "b100".U
+}
 
+class DSReqEntry(implicit p: Parameters) extends DSUBundle with HasToIDBits {
+    val set     = UInt(dsSetBits.W)
+    val bank    = UInt(dsBankBits.W)
+    val wayOH   = UInt(dsuparam.ways.W)
+    val state   = UInt(DSState.width.W)
+    val ren     = Bool()
+    val wen     = Bool()
+    val rDBID   = UInt(dbIdBits.W)
+    val wDBID   = UInt(dbIdBits.W)
+}
 
 

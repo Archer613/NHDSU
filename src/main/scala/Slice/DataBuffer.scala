@@ -133,12 +133,14 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   io.ms2db.dataFDB.bits.dataID := dataBuffer(outMsID).toDataID
   io.cpu2db.dataFDB.bits.dataID := dataBuffer(outCpuID).toDataID
 
+  io.ds2db.dataFDB.bits.dbid := outDsID
+  io.ms2db.dataFDB.bits.dbid := outMsID
   io.cpu2db.dataFDB.bits.to := dataBuffer(outCpuID).to
 
 
   /*
-  * set dataBuffer state
-  */
+   * set dataBuffer state
+   */
   dataBuffer.zipWithIndex.foreach {
     case(db, i) =>
       switch(db.state) {

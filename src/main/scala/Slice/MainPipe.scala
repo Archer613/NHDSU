@@ -160,7 +160,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
    * [MS_RESP]    |  from: [MASTER] [DontCare]  [DontCare]   | to: [CPU]    [coreId]  [reqBufId]
    * [SNP_RESP]   |  from: [SLICE]  [DontCare]  [DontCare]   | to: [CPU]    [coreId]  [reqBufId]
    * other:
-   * [io.dsReq]   |  from: None                              | to: [CPU]    [coreId]  [reqBufId] // TODO
+   * [io.dsReq]   |  from: None                              | to: [CPU / SLICE / MASTER] [coreId]  [reqBufId] // TODO
    * [io.snpTask] |  from: [CPU]    [coreId]  [reqBufId]     | to: None                          // TODO
    * [io.cpuResp] |  from: None                              | to: [CPU]    [coreId]  [reqBufId]
    * [io.msTask]  |  from: [CPU]    [coreId]  [reqBufId]     | to: None                          // TODO
@@ -261,9 +261,13 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(SNP_RESP_OH)   { needRWDS_s3 := wDS | rwDS }
   }
   io.dsReq.valid := needRWDS_s3 & !doneRWDS_s3
+  io.dsReq.bits.addr := task_s3_g.bits.addr
+  io.dsReq.bits.wayOH := self_s3.wayOH
   io.dsReq.bits.ren := rDS | rwDS
   io.dsReq.bits.wen := wDS | rwDS
-  io.dsReq.bits.to := task_s3_g.bits.from
+  io.dsReq.bits.to.idL0 := Mux(needRepl, IdL0.MASTER, task_s3_g.bits.from.idL0)
+  io.dsReq.bits.to.idL1 := Mux(needRepl, 0.U,         task_s3_g.bits.from.idL0)
+  io.dsReq.bits.to.idL2 := Mux(needRepl, 0.U,         task_s3_g.bits.from.idL0)
   io.dsReq.bits.dbid := task_s3_g.bits.dbid
 
 
@@ -398,8 +402,11 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(SNP_RESP_OH)  { assert(!genNewCohWithSnpError & !genReplaceReqError & !genRnRespError, "SNP_RESP has something error") }
   }
 
+  assert(Mux(dirRes_s3.valid, PopCount(dirRes_s3.bits.self.wayOH) === 1.U, true.B), "OneHot Error")
+  assert(Mux(dirRes_s3.valid, PopCount(dirRes_s3.bits.client.wayOH) === 1.U, true.B), "OneHot Error")
+
   // TIME OUT CHECK
   val cntReg = RegInit(0.U(64.W))
-  cntReg := Mux(!task_s3_g.valid & canGo_s3, 0.U, cntReg + 1.U)
+  cntReg := Mux(!task_s3_g.valid | canGo_s3, 0.U, cntReg + 1.U)
   assert(cntReg < 5000.U, "MAINPIPE S3 TIMEOUT")
 }
