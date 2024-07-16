@@ -61,11 +61,11 @@ val io = IO(new Bundle {
 
 // --------------------- Modules and SRAM declaration ------------------------//
   val clientArray = Module(new SRAMTemplate(new CDirMetaEntry, dsuparam.clientSets/dsuparam.nrClientDirBank, dsuparam.clientWays,
-    singlePort = true, hasClkGate = dsuparam.enableSramClockGate, clk_div_by_2 = false))
+    singlePort = true))
 
   val replacer_sram_opt = if(dsuparam.replacementPolicy == "random") None else 
     Some(Module(new SRAMTemplate(UInt(repl.nBits.W), dsuparam.clientSets, 1, singlePort = true,
-    shouldReset = true, hasClkGate = dsuparam.enableSramClockGate)))
+    shouldReset = true)))
 
 
 // --------------------- Reg/Wire declaration ------------------------//

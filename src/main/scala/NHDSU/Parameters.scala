@@ -36,7 +36,9 @@ case class DSUParam(
                     // addr
                     addressBits: Int = 48,
                     // sram
-                    enableSramClockGate: Boolean = true,
+                    // enableSramClockGate: Boolean = true, // it will be always true
+                    dirMulticycle: Int = 1,
+                    dataMulticycle: Int = 2,
                     // chi
                     // can receive or send chi lcrd num
                     nrRnTxLcrdMax: Int = 4,
@@ -77,11 +79,13 @@ trait HasDSUParam {
     val bankBits        = log2Ceil(dsuparam.nrBank)
     val offsetBits      = log2Ceil(dsuparam.blockBytes)
     // SELF DIR: [sTag] + [sSet] + [sDirBank] + [bank] + [offset]
+    // [sSet] + [sDirBank] = [setBis]
     val sWayBits        = log2Ceil(dsuparam.ways)
     val sDirBankBits    = log2Ceil(dsuparam.nrSelfDirBank)
     val sSetBits        = log2Ceil(dsuparam.sets/dsuparam.nrSelfDirBank)
     val sTagBits        = dsuparam.addressBits - sSetBits - sDirBankBits - bankBits - offsetBits
     // CLIENT DIR: [cTag] + [cSet] + [cDirBank] + [bank] + [offset]
+    // [cSet] + [cDirBank] = [clientSetsBits]
     val cWayBits        = log2Ceil(dsuparam.clientWays)
     val cDirBankBits    = log2Ceil(dsuparam.nrClientDirBank)
     val cSetBits        = log2Ceil(dsuparam.clientSets / dsuparam.nrClientDirBank)
