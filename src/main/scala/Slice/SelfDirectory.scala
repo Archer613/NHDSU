@@ -177,7 +177,8 @@ val io = IO(new Bundle {
   io.dirResp.bits.bank         := reqRead_s3_reg.bank
   io.dirResp.bits.tag          := Mux(refillReqValid_s3 & !hit_s3, metaAll_s3(chosenWay).tag, reqRead_s3_reg.tag)
   // io.dirResp.bits.state        := meta_s3.state
-  io.dirResp.bits.state        := Mux(Cat(hit_vec).orR, meta_s3.state, 0.U.asTypeOf(meta_s3.state))
+  // io.dirResp.bits.state        := Mux(Cat(hit_vec).orR, meta_s3.state, 0.U.asTypeOf(meta_s3.state))
+  io.dirResp.bits.state        := Mux(Cat(hit_vec).orR, meta_s3.state, metaAll_s3(way_s3).state)
   io.dirResp.bits.wayOH        := wayOH_s3
   io.dirResp.valid             := reqReadValid_s3
 
