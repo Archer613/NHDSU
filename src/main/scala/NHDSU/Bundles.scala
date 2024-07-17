@@ -203,8 +203,8 @@ object DSState {
     val GET_ID      = "b001".U
     val READ_DS     = "b010".U
     val WRITE_DB    = "b011".U
-    val RC_DB2DS    = "b100".U
-    val RC_DB2OTH   = "b101".U
+    val RC_DB2OTH   = "b100".U
+    val RC_DB2DS    = "b101".U
     val WRITE_DS    = "b110".U
 }
 
@@ -217,7 +217,8 @@ class DSReqEntry(implicit p: Parameters) extends DSUBundle with HasToIDBits {
     val wen     = Bool() // write DS
     val rDBID   = UInt(dbIdBits.W) // read DataBuffer DBID
     val wDBID   = UInt(dbIdBits.W) // write DataBuffer DBID
-    val rBeatNum = UInt(log2Ceil(nrBeat).W) // read DS Beat
+    val rBeatNum = UInt(log2Ceil(nrBeat).W) // read DS beat num
+    val sBeatNum = UInt(log2Ceil(nrBeat).W) // send to DB beat num
 }
 
 

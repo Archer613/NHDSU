@@ -86,6 +86,7 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
     dsReqEntries(allocId).ren   := io.mpReq.bits.ren
     dsReqEntries(allocId).wen   := io.mpReq.bits.wen
     dsReqEntries(allocId).rDBID := io.mpReq.bits.dbid
+    dsReqEntries(allocId).to    := io.mpReq.bits.to
   }
 
   /*
@@ -110,8 +111,8 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
   io.dbRCReq.valid        := isRC2DS | dbRC2OTHVec.asUInt.orR
   io.dbRCReq.bits.dbid    := Mux(isRC2DS, dsRCDBEntry.rDBID, dsRCDBEntry.wDBID)
   io.dbRCReq.bits.to.idL0 := Mux(isRC2DS, IdL0.SLICE, dsRCDBEntry.to.idL0)
-  io.dbRCReq.bits.to.idL1 := Mux(isRC2DS, 0.U,        dsRCDBEntry.to.idL0)
-  io.dbRCReq.bits.to.idL2 := Mux(isRC2DS, 0.U,        dsRCDBEntry.to.idL0)
+  io.dbRCReq.bits.to.idL1 := Mux(isRC2DS, 0.U,        dsRCDBEntry.to.idL1)
+  io.dbRCReq.bits.to.idL2 := Mux(isRC2DS, 0.U,        dsRCDBEntry.to.idL2)
   io.dbRCReq.bits.isClean := true.B
 
 
@@ -166,7 +167,7 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
   val toDB = io.dbSigs2DB.dataTDB
   val outId = outIdQ.io.deq.bits
   val dsOutEntry = dsReqEntries(outId)
-  toDB.valid := outIdQ.io.deq.valid & rReadyVec(dsOutEntry.bank).asUInt.orR
+  toDB.valid := outIdQ.io.deq.valid & rReadyVec(dsOutEntry.bank)(dsOutEntry.sBeatNum)
   dataArray.zipWithIndex.foreach {
     case (array, bank) =>
       array.zipWithIndex.foreach {
@@ -199,10 +200,12 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
         is(READ_DS) {
           val hit = dsReadId === i.U & rFireVec.asUInt.orR
           when(hit){ fsm.rBeatNum := fsm.rBeatNum + 1.U }
+          when(io.dbSigs2DB.dataTDB.valid){ fsm.sBeatNum := fsm.sBeatNum + 1.U }
           when(hit & fsm.rBeatNum === (nrBeat - 1).U){ fsm.state := WRITE_DB }
         }
         is(WRITE_DB) {
           val hit = io.dbSigs2DB.dataTDB.fire & io.dbSigs2DB.dataTDB.bits.isLast & io.dbSigs2DB.dataTDB.bits.dbid === fsm.wDBID
+          when(io.dbSigs2DB.dataTDB.valid){ fsm.sBeatNum := fsm.sBeatNum + 1.U }
           when(hit){ fsm.state := RC_DB2OTH }
         }
         is(RC_DB2OTH) {
@@ -231,6 +234,9 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
   assert(PopCount(rFireVec.asUInt) <= 1.U)
   assert(outIdQ.io.enq.ready)
   assert(Mux(io.dbSigs2DB.wReq.fire, io.dbSigs2DB.wResp.fire, true.B), "wReq and wResp should be fire at the same time")
+  val sramRValVec = Wire(Vec(dsuparam.nrDSBank, Vec(nrBeat, Bool())))
+  dataArray.zipWithIndex.foreach { case(d, i) => d.zipWithIndex.foreach { case(d, j) => sramRValVec(i)(j) := d.io.r.req.valid } }
+  assert(PopCount(sramRValVec.asUInt) <= 1.U, "Only one sram can be read per clock cycle")
 
   val cntVecReg = RegInit(VecInit(Seq.fill(nrEntry) { 0.U(64.W) }))
   cntVecReg.zip(dsReqEntries.map(_.state)).foreach { case (cnt, s) => cnt := Mux(s === FREE, 0.U, cnt + 1.U) }
