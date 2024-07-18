@@ -164,9 +164,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   btWCVal_s3 := io.mpBTReq.valid
   btWTag_s3  := getBtTag(io.mpBTReq.bits.addr)
   btWCSet_s3 := getBtSet(io.mpBTReq.bits.addr)
-  // TODO: mp_s3 will block table
-  assert(Mux(io.mpBTReq.valid, io.mpBTReq.bits.isClean, true.B))
-  btWCWay_s3 := Mux(io.mpBTReq.bits.isClean, io.mpBTReq.bits.btWay, 0.U)
+  btWCWay_s3 := io.mpBTReq.bits.btWay
   io.mpBTReq.ready := true.B
 
   blockTableReg.zipWithIndex.foreach {
