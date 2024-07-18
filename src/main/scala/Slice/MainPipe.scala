@@ -290,7 +290,6 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(MS_RESP_OH)    { needReadDB_s3 := needResp_s3 & io.cpuResp.bits.isRxDat }
     is(SNP_RESP_OH)   { needReadDB_s3 := needResp_s3 & io.cpuResp.bits.isRxDat }
   }
-  needReadDB_s3 := needResp_s3 & io.cpuResp.bits.isRxDat
   io.dbRCReq.valid := needReadDB_s3 & !doneReadDB_s3
   io.dbRCReq.bits.to := task_s3_g.bits.to
   io.dbRCReq.bits.dbid := task_s3_g.bits.dbid
