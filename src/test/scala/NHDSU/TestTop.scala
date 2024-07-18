@@ -146,7 +146,7 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
 
 // ----------------------------- Connect IO_SN <-> ARM_SN -------------------------- //
     val dsu = Module(new NHDSU())
-    val connecter = Module(new ConnectChil2())
+    val connecter = Seq.fill(numCores) { Module(new ConnectChil2()) }
     val io = IO(new Bundle {
       val snChi = Vec(dsu.dsuparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
       val snChiLinkCtrl = Vec(dsu.dsuparam.nrBank, new CHILinkCtrlIO())
@@ -157,16 +157,19 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     dontTouch(dsu.io)
     dontTouch(l2_nodes(0).module.io_chi)
 
-    connecter.io.l2Chi <> l2_nodes(0).module.io_chi
-    connecter.io.dsuChiLinkCtrl <> dsu.io.rnChiLinkCtrl(0)
-    connecter.io.dsuChi <> dsu.io.rnChi(0)
+    connecter.zipWithIndex.foreach {
+      case(c, i) =>
+        c.io.l2Chi <> l2_nodes(i).module.io_chi
+        c.io.dsuChiLinkCtrl <> dsu.io.rnChiLinkCtrl(i)
+        c.io.dsuChi <> dsu.io.rnChi(i)
+    }
   }
 
 }
 
 
 object TestTopCHIHelper {
-  def gen(fTop: Parameters => TestTop_CHIL2)(args: Array[String]) = {
+  def gen(nrCore: Int = 1, fTop: Parameters => TestTop_CHIL2)(args: Array[String]) = {
     val FPGAPlatform    = false
     val enableChiselDB  = false
     
@@ -187,6 +190,9 @@ object TestTopCHIHelper {
         sam                 = Seq(AddressSet.everything -> 33)
       )
       case DebugOptionsKey => DebugOptions()
+      case DSUParamKey => DSUParam(
+        nrCore = nrCore
+      )
     })
 
     ChiselDB.init(enableChiselDB)
@@ -218,7 +224,7 @@ object TestTopCHIHelper {
 
 object TestTop_CHI_OneCore_1UL extends App {
 
-  TestTopCHIHelper.gen(p => new TestTop_CHIL2(
+  TestTopCHIHelper.gen(nrCore = 1, p => new TestTop_CHIL2(
     numCores = 1,
     numULAgents = 1,
     banks = 1)(p)
@@ -227,76 +233,18 @@ object TestTop_CHI_OneCore_1UL extends App {
 
 object TestTop_CHI_DualCore_0UL extends App {
 
-  TestTopCHIHelper.gen(p => new TestTop_CHIL2(
+  TestTopCHIHelper.gen(nrCore = 2, p => new TestTop_CHIL2(
     numCores = 2,
     numULAgents = 0,
     banks = 1)(p)
   )(args)
 }
 
-object TestTop_CHI_DualCore_2UL extends App {
+object TestTop_CHI_DualCore_1UL extends App {
 
-  TestTopCHIHelper.gen(p => new TestTop_CHIL2(
+  TestTopCHIHelper.gen(nrCore = 2, p => new TestTop_CHIL2(
     numCores = 2,
-    numULAgents = 0,
-    banks = 1)(p)
-  )(args)
-}
-
-
-
-object TestTop_CHI_QuadCore_0UL extends App {
-
-  TestTopCHIHelper.gen(p => new TestTop_CHIL2(
-    numCores = 4,
-    numULAgents = 0,
-    banks = 1)(p)
-  )(args)
-}
-
-object TestTop_CHI_QuadCore_2UL extends App {
-
-  TestTopCHIHelper.gen(p => new TestTop_CHIL2(
-    numCores = 4,
-    numULAgents = 2,
-    banks = 1)(p)
-  )(args)
-}
-
-
-object TestTop_CHI_OctaCore_0UL extends App {
-
-  TestTopCHIHelper.gen(p => new TestTop_CHIL2(
-    numCores = 8,
-    numULAgents = 0,
-    banks = 1)(p)
-  )(args)
-}
-
-object TestTop_CHI_OctaCore_2UL extends App {
-
-  TestTopCHIHelper.gen(p => new TestTop_CHIL2(
-    numCores = 8,
-    numULAgents = 2,
-    banks = 1)(p)
-  )(args)
-}
-
-
-object TestTop_CHI_HexaCore_0UL extends App {
-
-  TestTopCHIHelper.gen(p => new TestTop_CHIL2(
-    numCores = 16,
-    numULAgents = 0,
-    banks = 1)(p)
-  )(args)
-}
-
-object TestTop_CHI_HexaCore_2UL extends App {
-
-  TestTopCHIHelper.gen(p => new TestTop_CHIL2(
-    numCores = 16,
-    numULAgents = 2,
+    numULAgents = 1,
     banks = 1)(p)
   )(args)
 }

@@ -15,3 +15,6 @@ verilog:
 
 test-top-chi-onecore-1ul:
 	mill -i NHDSU.test.runMain NHDSU.TestTop_CHI_OneCore_1UL -td build
+
+test-top-chi-dualcore-1ul:
+	mill -i NHDSU.test.runMain NHDSU.TestTop_CHI_DualCore_1UL -td build
