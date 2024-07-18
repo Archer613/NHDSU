@@ -275,9 +275,9 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   io.dsReq.bits.wayOH := self_s3.wayOH
   io.dsReq.bits.ren := rDS | rwDS
   io.dsReq.bits.wen := wDS | rwDS
-  io.dsReq.bits.to.idL0 := Mux(needRepl, IdL0.MASTER, task_s3_g.bits.from.idL0)
-  io.dsReq.bits.to.idL1 := Mux(needRepl, 0.U,         task_s3_g.bits.from.idL0)
-  io.dsReq.bits.to.idL2 := Mux(needRepl, 0.U,         task_s3_g.bits.from.idL0)
+  io.dsReq.bits.to.idL0 := Mux(needRepl, IdL0.MASTER,         task_s3_g.bits.from.idL0)
+  io.dsReq.bits.to.idL1 := Mux(needRepl, DontCare,            task_s3_g.bits.from.idL1)
+  io.dsReq.bits.to.idL2 := Mux(needRepl, task_s3_g.bits.dbid, task_s3_g.bits.from.idL2)
   io.dsReq.bits.dbid := task_s3_g.bits.dbid
 
 
@@ -370,6 +370,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   taskReq_s3.isWB       := needRepl
   taskReq_s3.from       := task_s3_g.bits.from
   taskReq_s3.btWay      := task_s3_g.bits.btWay
+  taskReq_s3.dbid       := task_s3_g.bits.dbid
   // io
   io.msTask.valid       := needReq_s3 & !doneReq_s3
   io.msTask.bits        := taskReq_s3
@@ -384,9 +385,9 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(SNP_RESP_OH)   { needWCBT_s3 := false.B }
   }
   io.mpBTReq.valid := needWCBT_s3 & !doneWCBT_s3
-  io.mpBTReq.bits.isClean := taskTypeVec(CPU_WRITE)
+  io.mpBTReq.bits.isClean := true.B
   io.mpBTReq.bits.btWay := task_s3_g.bits.btWay
-  io.mpBTReq.bits.addr := task_s3_g.bits.addr
+  io.mpBTReq.bits.addr := Mux(needRepl, self_s3.addr, task_s3_g.bits.addr) // write new block tag when need repl
 
 
   /*
@@ -411,7 +412,13 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
                     io.mpBTReq.fire   | doneWCBT_s3)
   canGo_s3 := needToDo_s3.zip(done_s3).map(a => !a._1 | a._2).reduce(_ & _) & taskTypeVec.asUInt.orR
 
-
+  // TODO: Del it
+  switch(taskTypeVec.asUInt) {
+    is(CPU_REQ_OH)    { assert(!needSnp); assert(!needSnpHlp) }
+//    is(CPU_WRITE_OH)  { assert(!needRepl) }
+    is(MS_RESP_OH)    { assert(!needSnpHlp) }
+    is(SNP_RESP_OH)   { assert(!needRepl) }
+  }
 
 // -------------------------- Assertion ------------------------------- //
   assert(PopCount(taskTypeVec.asUInt) <= 1.U, "State 3: Task can only be one type")
