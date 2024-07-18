@@ -35,20 +35,50 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   val wbReq = WireInit(0.U.asTypeOf(Decoupled(new TaskBundle())))
   val rReq = WireInit(0.U.asTypeOf(Decoupled(new TaskBundle())))
 
-  val txReqWb = WireInit(0.U.asTypeOf((Decoupled(new DsuChiTxReqBundle()))))
+  val txReqWb = WireInit(0.U.asTypeOf(Decoupled(new DsuChiTxReqBundle())))
 
   dontTouch(wbReq)
   dontTouch(rReq)
 
 // --------------------- Connection ------------------------//
   /*
+   * id map in HN <-> SN
+   *
+   * ReadReq:
+   * CHI:
+   * *** Requester(TxnID = A)   ----[ReadNoSnp]---->    Completer(TxnID = A)
+   * *** Requester(TxnID = A)   <----[CompData]-----    Completer(TxnID = A)
+   * Architecture:
+   * *** DataBuffer                   ----[wResp(dbid = A)]---->   ReadCtl(fsmReg.txnid = A)
+   * *** ReadCtl(fsmReg.txnid = A)    ----[task(txnid = A)]---->   ChiTxReq
+   * *** ChiRxDat                     ----[resp(txnid = A)]---->   ReadCtl(fsmReg.txnid = A)
+   * *** ReadCtl(fsmReg.txnid = A)    ----[mpResp(dbid = A)]--->   MainPipe
+   *
+   *
+   * WriteReq:
+   * A' is used to identify the request as a WriteBack
+   * A' = Cat(1'b1, A(7.W))
+   * CHI:
+   * *** Requester(TxnID = A')           ----[WriteNoSnp]---->   Completer(TxnID = A')
+   * *** Requester(TxnID = A', DBID = B) <---[CompDBIDResp]---   Completer(TxnID = A', DBID = B)
+   * *** Requester(TxnID = B)            ----[NCBWrData_I]--->   Completer(TxnID = B)
+   * Architecture:
+   * *** MainPipe                     ----[msTask(dbid = A')]--->              ChiTxReq
+   * *** ChiRxRsp                     ----[resp(txnid = A', dbid = B)]---->    ChiTxDat
+   *
+   */
+
+
+  /*
    * Convert wbReq to txReqWb
    */
-  txReqWb.valid := wbReq.valid
+  txReqWb.valid       := wbReq.valid
   txReqWb.bits.opcode := wbReq.bits.opcode
-  txReqWb.bits.addr := wbReq.bits.addr
-  txReqWb.bits.txnid := DontCare
-  wbReq.ready := txReqWb.ready
+  txReqWb.bits.addr   := wbReq.bits.addr
+  val temp            = WireInit(0.U((chiTxnidBits - 1).W))
+  temp                := wbReq.bits.dbid
+  txReqWb.bits.txnid  := Cat(1.U, temp)
+  wbReq.ready         := txReqWb.ready
 
 
   /*
@@ -65,8 +95,8 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
 
   rxRsp.io.chi <> io.chi.rxrsp
   rxRsp.io.rxState := chiCtrl.io.rxState
-  rxRsp.io.resp <> readCtl.io.rxRspResp
-  rxRsp.io.dbidResp <> txDat.io.dbidResp
+  rxRsp.io.resp2rc <> readCtl.io.rxRspResp
+  rxRsp.io.resp2dat <> txDat.io.rspResp
 
   txDat.io.chi <> io.chi.txdat
   txDat.io.txState := chiCtrl.io.txState

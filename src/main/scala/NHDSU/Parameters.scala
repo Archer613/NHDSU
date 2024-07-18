@@ -25,10 +25,10 @@ case class DSUParam(
                     nrSelfDirBank: Int = 2,
                     nrClientDirBank: Int = 2,
                     nrDSBank: Int = 2,
-                    ways: Int = 8,
+                    ways: Int = 4,
                     sets: Int = 64,
-                    clientWays: Int = 8,
-                    clientSets: Int = 8,
+                    clientWays: Int = 32, // TODO
+                    clientSets: Int = 256, // TODO
                     replacementPolicy: String = "plru",
                     // data
                     blockBytes: Int = 64,
@@ -105,13 +105,14 @@ trait HasDSUParam {
     val nrReadCtlEntry  = 8
     val rcEntryBits     = log2Ceil(nrReadCtlEntry)
     // CHI TXNID Width
-    val txnidBits       = 8
-    val dbidBits        = 8
+    val chiTxnidBits       = 8
+    val chiDbidBits        = 8
 
     require(nrBlockSets <= dsuparam.sets)
     require(nrReadCtlEntry <= dsuparam.nrDataBufferEntry, "The maximum number of ReadCtl deal req logic is equal to nrDataBufferEntry")
-    require(log2Ceil(dsuparam.nrReqBuf) <= txnidBits-1) // txnID width -1, retain the highest bit
-    require(bankBits + dbIdBits <= dbidBits)
+    require(log2Ceil(dsuparam.nrReqBuf) <= chiTxnidBits-1) // txnID width -1, retain the highest bit
+    require(bankBits + dbIdBits <= chiDbidBits)
+    require(dbIdBits < chiTxnidBits - 1)
 
     val chiBundleParams = CHIBundleParameters(
         nodeIdBits = 7,
