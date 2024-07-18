@@ -19,7 +19,7 @@ object IdL0 {
 class IDBundle(implicit p: Parameters) extends DSUBundle {
     val idL0 = UInt(IdL0.width.W) // Module: IDL0 [3.W]
     val idL1 = UInt(max(coreIdBits, bankBits).W) // SubModule: CpuSlaves, Slices [max:2.W]
-    val idL2 = UInt(max(reqBufIdBits, snoopCtlIdBits).W) // SubSubModule: ReqBufs, SnpCtls [max:4.W]
+    val idL2 = UInt(max(reqBufIdBits, max(snoopCtlIdBits, dbIdBits)).W) // SubSubModule: ReqBufs, SnpCtls, DataBufs [max:4.W]
 }
 
 trait HasFromIDBits extends DSUBundle { this: Bundle => val from = new IDBundle() }
