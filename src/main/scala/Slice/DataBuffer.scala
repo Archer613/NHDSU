@@ -44,12 +44,12 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   // dataTDB
   val dataTDBVec  = Seq(io.ms2db.dataTDB, io.ds2db.dataTDB, io.cpu2db.dataTDB)
   // dataFDB
-  val outDsValVec = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
-  val outMsValVec = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
-  val outCpuValVec = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
-  val outDsID     = Wire(UInt(dbIdBits.W))
-  val outMsID     = Wire(UInt(dbIdBits.W))
-  val outCpuID     = Wire(UInt(dbIdBits.W))
+  val outDsValVec   = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
+  val outMsValVec   = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
+  val outCpuValVec  = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
+  val outDsID       = Wire(UInt(dbIdBits.W))
+  val outMsID       = Wire(UInt(dbIdBits.W))
+  val outCpuID      = Wire(UInt(dbIdBits.W))
 
   dontTouch(dataBuffer)
   dontTouch(dbFreeVec)
@@ -126,15 +126,15 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   io.cpu2db.dataFDB.valid := outCpuValVec.reduce(_ | _)
 
   io.ds2db.dataFDB.bits.data := dataBuffer(outDsID).getBeat
-  io.ms2db.dataFDB.bits.data := dataBuffer(outDsID).getBeat
-  io.cpu2db.dataFDB.bits.data := dataBuffer(outDsID).getBeat
+  io.ms2db.dataFDB.bits.data := dataBuffer(outMsID).getBeat
+  io.cpu2db.dataFDB.bits.data := dataBuffer(outCpuID).getBeat
 
   io.ds2db.dataFDB.bits.dataID := dataBuffer(outDsID).toDataID
   io.ms2db.dataFDB.bits.dataID := dataBuffer(outMsID).toDataID
   io.cpu2db.dataFDB.bits.dataID := dataBuffer(outCpuID).toDataID
 
   io.ds2db.dataFDB.bits.dbid := outDsID
-  io.ms2db.dataFDB.bits.dbid := outMsID
+  io.ms2db.dataFDB.bits.dbid := dataBuffer(outMsID).to.idL2 // more info can see DSUMAster
   io.cpu2db.dataFDB.bits.to := dataBuffer(outCpuID).to
 
 
