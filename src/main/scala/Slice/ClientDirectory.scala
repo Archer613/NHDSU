@@ -130,10 +130,13 @@ val io = IO(new Bundle {
 
   val tagMatchVec           = stateAll_s3.map(_.tag(cTagBits - 1, 0) === reqRead_s3_reg.tag)
   val bankMatchVec          = stateAll_s3.map(_.bank === reqRead_s3_reg.bank)
+  val stateHitVec2d         = stateAll_s3.map(_.metas.map(!_.isInvalid))
+  val stateHitVec           = stateHitVec2d.map(row => Cat(row).orR)
   val hit_tag_bank_vec      = tagMatchVec.zip(bankMatchVec).map(x => x._1 && x._2)
-  val hit_tag_bank          = Cat(hit_tag_bank_vec).orR
-  val hit_tag_bank_way      = Mux(hit_tag_bank, OHToUInt(hit_tag_bank_vec), 0.U(cWayBits.W))
-  val hitWayState           = stateAll_s3(hit_tag_bank_way).metas.map(!_.isInvalid)
+  val hit_all_vec           = hit_tag_bank_vec.zip(stateHitVec).map(x => x._1 && x._2)
+  val hit_all               = Cat(hit_all_vec).orR
+  val hit_all_way           = Mux(hit_all, OHToUInt(hit_all_vec), 0.U(cWayBits.W))
+  val hitWayState           = stateAll_s3(hit_all_way).metas.map(!_.isInvalid)
 
   /* 
   Replace logic
@@ -160,7 +163,7 @@ val io = IO(new Bundle {
   val repl_state_s3         = RegEnable(repl_sram_r, 0.U(repl.nBits.W), refillReqValid_s2)
   replaceWay               := repl.get_replace_way(repl_state_s3)
 
-  val way_s3                = Mux(refillReqValid_s3 | !hit_tag_bank, chosenWay, hit_tag_bank_way)
+  val way_s3                = Mux(refillReqValid_s3 | !hit_all, chosenWay, hit_all_way)
   val failState             = VecInit(Seq.fill(dsuparam.nrCore)(false.B))
 
 
@@ -170,29 +173,29 @@ val io = IO(new Bundle {
 
    io.dirResp.bits.hitVec  := hitWayState
 
-    when(!hit_tag_bank || !reqReadValid_s3){
+    when(!hit_all || !reqReadValid_s3){
     io.dirResp.bits.hitVec := failState
   }
 
-   io.dirResp.bits.tag     := Mux(refillReqValid_s3 & !hit_tag_bank, stateAll_s3(chosenWay).tag, reqRead_s3_reg.tag)
+   io.dirResp.bits.tag     := Mux(refillReqValid_s3 & !hit_all, stateAll_s3(chosenWay).tag, reqRead_s3_reg.tag)
    io.dirResp.bits.set     := reqRead_s3_reg.set
    io.dirResp.bits.bank    := reqRead_s3_reg.bank
    io.dirResp.bits.wayOH   := UIntToOH(way_s3)
    // io.dirResp.bits.metas   := stateAll_s3(hit_tag_bank_way).metas
    // io.dirResp.bits.metas   := Mux(hit_tag_bank, stateAll_s3(hit_tag_bank_way).metas, 0.U.asTypeOf(io.dirResp.bits.metas))
-   io.dirResp.bits.metas   := Mux(hit_tag_bank, stateAll_s3(hit_tag_bank_way).metas, stateAll_s3(way_s3).metas)
+   io.dirResp.bits.metas   := Mux(hit_all, stateAll_s3(hit_all_way).metas, stateAll_s3(way_s3).metas)
    io.dirResp.valid        := reqReadValid_s3
 
 // -----------------------------------------------------------------------------------------
 // Update replacer_sram_opt
 // -----------------------------------------------------------------------------------------
   val set_s3                    = reqRead_s3_reg.set
-  val updateHit                 = reqReadValid_s3 && hit_tag_bank
+  val updateHit                 = reqReadValid_s3 && hit_all
   val updateRefill              = refillReqValid_s3
   replaceWen                   := refillReqValid_s3
 
   val touch_way_s3              = Mux(refillReqValid_s3, replaceWay, way_s3)
-  val rrip_hit_s3               = Mux(refillReqValid_s3, false.B, hit_tag_bank)
+  val rrip_hit_s3               = Mux(refillReqValid_s3, false.B, hit_all)
 
   if(dsuparam.replacementPolicy == "srrip"){
     val next_state_s3 = repl.get_next_state(repl_state_s3, touch_way_s3)
