@@ -189,7 +189,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
    * generate (rnNS, hnNS) cpuResp:(channel, op, resp)
    */
   // Base signals
-  sourceID      := Mux(task_s3_g.bits.from.idL0 === IdL0.CPU, task_s3_g.bits.from.idL2, task_s3_g.bits.to.idL2)
+  sourceID      := Mux(task_s3_g.bits.from.idL0 === IdL0.CPU, task_s3_g.bits.from.idL1, task_s3_g.bits.to.idL1)
   sourceHit_s3  := client_s3.hitVec(sourceID)
   if(dsuparam.nrCore > 1) otherHit_s3 := PopCount(client_s3.hitVec) > 1.U | (client_s3.hitVec.asUInt.orR & !sourceHit_s3)
   hnState       := Mux(self_s3.hit, self_s3.state, ChiState.I)
