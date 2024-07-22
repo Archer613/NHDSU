@@ -67,6 +67,8 @@ class Slice()(implicit p: Parameters) extends DSUModule {
   reqArb.io.dirRstFinish :=  directory.io.resetFinish
   reqArb.io.txReqQFull := (mpReqQueue.entries.asUInt - mpReqQueue.io.count <= pipeDepth.asUInt)
   reqArb.io.mpBTReq <> mainPipe.io.mpBTReq
+  reqArb.io.snpFreeNum := snpCtl.io.freeNum
+  reqArb.io.mpReleaseSnp := mainPipe.io.releaseSnp
 
   snpCtl.io.snpTask <> io.snpTask
   snpCtl.io.snpResp <> io.snpResp

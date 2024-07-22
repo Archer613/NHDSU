@@ -22,7 +22,7 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
     // Req From MainPipe
     val mpReq         = Flipped(Decoupled(new DSRequest()))
     // dataBuffer <-> DataStorage
-    val dbSigs2DB     = new DsDBBundle()
+    val dbSigs2DB     = new DsDBBundle() // TODO: Consider data width: 256 -> 512
     // rcReq to dataBuffer
     val dbRCReq       = Decoupled(new DBRCReq())
   })

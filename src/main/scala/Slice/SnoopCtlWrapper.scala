@@ -4,6 +4,7 @@ import NHDSU._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
+import Utils.FastArb._
 
 class SnoopCtlWrapper()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
@@ -14,6 +15,8 @@ class SnoopCtlWrapper()(implicit p: Parameters) extends DSUModule {
     // mainpipe <-> snpCtrl
     val mpTask        = Flipped(Decoupled(new TaskBundle()))
     val mpResp        = Decoupled(new TaskBundle())
+    // snpCtl free number
+    val freeNum       = Output(UInt((snoopCtlIdBits + 1).W))
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -24,14 +27,46 @@ class SnoopCtlWrapper()(implicit p: Parameters) extends DSUModule {
 
 
 // --------------------- Modules declaration ------------------------//
+val snpCtls = Seq.fill(dsuparam.nrSnoopCtl) { Module(new SnoopCtl()) }
+  snpCtls.foreach(_.io <> DontCare)
 
 
-
-
-// --------------------- Wire declaration ------------------------//
-
+// --------------------- Reg / Wire declaration ------------------------//
+  val freeVec = Wire(Vec(dsuparam.nrSnoopCtl, Bool()))
+  val reqSelId = WireInit(0.U(snoopCtlIdBits.W)) // for mpTask
+  val respSelId = WireInit(0.U(snoopCtlIdBits.W)) // for snpResp
 
 // --------------------- Connection ------------------------//
+  /*
+   * Select one snpCtl to receive mpTask
+   */
+  freeVec := snpCtls.map(_.io.mpTask.ready)
+  reqSelId := PriorityEncoder(freeVec)
+  snpCtls.zipWithIndex.foreach {
+    case(snp, i) =>
+      snp.io.snpId := i.U
+      snp.io.mpTask.valid := io.mpTask.valid & reqSelId === i.U
+      snp.io.mpTask.bits := io.mpTask.bits
+  }
+  io.mpTask.ready := true.B
+  io.freeNum := PopCount(freeVec)
+
+
+  /*
+   * Select one snpCtl to receive snpResp
+   */
+  snpCtls.zipWithIndex.foreach {
+    case(snp, i) =>
+      snp.io.snpResp.valid := io.snpResp.valid & io.snpResp.bits.to.idL2 === i.U
+      snp.io.snpResp.bits := io.snpResp.bits
+  }
+
+  /*
+   * Output SnpTask and MpTask
+   */
+  fastArbDec2Dec(snpCtls.map(_.io.snpTask), io.snpTask, Some("SnpTaskArb"))
+  fastArbDec2Dec(snpCtls.map(_.io.mpResp), io.mpResp, Some("mpTaskArb"))
+
 
 
 

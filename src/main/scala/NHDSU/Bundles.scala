@@ -20,6 +20,12 @@ class IDBundle(implicit p: Parameters) extends DSUBundle {
     val idL0 = UInt(IdL0.width.W) // Module: IDL0 [3.W]
     val idL1 = UInt(max(coreIdBits, bankBits).W) // SubModule: CpuSlaves, Slices [max:2.W]
     val idL2 = UInt(max(reqBufIdBits, max(snoopCtlIdBits, dbIdBits)).W) // SubSubModule: ReqBufs, SnpCtls, DataBufs [max:4.W]
+
+    def isSLICE  = idL0 === IdL0.SLICE
+    def isCPU    = idL0 === IdL0.CPU
+    def isCMO    = idL0 === IdL0.CMO
+    def isAXI    = idL0 === IdL0.AXI
+    def isMASTER = idL0 === IdL0.MASTER
 }
 
 trait HasFromIDBits extends DSUBundle { this: Bundle => val from = new IDBundle() }
@@ -47,6 +53,7 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     // use in snp
     val snpDoNotGoToSD = Bool()
     val snpRetToSrc    = Bool()
+    val willSnp        = Bool()
 }
 
 

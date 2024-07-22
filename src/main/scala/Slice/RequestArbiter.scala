@@ -10,6 +10,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     // SnoopCtl task
+    val snpFreeNum    = Input(UInt((snoopCtlIdBits + 1).W))
     val taskSnp       = Flipped(Decoupled(new TaskBundle)) // Hard wire to MSHRs
 
     // CHI Channel task
@@ -18,7 +19,8 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 
     // Send task to MainPipe
     val mpTask        = Decoupled(new TaskBundle)
-    // TODO: Lock signals from MainPipe
+    val mpReleaseSnp  = Input(Bool())
+    // TODO: Dir Way Lock signals from MainPipe
     // Read directory
     val dirRead = Decoupled(new DirRead)
     // Directory reset finish
@@ -48,6 +50,11 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 
 
 // --------------------- Reg / Wire / Def declaration ------------------------//
+  // SnpCtl block signals
+  val mpSnpUseNumReg    = RegInit(0.U((snoopCtlIdBits + 1).W))
+  val snpWillUseNum     = Wire(UInt((snoopCtlIdBits + 1).W))
+  val snpBlockCpu       = Wire(Bool())
+  val snpBlockMs        = Wire(Bool())
   // blockTable
   val blockTableReg = RegInit(VecInit(Seq.fill(nrBlockSets) {
     VecInit(Seq.fill(nrBlockWays) {0.U.asTypeOf(new BlockTableEntry())})
@@ -110,6 +117,21 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   }
 // ------------------------ S0: Decide which task can enter mainpipe --------------------------//
   /*
+   * MainPipe S3 snpTask cant be block
+   * So it need block task in arbiter which may require snoop
+   *
+   * is(CPU_REQ_OH)    { needSnoop_s3 := needSnp | needSnpHlp }
+   * is(CPU_WRITE_OH)  { needSnoop_s3 := false.B }
+   * is(MS_RESP_OH)    { needSnoop_s3 := needSnpHlp }
+   * is(SNP_RESP_OH)   { needSnoop_s3 := false.B }
+   */
+  mpSnpUseNumReg  := mpSnpUseNumReg + (task_s0.fire & task_s0.bits.willSnp).asUInt - io.mpReleaseSnp.asUInt
+
+  snpWillUseNum   := io.snpFreeNum - mpSnpUseNumReg
+  snpBlockCpu     := !(snpWillUseNum < dsuparam.nrSnoopCtl.U) & !io.mpTask.bits.isWB
+  snpBlockMs      := !(snpWillUseNum < dsuparam.nrSnoopCtl.U)
+
+  /*
    * Determine whether it need to block cputask
    * TODO: Add retry queue to
    */
@@ -125,8 +147,8 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
    * Priority(task.isClean): taskSnp > taskMs > taskCpu
    */
   taskSelVec(0) := io.taskSnp.valid & !io.taskSnp.bits.cleanBt
-  taskSelVec(1) := io.taskMs.valid  & !io.taskMs.bits.cleanBt
-  taskSelVec(2) := io.taskCpu.valid & !io.taskCpu.bits.cleanBt & !blockCpuTask
+  taskSelVec(1) := io.taskMs.valid  & !io.taskMs.bits.cleanBt & !snpBlockMs
+  taskSelVec(2) := io.taskCpu.valid & !io.taskCpu.bits.cleanBt & !blockCpuTask & !snpBlockCpu
 
   taskCleanSelVec(0) := io.taskSnp.valid & io.taskSnp.bits.cleanBt
   taskCleanSelVec(1) := io.taskMs.valid  & io.taskMs.bits.cleanBt
@@ -229,6 +251,9 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   assert(Mux(io.taskCpu.valid, io.taskCpu.bits.from.idL0 === IdL0.CPU, true.B), "taskCpu should from CPU")
   assert(Mux(io.taskMs.valid, io.taskMs.bits.from.idL0 === IdL0.MASTER, true.B), "taskMs should from MASTER")
   assert(Mux(io.taskSnp.valid, io.taskSnp.bits.from.idL0 === IdL0.SLICE, true.B), "taskSnp should from SLICE")
+
+  // snoop
+  assert(Mux(mpSnpUseNumReg === dsuparam.nrSnoopCtl.U, Mux(task_s0.fire, task_s0.bits.willSnp, true.B), true.B))
 
   // TIMEOUT CHECK
   blockTableReg.zipWithIndex.foreach {

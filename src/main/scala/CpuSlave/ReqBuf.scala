@@ -86,6 +86,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     task.cleanBt    := false.B
     task.writeBt    := true.B
     task.readDir    := true.B
+    task.willSnp    := !task.isWB
     // other
     reqTxnIDReg     := txreq.txnID
   }
