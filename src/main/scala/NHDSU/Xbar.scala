@@ -55,12 +55,12 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
         val bankVal = Input(Vec(dsuparam.nrBank, Bool()))
         // snpCtrl
         val snpTask = new Bundle {
-            val in = Vec(dsuparam.nrBank, Flipped(Decoupled(new TaskBundle())))
-            val out = Vec(dsuparam.nrCore, Decoupled(new TaskBundle()))
+            val in = Vec(dsuparam.nrBank, Flipped(Decoupled(new SnpTaskBundle())))
+            val out = Vec(dsuparam.nrCore, Decoupled(new SnpTaskBundle()))
         }
         val snpResp = new Bundle {
-            val in = Vec(dsuparam.nrCore, Flipped(Decoupled(new RespBundle())))
-            val out = Vec(dsuparam.nrBank, ValidIO(new RespBundle()))
+            val in = Vec(dsuparam.nrCore, Flipped(Decoupled(new SnpRespBundle())))
+            val out = Vec(dsuparam.nrBank, ValidIO(new SnpRespBundle()))
         }
         // mainpipe
         val mpTask = new Bundle {
@@ -86,8 +86,8 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
     val mpTaskRemap     = Wire(Vec(dsuparam.nrCore, Decoupled(new TaskBundle())))
     val mpTaskRedir     = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new TaskBundle()))))
     val mpRespRedir     = Wire(Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new RespBundle()))))
-    val snpTaskRedir    = Wire(Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new TaskBundle()))))
-    val snpRespRedir    = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new RespBundle()))))
+    val snpTaskRedir    = Wire(Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new SnpTaskBundle()))))
+    val snpRespRedir    = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new SnpRespBundle()))))
     val wReqRemap       = Wire(Vec(dsuparam.nrCore, Decoupled(new CpuDBWReq())))
     val dbSigsRedir     = Wire(new Bundle {
             val wReq        = Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new CpuDBWReq())))

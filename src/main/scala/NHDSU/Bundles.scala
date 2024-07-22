@@ -50,12 +50,8 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     val writeBt     = Bool() // write block table in ReqArb
     val readDir     = Bool()
     val btWay       = UInt(blockWayBits.W) // block table
-    // use in snp
-    val snpDoNotGoToSD = Bool()
-    val snpRetToSrc    = Bool()
-    val willSnp        = Bool()
+    val willSnp     = Bool()
 }
-
 
 class RespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel{
     // TODO: RespBundle
@@ -65,6 +61,25 @@ class RespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     val btWay       = UInt(blockWayBits.W) // block table
 }
 
+trait HasSnpTask extends DSUBundle { this: Bundle =>
+    val opcode          = UInt(6.W)
+    val addr            = UInt(addressBits.W)
+    val snpDoNotGoToSD  = Bool()
+    val snpRetToSrc     = Bool()
+}
+
+class SnpTaskBundle(implicit p: Parameters) extends DSUBundle with HasSnpTask with HasIDBits
+class MpSnpTaskBundle(implicit p: Parameters) extends DSUBundle with HasSnpTask with HasFromIDBits {
+    val hitVec      = Vec(dsuparam.nrCore, Bool())
+    val isSnpHlp    = Bool()
+    val btWay       = UInt(blockWayBits.W) // block table
+
+}
+
+class SnpRespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasDBID {
+    val resp    = UInt(3.W) // snpResp; resp.width = 3
+    val hasData = Bool()
+}
 
 // ---------------------- DataBuffer Bundle ------------------- //
 object DBState {

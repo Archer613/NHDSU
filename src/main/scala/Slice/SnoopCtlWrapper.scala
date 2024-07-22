@@ -10,10 +10,10 @@ class SnoopCtlWrapper()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     // snpCtrl <-> cpuslave
-    val snpTask       = Decoupled(new TaskBundle())
-    val snpResp       = Flipped(ValidIO(new RespBundle()))
+    val snpTask       = Decoupled(new SnpTaskBundle())
+    val snpResp       = Flipped(ValidIO(new SnpRespBundle()))
     // mainpipe <-> snpCtrl
-    val mpTask        = Flipped(Decoupled(new TaskBundle()))
+    val mpTask        = Flipped(Decoupled(new MpSnpTaskBundle()))
     val mpResp        = Decoupled(new TaskBundle())
     // snpCtl free number
     val freeNum       = Output(UInt((snoopCtlIdBits + 1).W))
@@ -68,7 +68,8 @@ val snpCtls = Seq.fill(dsuparam.nrSnoopCtl) { Module(new SnoopCtl()) }
   fastArbDec2Dec(snpCtls.map(_.io.mpResp), io.mpResp, Some("mpTaskArb"))
 
 
-
+// --------------------- Connection ------------------------//
+  assert(Mux(io.mpTask.valid, io.freeNum > 0.U, true.B), "When mpTask input, must has snpCtl free")
 
 
 }

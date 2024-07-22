@@ -10,10 +10,10 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val snpId         = Input(UInt(snoopCtlIdBits.W))
     // snpCtrl <-> cpuslave
-    val snpTask       = Decoupled(new TaskBundle())
-    val snpResp       = Flipped(ValidIO(new RespBundle()))
+    val snpTask       = Decoupled(new SnpTaskBundle())
+    val snpResp       = Flipped(ValidIO(new SnpRespBundle()))
     // mainpipe <-> snpCtrl
-    val mpTask        = Flipped(Decoupled(new TaskBundle()))
+    val mpTask        = Flipped(Decoupled(new MpSnpTaskBundle()))
     val mpResp        = Decoupled(new TaskBundle())
   })
 
@@ -29,7 +29,7 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
 
 
 
-// --------------------- Wire declaration ------------------------//
+// --------------------- Reg / Wire declaration ------------------------//
 
 
 // --------------------- Connection ------------------------//

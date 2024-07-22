@@ -18,8 +18,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     val mpTask      = Decoupled(new TaskBundle())
     val mpResp      = Flipped(ValidIO(new RespBundle()))
     // snpCtrl
-    val snpTask     = Flipped(Decoupled(new TaskBundle()))
-    val snpResp     = Decoupled(new RespBundle())
+    val snpTask     = Flipped(Decoupled(new SnpTaskBundle()))
+    val snpResp     = Decoupled(new SnpRespBundle())
     // dataBuffer
     val wReq        = Decoupled(new CpuDBWReq())
     val wResp       = Flipped(Decoupled(new CpuDBWResp()))

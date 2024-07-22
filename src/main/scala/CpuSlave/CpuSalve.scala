@@ -34,8 +34,8 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
     val chi           = CHIBundleUpstream(chiBundleParams)
     val chiLinkCtrl   = Flipped(new CHILinkCtrlIO())
     // snpCtrl
-    val snpTask       = Flipped(Decoupled(new TaskBundle()))
-    val snpResp       = Decoupled(new RespBundle())
+    val snpTask       = Flipped(Decoupled(new SnpTaskBundle()))
+    val snpResp       = Decoupled(new SnpRespBundle())
     // mainpipe
     val mpTask        = Decoupled(new TaskBundle())
     val mpResp        = Flipped(ValidIO(new RespBundle()))

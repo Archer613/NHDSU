@@ -21,11 +21,11 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     // Req to DataStorage
     val dsReq       = Decoupled(new DSRequest())
     // Task to snpCtrl
-    val snpTask     = Decoupled(new TaskBundle())
+    val snpTask     = Decoupled(new MpSnpTaskBundle())
     // Resp to CpuSlave
     val cpuResp     = Decoupled(new RespBundle())
     // Task to Master
-    val msTask      = Decoupled(new TaskBundle())
+    val msTask      = Decoupled(new TaskBundle()) // TODO: simplified it
     // Req to dataBuffer
     val dbRCReq     = Decoupled(new DBRCReq())
     // MainPipe S3 clean or lock BlockTable
@@ -41,7 +41,6 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   io.arbTask <> DontCare
   io.dirResp <> DontCare
   io.dsReq <> DontCare
-  io.snpTask <> DontCare
   io.msTask <> DontCare
   io.cpuResp <> DontCare
   io.dbRCReq <> DontCare
@@ -244,15 +243,17 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(MS_RESP_OH)    { needSnoop_s3 := needSnpHlp }
     is(SNP_RESP_OH)   { needSnoop_s3 := false.B }
   }
-  io.snpTask.valid := needSnoop_s3 & !doneSnoop_s3
-  io.snpTask.bits.opcode := Mux(needSnp, snpOp, snpHlpOp)
-  io.snpTask.bits.from := task_s3_g.bits.from
-  io.snpTask.bits.isWB := false.B
-  io.snpTask.bits.isSnpHlp := needSnpHlp
-  io.snpTask.bits.btWay := task_s3_g.bits.btWay
-  io.snpTask.bits.snpDoNotGoToSD := Mux(needSnp, doNotGoToSD, hlpDoNotGoToSD)
-  io.snpTask.bits.snpRetToSrc := Mux(needSnp, retToSrc, hlpRetToSrc)
+  io.snpTask.valid                := needSnoop_s3 & !doneSnoop_s3
+  io.snpTask.bits.from            := task_s3_g.bits.from
+  io.snpTask.bits.opcode          := Mux(needSnp, snpOp, snpHlpOp)
+  io.snpTask.bits.addr            := client_s3.addr
+  io.snpTask.bits.hitVec          := client_s3.hitVec
+  io.snpTask.bits.isSnpHlp        := needSnpHlp
+  io.snpTask.bits.btWay           := task_s3_g.bits.btWay
+  io.snpTask.bits.snpRetToSrc     := Mux(needSnp, retToSrc, hlpRetToSrc)
+  io.snpTask.bits.snpDoNotGoToSD  := Mux(needSnp, doNotGoToSD, hlpDoNotGoToSD)
 
+  // release snp count in req arbiter
   io.releaseSnp := task_s3_g.valid & canGo_s3 & task_s3_g.bits.willSnp
 
   /*
@@ -418,7 +419,8 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
 
   // TODO: Del it
   switch(taskTypeVec.asUInt) {
-    is(CPU_REQ_OH)    { assert(!needSnp); assert(!needSnpHlp) }
+//    is(CPU_REQ_OH)    { assert(!needSnp) }
+    is(CPU_REQ_OH)    { assert(!needSnpHlp) }
 //    is(CPU_WRITE_OH)  { assert(!needRepl) }
     is(MS_RESP_OH)    { assert(!needSnpHlp) }
     is(SNP_RESP_OH)   { assert(!needRepl) }
