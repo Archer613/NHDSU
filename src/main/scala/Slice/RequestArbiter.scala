@@ -52,9 +52,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 // --------------------- Reg / Wire / Def declaration ------------------------//
   // SnpCtl block signals
   val mpSnpUseNumReg    = RegInit(0.U((snoopCtlIdBits + 1).W))
-  val snpWillUseNum     = Wire(UInt((snoopCtlIdBits + 1).W))
-  val snpBlockCpu       = Wire(Bool())
-  val snpBlockMs        = Wire(Bool())
+  val blockBySnp        = Wire(Bool())
   // blockTable
   val blockTableReg = RegInit(VecInit(Seq.fill(nrBlockSets) {
     VecInit(Seq.fill(nrBlockWays) {0.U.asTypeOf(new BlockTableEntry())})
@@ -88,6 +86,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   val task_s1_g         = RegInit(0.U.asTypeOf(Valid(new TaskBundle())))
   val dirAlreadyReadReg = RegInit(false.B)
 
+  dontTouch(blockBySnp)
   dontTouch(invWayVec)
   dontTouch(taskClean_s0)
   dontTouch(btWCVal_s0)
@@ -126,10 +125,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
    * is(SNP_RESP_OH)   { needSnoop_s3 := false.B }
    */
   mpSnpUseNumReg  := mpSnpUseNumReg + (task_s0.fire & task_s0.bits.willSnp).asUInt - io.mpReleaseSnp.asUInt
-
-  snpWillUseNum   := io.snpFreeNum - mpSnpUseNumReg
-  snpBlockCpu     := !(snpWillUseNum < dsuparam.nrSnoopCtl.U) & !io.mpTask.bits.isWB
-  snpBlockMs      := !(snpWillUseNum < dsuparam.nrSnoopCtl.U)
+  blockBySnp      := (io.snpFreeNum - mpSnpUseNumReg) === 0.U
 
   /*
    * Determine whether it need to block cputask
@@ -147,8 +143,8 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
    * Priority(task.isClean): taskSnp > taskMs > taskCpu
    */
   taskSelVec(0) := io.taskSnp.valid & !io.taskSnp.bits.cleanBt
-  taskSelVec(1) := io.taskMs.valid  & !io.taskMs.bits.cleanBt & !snpBlockMs
-  taskSelVec(2) := io.taskCpu.valid & !io.taskCpu.bits.cleanBt & !blockCpuTask & !snpBlockCpu
+  taskSelVec(1) := io.taskMs.valid  & !io.taskMs.bits.cleanBt & !blockBySnp
+  taskSelVec(2) := io.taskCpu.valid & !io.taskCpu.bits.cleanBt & !blockCpuTask & !blockBySnp
 
   taskCleanSelVec(0) := io.taskSnp.valid & io.taskSnp.bits.cleanBt
   taskCleanSelVec(1) := io.taskMs.valid  & io.taskMs.bits.cleanBt
@@ -172,8 +168,8 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
    * task ready
    */
   io.taskSnp.ready := canGo_s0 & task_s0.bits.from.idL0 === IdL0.SLICE
-  io.taskMs.ready  := canGo_s0 & task_s0.bits.from.idL0 === IdL0.MASTER
-  io.taskCpu.ready := canGo_s0 & (!blockCpuTask | io.taskCpu.bits.cleanBt) & task_s0.bits.from.idL0 === IdL0.CPU
+  io.taskMs.ready  := canGo_s0 & (!blockBySnp | io.taskMs.bits.cleanBt) & task_s0.bits.from.idL0 === IdL0.MASTER
+  io.taskCpu.ready := canGo_s0 & ((!blockCpuTask & !blockBySnp) | io.taskCpu.bits.cleanBt) & task_s0.bits.from.idL0 === IdL0.CPU
 
   /*
    * Write/Clean block table when task_s0.valid and canGo_s0
