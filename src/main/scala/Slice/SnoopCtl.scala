@@ -117,6 +117,7 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
   when(validReg) { assert(needSnpNum >= 1.U) }
   when(io.snpTask.fire) { assert(!doneVecReg(snpCoreId)) }
   when(io.snpResp.fire) { assert(!respVecReg(respCoreId)) }
+  when(io.mpTask.fire) { assert(io.mpTask.bits.hitVec.asUInt.orR) }
 
   // TIME OUT CHECK
   val cntReg = RegInit(0.U(64.W))

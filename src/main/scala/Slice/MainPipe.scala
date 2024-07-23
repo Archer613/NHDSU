@@ -100,6 +100,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val hnState     = WireInit(ChiState.I)
   val otherState  = WireInit(ChiState.I)
   val srcState    = WireInit(ChiState.I)
+  val rnValVec    = Wire(Vec(dsuparam.nrCore, Bool()))
   // s3 task signals
   val taskReq_s3  = WireInit(0.U.asTypeOf(new TaskBundle()))
   val taskResp_s3 = WireInit(0.U.asTypeOf(new RespBundle()))
@@ -217,8 +218,9 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   // gen rn resp(expect write back req)
   val (respChnl, respOp, respResp, genRnRespError)                              = genRnResp(task_s3_g.bits.opcode, srcRnNS)
   // gen snoop helper req
-  val rnHit = client_s3.hitVec.asUInt.orR
-  val rnState = Mux(rnHit, client_s3.metas(PriorityEncoder(client_s3.hitVec)).state, ChiState.I)
+  rnValVec := client_s3.metas.map(!_.isInvalid); dontTouch(rnValVec)
+  val rnHit = WireInit(client_s3.hitVec.asUInt.orR); dontTouch(rnHit)
+  val rnState = WireInit(client_s3.metas(PriorityEncoder(rnValVec)).state); dontTouch(rnState)
   val (snpHlpOp, hlpDoNotGoToSD, hlpRetToSrc, needSnpHlp, genSnpHelperReqError) = genSnpHelperReq(srcRnNS, rnHit, rnState)
   // gen replace req
   val (replOp, needRepl, needWDS, genReplaceReqError)                           = genReplaceReq(hnNS, self_s3.hit, self_s3.state)
@@ -248,7 +250,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   io.snpTask.bits.srcOp           := task_s3_g.bits.opcode
   io.snpTask.bits.opcode          := Mux(needSnp, snpOp, snpHlpOp)
   io.snpTask.bits.addr            := client_s3.addr
-  io.snpTask.bits.hitVec          := client_s3.hitVec
+  io.snpTask.bits.hitVec          := Mux(needSnp, client_s3.hitVec, rnValVec)
   io.snpTask.bits.isSnpHlp        := needSnpHlp
   io.snpTask.bits.btWay           := task_s3_g.bits.btWay
   io.snpTask.bits.snpRetToSrc     := Mux(needSnp, retToSrc, hlpRetToSrc)
