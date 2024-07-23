@@ -6,6 +6,9 @@ import chisel3._
 import org.chipsalliance.cde.config._
 import chisel3.util.{Decoupled, PopCount, RegEnable, ValidIO, log2Ceil, Cat}
 
+// TODO: Stall writeBack when has some reqBuf Snoop RN(already get dbid) is same addr with it
+// TODO: Stall snoop when has some reqBuf writeBack HN(already get dbid) is same addr with it
+
 class ReqBuf()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val free        = Output(Bool())
@@ -284,7 +287,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     // send
     fsmReg.s_req2mp   := Mux(io.mpTask.fire, false.B, fsmReg.s_req2mp)
     fsmReg.s_resp     := Mux(io.chi.rxrsp.fire | (io.chi.rxdat.fire & getAllDB), false.B, fsmReg.s_resp)
-    fsmReg.s_clean    := Mux(io.mpTask.fire & io.mpTask.bits.cleanBt, false.B, fsmReg.s_clean)
+    fsmReg.s_clean    := Mux((io.mpTask.fire & io.mpTask.bits.cleanBt) | (io.mpResp.fire & !io.mpResp.bits.cleanBt), false.B, fsmReg.s_clean)
     // wait
     fsmReg.w_mpResp   := Mux(io.mpResp.fire, false.B, fsmReg.w_mpResp)
     fsmReg.w_dbData   := Mux(io.mpResp.fire & io.mpResp.bits.isRxDat, true.B, Mux(getAllDB, false.B, fsmReg.w_dbData))
