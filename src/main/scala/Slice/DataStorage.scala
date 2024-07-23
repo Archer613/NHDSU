@@ -113,6 +113,7 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
   io.dbRCReq.bits.to.idL0 := Mux(isRC2DS, IdL0.SLICE, dsRCDBEntry.to.idL0)
   io.dbRCReq.bits.to.idL1 := Mux(isRC2DS, 0.U,        dsRCDBEntry.to.idL1)
   io.dbRCReq.bits.to.idL2 := Mux(isRC2DS, 0.U,        dsRCDBEntry.to.idL2)
+  io.dbRCReq.bits.isRead  := true.B
   io.dbRCReq.bits.isClean := true.B
 
 

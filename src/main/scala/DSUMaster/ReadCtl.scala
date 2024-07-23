@@ -143,6 +143,7 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
   io.mpResp.bits.resp       := false.B
   io.mpResp.bits.isSnpHlp   := DontCare
   io.mpResp.bits.willSnp    := true.B
+  io.mpResp.bits.snpHasData := DontCare
 
   /*
    * readCtlFsmVal

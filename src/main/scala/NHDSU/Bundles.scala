@@ -51,14 +51,15 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     val readDir     = Bool()
     val btWay       = UInt(blockWayBits.W) // block table
     val willSnp     = Bool()
+    val snpHasData  = Bool()
 }
 
 class RespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel{
-    // TODO: RespBundle
     val opcode      = UInt(6.W)
     val resp        = UInt(3.W)
     val addr        = UInt(addressBits.W) // TODO: Del it
     val btWay       = UInt(blockWayBits.W) // block table
+    val cleanBt     = Bool()
 }
 
 trait HasSnpTask extends DSUBundle { this: Bundle =>
@@ -85,8 +86,9 @@ class SnpRespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits wit
 // ---------------------- DataBuffer Bundle ------------------- //
 object DBState {
     val width       = 3
-    // FREE -> ALLOC -> WRITTING -> WRITE_DONE -> READING(needClean) -> FREE
-    // FREE -> ALLOC -> WRITTING -> WRITE_DONE -> READING(!needClean) -> READ_DONE -> READING(needClean) -> FREE
+    // FREE -> ALLOC -> WRITING -> WRITE_DONE -> FREE
+    // FREE -> ALLOC -> WRITING -> WRITE_DONE -> READING(needClean) -> FREE
+    // FREE -> ALLOC -> WRITING -> WRITE_DONE -> READING(!needClean) -> READ_DONE -> READING(needClean) -> FREE
     val FREE        = "b000".U
     val ALLOC       = "b001".U
     val WRITTING    = "b010".U // Has been written some beats
@@ -109,7 +111,7 @@ class DBEntry(implicit p: Parameters) extends DSUBundle with HasToIDBits {
     }
 }
 trait HasDBRCOp extends DSUBundle { this: Bundle =>
-//    val isRead = Bool() // Default Read
+    val isRead = Bool()
     val isClean = Bool()
 }
 // Base Data Bundle

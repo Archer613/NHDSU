@@ -167,7 +167,8 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
           val dsHit     = io.dsRCReq.valid & io.dsRCReq.bits.dbid === i.U
           val to        = Mux(io.mpRCReq.valid, io.mpRCReq.bits.to, io.dsRCReq.bits.to)
           val needClean = Mux(io.mpRCReq.valid, io.mpRCReq.bits.isClean, io.dsRCReq.bits.isClean)
-          db.state      := Mux(mpHit | dsHit, DBState.READING, DBState.WRITE_DONE)
+          val needRead  = Mux(io.mpRCReq.valid, io.mpRCReq.bits.isRead, io.dsRCReq.bits.isRead)
+          db.state      := Mux(mpHit | dsHit, Mux(needRead, DBState.READING, DBState.FREE), DBState.WRITE_DONE)
           db.to         := Mux(mpHit | dsHit, to, db.to)
           db.beatRNum   := 0.U
           db.needClean  := Mux(mpHit | dsHit, needClean, db.needClean)
@@ -188,6 +189,9 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
 // ----------------------------- Assertion ------------------------------ //
   assert(wReqVec.zip(wRespVec).map{ a => Mux(a._1.fire, a._2.fire, true.B) }.reduce(_ & _), "When wReq fire, wResp must also fire too")
   assert(!(io.mpRCReq.valid & io.dsRCReq.valid & io.mpRCReq.bits.dbid === io.dsRCReq.bits.dbid), "DS and MP cant read or clean at the same time")
+
+  assert(Mux(io.mpRCReq.fire, io.mpRCReq.bits.isRead | io.mpRCReq.bits.isClean, true.B))
+  assert(Mux(io.dsRCReq.fire, io.dsRCReq.bits.isRead | io.dsRCReq.bits.isClean, true.B))
 
   val cntVecReg  = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U(64.W) }))
   cntVecReg.zip(dataBuffer.map(_.state)).foreach{ case(cnt, s) => cnt := Mux(s === DBState.FREE, 0.U, cnt + 1.U) }
