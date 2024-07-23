@@ -69,4 +69,8 @@ class CpuChiRxRsp()(implicit p: Parameters) extends DSUModule {
   io.chi.flitv    := flitvReg
   io.chi.flit     := flitReg
 
+// ------------------------- Assert ------------------------------- //
+  assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.RSP.DBIDResp | io.flit.bits.opcode === CHIOp.RSP.Comp, true.B))
+  assert(Mux(lcrdFreeNumReg.andR, !io.chi.lcrdv | flitv, true.B), "RXRSP Lcrd overflow")
+
 }
