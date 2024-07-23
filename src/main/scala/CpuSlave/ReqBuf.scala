@@ -74,7 +74,6 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     taskReg         := task
     val txreq       = io.chi.txreq.bits
     // task base message
-    task.channel    := CHIChannel.TXREQ
     task.opcode     := txreq.opcode
     task.isWB       := txreq.opcode === CHIOp.REQ.WriteBackFull
     // task addr
@@ -95,7 +94,6 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   }.elsewhen(io.snpTask.valid) {
     taskReg         := task
     val snp         = io.snpTask.bits
-    task.channel    := CHIChannel.RXSNP
     task.opcode     := snp.opcode
     task.addr       := snp.addr
     task.from       := snp.from
@@ -190,7 +188,6 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   /*
    * task or resp output
    */
-  cleanTask.channel   := CHIChannel.CHNLSELF
   cleanTask.from.idL0 := IdL0.CPU
   cleanTask.from.idL1 := io.cpuSlvId
   cleanTask.from.idL2 := io.reqBufId

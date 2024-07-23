@@ -128,7 +128,6 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
    */
   val fsmSel = fsmReg(selIdVec(RCState.SEND_RESP))
   io.mpResp.valid           := stateVec(RCState.SEND_RESP).asUInt.orR
-  io.mpResp.bits.channel    := CHIChannel.RXDAT
   io.mpResp.bits.opcode     := fsmSel.opcode
   io.mpResp.bits.addr       := fsmSel.addr
   io.mpResp.bits.dbid       := fsmSel.txnid

@@ -36,7 +36,7 @@ trait HasIDBits extends DSUBundle with HasFromIDBits with HasToIDBits
 
 trait HasDBID extends DSUBundle { this: Bundle => val dbid = UInt(dbIdBits.W) }
 
-class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel with HasDBID {
+class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasDBID {
     // constants related to CHI
     def tgtID       = 0.U(chiBundleParams.nodeIdBits.W)
     def srcID       = 0.U(chiBundleParams.nodeIdBits.W)

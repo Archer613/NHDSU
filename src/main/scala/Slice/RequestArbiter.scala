@@ -237,13 +237,11 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   assert(Mux(taskClean_s0, blockTableReg(btWCSet_s0)(btWCWay_s0).tag === btCTag_s0, true.B), "Clean block table tag[0x%x] must match cleanTask.tag[0x%x]", blockTableReg(btWCSet_s0)(btWCWay_s0).tag, btCTag_s0)
   assert(Mux(taskClean_s0, !task_s0.valid, true.B), "When clean block table, task_s0 cant be valid")
   assert(Mux(taskClean_s0 | task_s0.valid, !(task_s0.bits.cleanBt & task_s0.bits.writeBt), true.B), "Task writeBT and cleanBT cant be valid at the same time")
-  assert(Mux(taskClean_s0 | task_s0.valid, !task_s0.bits.isChnlError, true.B), "Channel cant be error value")
   // s3
   val btCTag_s3 = getBtTag(io.mpBTReq.bits.addr)
   assert(Mux(io.mpBTReq.fire & io.mpBTReq.bits.isClean, blockTableReg(btWCSet_s3)(btWCWay_s3).valid, true.B), "Clean block table must be valid")
   assert(Mux(io.mpBTReq.fire & io.mpBTReq.bits.isClean, blockTableReg(btWCSet_s3)(btWCWay_s3).tag === btCTag_s3, true.B), "Clean block table tag must match cleanTask.tag")
   // io.taskXXX
-  assert(Mux(taskClean_s0 | task_s0.valid, !task_s0.bits.isChnlError, true.B), "Channel cant be error value")
   assert(Mux(io.taskCpu.valid, io.taskCpu.bits.from.idL0 === IdL0.CPU, true.B), "taskCpu should from CPU")
   assert(Mux(io.taskMs.valid, io.taskMs.bits.from.idL0 === IdL0.MASTER, true.B), "taskMs should from MASTER")
   assert(Mux(io.taskSnp.valid, io.taskSnp.bits.from.idL0 === IdL0.SLICE, true.B), "taskSnp should from SLICE")

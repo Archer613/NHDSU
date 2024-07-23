@@ -96,7 +96,6 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
    * Send mpResp to mainPipe
    */
   io.mpResp.valid := validReg & needSnpNum === PopCount(respVecReg)
-  io.mpResp.bits.channel    := CHIChannel.TXREQ
   io.mpResp.bits.from.idL0  := IdL0.SLICE
   io.mpResp.bits.from.idL1  := DontCare
   io.mpResp.bits.from.idL2  := DontCare

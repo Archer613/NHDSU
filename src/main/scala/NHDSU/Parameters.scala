@@ -26,9 +26,9 @@ case class DSUParam(
                     nrClientDirBank: Int = 2,
                     nrDSBank: Int = 2,
                     ways: Int = 4,
-                    sets: Int = 64,
-                    clientWays: Int = 32, // TODO
-                    clientSets: Int = 256, // TODO
+                    sets: Int = 32,
+                    clientWays: Int = 4,
+                    clientSets: Int = 32,
                     replacementPolicy: String = "plru",
                     // data
                     blockBytes: Int = 64,
@@ -50,6 +50,7 @@ case class DSUParam(
                   ) {
     require(nrCore > 0)
     require(nrBank == 1 | nrBank == 2 | nrBank == 4)
+    require(clientWays >= 4)
     require(nrRnTxLcrdMax <= 15)
     require(nrRnRxLcrdMax <= 15)
     require(replacementPolicy == "random" || replacementPolicy == "plru" || replacementPolicy == "lru")
