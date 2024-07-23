@@ -88,7 +88,7 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
     when(io.snpResp.fire) {
       respReg := io.snpResp.bits
       respReg.hasData := respReg.hasData | io.snpResp.bits.hasData
-      respReg.dbid := Mux(respReg.hasData, io.snpResp.bits.dbid, respReg.dbid)
+      respReg.dbid := Mux(io.snpResp.bits.hasData, io.snpResp.bits.dbid, respReg.dbid)
     }
   }
 
@@ -100,6 +100,7 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
   io.mpResp.bits.from.idL1  := DontCare
   io.mpResp.bits.from.idL2  := DontCare
   io.mpResp.bits.to         := mpTaskReg.from
+  io.mpResp.bits.addr       := mpTaskReg.addr
   io.mpResp.bits.opcode     := mpTaskReg.srcOp
   io.mpResp.bits.resp       := respReg.resp
   io.mpResp.bits.isWB       := false.B
@@ -109,7 +110,8 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
   io.mpResp.bits.readDir    := true.B
   io.mpResp.bits.btWay      := mpTaskReg.btWay
   io.mpResp.bits.willSnp    := false.B
-
+  io.mpResp.bits.dbid       := respReg.dbid
+  io.mpResp.bits.snpHasData := respReg.hasData
 
 
 
@@ -122,5 +124,5 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
   // TIME OUT CHECK
   val cntReg = RegInit(0.U(64.W))
   cntReg := Mux(!validReg, 0.U, cntReg + 1.U)
-  assert(cntReg < 3000.U, "SNPCTL[%d] S3 TIMEOUT", io.snpId)
+  assert(cntReg < 3000.U, "SNPCTL[%d] TIMEOUT", io.snpId)
 }
