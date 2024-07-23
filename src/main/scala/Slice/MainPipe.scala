@@ -45,6 +45,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   io.cpuResp <> DontCare
   io.dbRCReq <> DontCare
 
+  dontTouch(io.cpuResp)
 
 // --------------------- Modules declaration ------------------------//
   val taskQ = Module(new Queue(new TaskBundle(), entries = nrMPQBeat, pipe = true, flow = true))
@@ -177,6 +178,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
    * [io.msTask]  |  from: [CPU]    [coreId]  [reqBufId]     | to: None                          // TODO
    * [io.dbRCReq] |  from: None                              | to: [CPU]    [coreId]  [reqBufId]
    */
+   // TODO: Consider add SNPHLP_RESP
   taskTypeVec(CPU_REQ)    := task_s3_g.valid & dirRes_s3.valid & !task_s3_g.bits.isWB & task_s3_g.bits.from.idL0 === IdL0.CPU
   taskTypeVec(CPU_WRITE)  := task_s3_g.valid & dirRes_s3.valid & task_s3_g.bits.isWB & task_s3_g.bits.from.idL0 === IdL0.CPU
   taskTypeVec(MS_RESP)    := task_s3_g.valid & dirRes_s3.valid & task_s3_g.bits.from.idL0 === IdL0.MASTER
@@ -197,7 +199,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   if(dsuparam.nrCore > 1) otherState := Mux(otherHit_s3, client_s3.metas(PriorityEncoder(client_s3.hitVec)).state, ChiState.I)
   srcState      := Mux(sourceHit_s3, client_s3.metas(sourceID).state, ChiState.I)
   // gen new coherence with snoop
-  val (srcRnNSWithSnp, othRnNSWithSnp, hSNSWithSnp, genNewCohWithSnpError)  = genNewCohWithSnp(task_s3_g.bits.opcode, task_s3_g.bits.resp)
+  val (srcRnNSWithSnp, othRnNSWithSnp, hSNSWithSnp, genNewCohWithSnpError)  = genNewCohWithSnp(task_s3_g.bits.opcode, hnState, task_s3_g.bits.resp, task_s3_g.bits.isSnpHlp)
   // gen new coherence without snoop
   val (rnNSWithoutSnp, hnNSWithoutSnp, needRDown, genNewCohWithoutSnpError) = genNewCohWithoutSnp(task_s3_g.bits.opcode, hnState, otherHit_s3)
   // gen new coherence when req is write back
@@ -221,9 +223,10 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   rnValVec := client_s3.metas.map(!_.isInvalid); dontTouch(rnValVec)
   val rnHit = WireInit(client_s3.hitVec.asUInt.orR); dontTouch(rnHit)
   val rnState = WireInit(client_s3.metas(PriorityEncoder(rnValVec)).state); dontTouch(rnState)
-  val (snpHlpOp, hlpDoNotGoToSD, hlpRetToSrc, needSnpHlp, genSnpHelperReqError) = genSnpHelperReq(srcRnNS, rnHit, rnState)
+  val (snpHlpFakeSrcOp, snpHlpOp, hlpDoNotGoToSD, hlpRetToSrc, needSnpHlp, genSnpHelperReqError) = genSnpHelperReq(srcRnNS, rnHit, rnState)
   // gen replace req
-  val (replOp, needRepl, needWDS, genReplaceReqError)                           = genReplaceReq(hnNS, self_s3.hit, self_s3.state)
+  val snpHlpResp = Mux(task_s3_g.bits.isSnpHlp & task_s3_g.bits.snpHasData, task_s3_g.bits.resp, ChiResp.I)
+  val (replOp, needRepl, needWDS, genReplaceReqError)                           = genReplaceReq(hnNS, self_s3.hit, self_s3.state, snpHlpResp)
 
 
 
@@ -240,14 +243,14 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
    * When modify needSnoop_s3 logic, need to synchronize changes to reqArb
    */
   switch(taskTypeVec.asUInt) {
-    is(CPU_REQ_OH)    { needSnoop_s3 := needSnp | needSnpHlp }
+    is(CPU_REQ_OH)    { needSnoop_s3 := needSnp | (needSnpHlp & needResp_s3) }
     is(CPU_WRITE_OH)  { needSnoop_s3 := false.B }
     is(MS_RESP_OH)    { needSnoop_s3 := needSnpHlp }
     is(SNP_RESP_OH)   { needSnoop_s3 := false.B }
   }
   io.snpTask.valid                := needSnoop_s3 & !doneSnoop_s3
   io.snpTask.bits.from            := task_s3_g.bits.from
-  io.snpTask.bits.srcOp           := task_s3_g.bits.opcode
+  io.snpTask.bits.srcOp           := Mux(needSnp, task_s3_g.bits.opcode, snpHlpFakeSrcOp)
   io.snpTask.bits.opcode          := Mux(needSnp, snpOp, snpHlpOp)
   io.snpTask.bits.addr            := client_s3.addr
   io.snpTask.bits.hitVec          := Mux(needSnp, client_s3.hitVec, rnValVec)
@@ -297,11 +300,12 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(CPU_REQ_OH)    { needReadDB_s3 := false.B } // data from DS
     is(CPU_WRITE_OH)  { needReadDB_s3 := false.B }
     is(MS_RESP_OH)    { needReadDB_s3 := needResp_s3 & io.cpuResp.bits.isRxDat }
-    is(SNP_RESP_OH)   { needReadDB_s3 := needResp_s3 & io.cpuResp.bits.isRxDat }
+    is(SNP_RESP_OH)   { needReadDB_s3 := (needResp_s3 & io.cpuResp.bits.isRxDat) | (task_s3_g.bits.isSnpHlp & task_s3_g.bits.snpHasData & !needRWDS_s3) }
   }
   io.dbRCReq.valid := needReadDB_s3 & !doneReadDB_s3
   io.dbRCReq.bits.to := task_s3_g.bits.to
   io.dbRCReq.bits.dbid := task_s3_g.bits.dbid
+  io.dbRCReq.bits.isRead := !task_s3_g.bits.isSnpHlp
   io.dbRCReq.bits.isClean := !rwDS // snoop data will be clean by DS
 
 
@@ -327,7 +331,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(CPU_REQ_OH)    { needWCDir_s3 := srcRnNS =/= srcState & !needRDown & !needSnp }
     is(CPU_WRITE_OH)  { needWCDir_s3 := srcRnNS =/= srcState  }
     is(MS_RESP_OH)    { needWCDir_s3 := srcRnNS =/= srcState }
-    is(SNP_RESP_OH)   { needWCDir_s3 := srcRnNS =/= srcState | othRnNS =/= otherState }
+    is(SNP_RESP_OH)   { needWCDir_s3 := (srcRnNS =/= srcState | othRnNS =/= otherState) & !task_s3_g.bits.isSnpHlp }
   }
   io.cDirWrite.valid := needWCDir_s3 & !doneWCDir_s3
   io.cDirWrite.bits.addr := task_s3_g.bits.addr
@@ -346,7 +350,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(CPU_REQ_OH)    { needResp_s3 := !needRDown & !needSnp }
     is(CPU_WRITE_OH)  { needResp_s3 := false.B }
     is(MS_RESP_OH)    { needResp_s3 := true.B }
-    is(SNP_RESP_OH)   { needResp_s3 := true.B }
+    is(SNP_RESP_OH)   { needResp_s3 := true.B & !task_s3_g.bits.isSnpHlp }
   }
   // bits
   taskResp_s3.channel   := respChnl
@@ -358,6 +362,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   taskResp_s3.from.idL1 := io.sliceId
   taskResp_s3.from.idL2 := DontCare
   taskResp_s3.to        := task_s3_g.bits.to
+  taskResp_s3.cleanBt   := !(needWCBT_s3 & !io.mpBTReq.bits.isClean) // when it write bt, cpuSlave dont need to clean bt
   // io
   io.cpuResp.valid      := needResp_s3 & !doneResp_s3
   io.cpuResp.bits       := taskResp_s3
@@ -387,15 +392,15 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
    * Update Block Table
    */
   switch(taskTypeVec.asUInt) {
-    is(CPU_REQ_OH)    { needWCBT_s3 := false.B } // TODO: Write Block Table when NeedSnp or NeedSnpHel
-    is(CPU_WRITE_OH)  { needWCBT_s3 := true.B }
-    is(MS_RESP_OH)    { needWCBT_s3 := false.B }
-    is(SNP_RESP_OH)   { needWCBT_s3 := false.B }
+    is(CPU_REQ_OH)    { needWCBT_s3 := needResp_s3 & needSnpHlp }
+    is(CPU_WRITE_OH)  { needWCBT_s3 := true.B }  // TODO: Risk of data errors because Read requests may enter the main pipeline when data is not written back to the SN
+    is(MS_RESP_OH)    { needWCBT_s3 := needSnpHlp }
+    is(SNP_RESP_OH)   { needWCBT_s3 := task_s3_g.bits.isSnpHlp }
   }
   io.mpBTReq.valid := needWCBT_s3 & !doneWCBT_s3
-  io.mpBTReq.bits.isClean := true.B
+  io.mpBTReq.bits.isClean := !needSnpHlp
   io.mpBTReq.bits.btWay := task_s3_g.bits.btWay
-  io.mpBTReq.bits.addr := Mux(needRepl, self_s3.addr, task_s3_g.bits.addr) // write new block tag when need repl
+  io.mpBTReq.bits.addr := Mux(needRepl, self_s3.addr, Mux(needSnpHlp, client_s3.addr, task_s3_g.bits.addr)) // write new block tag when need snpHlp
 
 
   /*
@@ -420,15 +425,6 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
                     io.mpBTReq.fire   | doneWCBT_s3)
   canGo_s3 := needToDo_s3.zip(done_s3).map(a => !a._1 | a._2).reduce(_ & _) & taskTypeVec.asUInt.orR
 
-  // TODO: Del it
-  switch(taskTypeVec.asUInt) {
-//    is(CPU_REQ_OH)    { assert(!needSnp) }
-    is(CPU_REQ_OH)    { assert(!needSnpHlp) }
-//    is(CPU_WRITE_OH)  { assert(!needRepl) }
-    is(MS_RESP_OH)    { assert(!needSnpHlp) }
-    is(SNP_RESP_OH)   { assert(!needRepl) }
-  }
-
 // -------------------------- Assertion ------------------------------- //
   assert(PopCount(taskTypeVec.asUInt) <= 1.U, "State 3: Task can only be one type")
   assert(Mux(task_s3_g.valid & canGo_s3, PopCount(done_s3).orR, true.B), "State 3: when task_s3 go, must has some task done")
@@ -437,15 +433,27 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   assert(!(needRDown & needRepl), "NeedRDown and NeedRepl Cant be valid at the same time")
   assert(!(needSnpHlp & needRepl), "NeedSnpHlp and NeedRepl Cant be valid at the same time")
 
+  // TODO:
+  switch(taskTypeVec.asUInt) {
+    //    is(CPU_REQ_OH)    { assert(!needSnp) }
+    //    is(CPU_REQ_OH)    { assert(!needSnpHlp) }
+    //    is(CPU_WRITE_OH)  { assert(!needRepl) }
+    //    is(MS_RESP_OH)    { assert(!needSnpHlp) }
+    is(SNP_RESP_OH) { when(task_s3_g.bits.isSnpHlp) { assert(!needRepl) }.otherwise { assert(!needSnpHlp) } }
+  }
+
   switch(taskTypeVec.asUInt) {
     is(CPU_REQ_OH)   { assert(!genSnpReqError & !genSnpHelperReqError & !genNewCohWithoutSnpError & !genRnRespError, "CPU_REQ has something error") }
     is(CPU_WRITE_OH) { assert(!genCopyBackNewCohError & !genReplaceReqError, "CPU_WRITE has something error") }
     is(MS_RESP_OH)   { assert(!genNewCohWithoutSnpError & !genRnRespError, "MS_RESP has something error") }
-    is(SNP_RESP_OH)  { assert(!genNewCohWithSnpError & !genReplaceReqError & !genRnRespError, "SNP_RESP has something error") }
+    is(SNP_RESP_OH)  { assert(!genNewCohWithSnpError & !genReplaceReqError & (!genRnRespError | task_s3_g.bits.isSnpHlp), "SNP_RESP has something error") }
   }
 
   assert(Mux(dirRes_s3.valid, PopCount(dirRes_s3.bits.self.wayOH) === 1.U, true.B), "OneHot Error")
   assert(Mux(dirRes_s3.valid, PopCount(dirRes_s3.bits.client.wayOH) === 1.U, true.B), "OneHot Error")
+
+  assert(Mux(io.dsReq.fire & io.dsReq.bits.wen & taskTypeVec(SNP_RESP), task_s3_g.bits.snpHasData, true.B))
+  assert(Mux(io.cpuResp.fire & io.cpuResp.bits.isRxDat & taskTypeVec(SNP_RESP), task_s3_g.bits.snpHasData, true.B))
 
   // TIME OUT CHECK
   val cntReg = RegInit(0.U(64.W))
