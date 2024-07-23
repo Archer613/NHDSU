@@ -52,6 +52,9 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   val getDatNumReg    = RegInit(0.U(log2Ceil(nrBeat + 1).W))
   val cleanTask       = WireInit(0.U.asTypeOf(new TaskBundle()))
   val cleanTaskVal    = WireInit(false.B)
+  val snpDoNotGoToSDReg = RegInit(false.B)
+  val snpRetToSrcReg    = RegInit(false.B)
+  val snpRespReg      = RegInit(0.U.asTypeOf(new SnpRespBundle()))
 
   dontTouch(reqTxnIDReg)
   dontTouch(dbidReg)
@@ -89,6 +92,16 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     task.willSnp    := !task.isWB
     // other
     reqTxnIDReg     := txreq.txnID
+  }.elsewhen(io.snpTask.valid) {
+    taskReg         := task
+    val snp         = io.snpTask.bits
+    task.channel    := CHIChannel.RXSNP
+    task.opcode     := snp.opcode
+    task.addr       := snp.addr
+    task.from       := snp.from
+    // other
+    snpDoNotGoToSDReg := snp.snpDoNotGoToSD
+    snpRetToSrcReg  := snp.snpRetToSrc
   }
 
 
@@ -101,25 +114,67 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
    * Receive and Count dataBuffer Data Valid
    */
   getDBNumReg := Mux(release, 0.U, getDBNumReg + (io.dbDataValid & io.chi.rxdat.fire).asUInt)
-  getAllDB := getDBNumReg === nrBeat.U | (getDBNumReg === (nrBeat - 1).U & (io.dbDataValid & io.chi.rxdat.fire))
+  getAllDB    := getDBNumReg === nrBeat.U | (getDBNumReg === (nrBeat - 1).U & (io.dbDataValid & io.chi.rxdat.fire))
 
   /*
    * Receive dbid from dataBuffer
+   * dbid' = Cat(sliceId, dbid), Add sliceId in dbid to distinguish sources
    */
-  dbidReg := Mux(io.wResp.fire, Cat(io.wResp.bits.from.idL1, io.wResp.bits.dbid), Mux(io.free, 0.U, dbidReg))
-  taskReg.dbid := dbidReg
-  io.txDatId.valid := fsmReg.w_rnData
-  io.txDatId.bits := dbidReg // for cpuTxDat determine destination
+  dbidReg           := Mux(io.wResp.fire, Cat(io.wResp.bits.from.idL1, io.wResp.bits.dbid), Mux(io.free, 0.U, dbidReg))
+  taskReg.dbid      := dbidReg
+  io.txDatId.valid  := fsmReg.w_rnData
+  io.txDatId.bits   := dbidReg // for cpuTxDat determine destination
 
   /*
    * Receive CputxDat.resp and Count txDat Data Valid
    */
-  getDatNumReg := Mux(release, 0.U, getDatNumReg + io.chi.txdat.fire.asUInt)
-  getAllDat := getDatNumReg === nrBeat.U | (getDatNumReg === (nrBeat - 1).U &  io.chi.txdat.fire)
-  taskReg.resp := Mux(io.chi.txdat.fire, io.chi.txdat.bits.resp, taskReg.resp)
+  getDatNumReg  := Mux(release, 0.U, getDatNumReg + io.chi.txdat.fire.asUInt)
+  getAllDat     := getDatNumReg === nrBeat.U | (getDatNumReg === (nrBeat - 1).U &  io.chi.txdat.fire)
+  taskReg.resp  := Mux(io.chi.txdat.fire, io.chi.txdat.bits.resp, taskReg.resp)
+
+  /*
+   * Receive snp resp
+   */
+  when(fsmReg.w_snpResp & (io.chi.txrsp.fire | io.chi.txdat.fire)) {
+    val rsp = io.chi.txrsp.bits
+    val dat = io.chi.txdat.bits
+    snpRespReg.resp := Mux(io.chi.txrsp.fire, rsp.resp, dat.resp)
+    snpRespReg.hasData := io.chi.txdat.fire
+    snpRespReg.dbid := dat.dbID(dbIdBits-1, 0)
+  }
 
 
 // ---------------------------  Output Req/Resp Logic --------------------------------//
+  /*
+   * Output snoop Req
+   *
+   * reqBufId'  = Cat(1.U, reqBufId)
+   * dbid'      = Cat(0.U, sliceId, dbid)
+   *
+   * !snpRetToSrc:
+   * *** ReqBuf ---Snoop[txnid = reqBufId']--->      RN
+   * *** RN     ---SnpResp[txnid = reqBufId']--->    ReqBuf
+   * snpRetToSrc:
+   * *** ReqBuf ---Snoop[txnid = dbid']--->         RN
+   * *** RN     ---SnpRespData[txnid = dbid']--->   ReqBuf
+   * *** RN     ---SnpRespData[txnid = dbid']--->   DataBuffer
+   */
+  val temp = WireInit(0.U((chiTxnidBits - 1).W))
+  temp := io.reqBufId
+  io.chi.rxsnp.valid            := fsmReg.s_snp & !fsmReg.w_dbid
+  io.chi.rxsnp.bits.srcID       := dsuparam.idmap.HNID.U
+  io.chi.rxsnp.bits.txnID       := Mux(snpRetToSrcReg, dbidReg, Cat(1.U, temp))
+  io.chi.rxsnp.bits.addr        := taskReg.addr(addressBits-1, addressBits-io.chi.rxsnp.bits.addr.getWidth)
+  io.chi.rxsnp.bits.opcode      := taskReg.opcode
+  io.chi.rxsnp.bits.retToSrc    := snpRetToSrcReg
+  io.chi.rxsnp.bits.doNotGoToSD := snpDoNotGoToSDReg
+
+  /*
+   * Output snp resp to snpCtl
+   */
+  io.snpResp.valid := fsmReg.s_snpResp & !fsmReg.w_snpResp
+  io.snpResp.bits := snpRespReg
+
   /*
    * wReq output to dataBuffer
    */
@@ -203,8 +258,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   when(io.chi.txreq.fire & task.isWB) {
     // send
     fsmReg.s_wbReq2mp := true.B
-    fsmReg.s_dbidResp := true.B
     fsmReg.s_getDBID  := true.B
+    fsmReg.s_dbidResp := true.B
     // wait
     fsmReg.w_dbid     := true.B
     fsmReg.w_rnData   := true.B
@@ -216,6 +271,15 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     // wait
     fsmReg.w_mpResp   := true.B
     fsmReg.w_compAck  := io.chi.txreq.bits.expCompAck
+  }.elsewhen(io.snpTask.fire) {
+    // send
+    fsmReg.s_snp      := true.B
+    fsmReg.s_snpResp  := true.B
+    fsmReg.s_getDBID  := io.snpTask.bits.snpRetToSrc
+    // wait
+    fsmReg.w_snpResp  := true.B
+    fsmReg.w_rnData   := io.snpTask.bits.snpRetToSrc
+    fsmReg.w_dbid     := io.snpTask.bits.snpRetToSrc
   }.otherwise {
     /*
      * req(expect write back) fsm task
@@ -233,9 +297,19 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
      */
     // send
     fsmReg.s_wbReq2mp := Mux(io.mpTask.fire, false.B, fsmReg.s_wbReq2mp)
-    fsmReg.s_getDBID  := Mux(io.wReq.fire, false.B, fsmReg.s_getDBID)
     fsmReg.s_dbidResp := Mux(io.chi.rxrsp.fire, false.B, fsmReg.s_dbidResp)
+    /*
+     * snp fsm task
+     */
+    // send
+    fsmReg.s_snp      := Mux(io.chi.rxsnp.fire, false.B ,fsmReg.s_snp)
+    fsmReg.s_snpResp  := Mux(io.snpResp.fire, false.B ,fsmReg.s_snpResp)
     // wait
+    fsmReg.w_snpResp  := Mux(io.chi.txrsp.fire | io.chi.txdat.fire, false.B, fsmReg.w_snpResp)
+    /*
+     * dataBuffer fsm task
+     */
+    fsmReg.s_getDBID  := Mux(io.wReq.fire, false.B, fsmReg.s_getDBID)
     fsmReg.w_dbid     := Mux(io.wResp.fire, false.B, fsmReg.w_dbid)
     fsmReg.w_rnData   := Mux(getAllDat, false.B, fsmReg.w_rnData)
   }

@@ -301,7 +301,7 @@ object CHIChannel {
 
 trait HasCHIChannel {
     this: Bundle =>
-    val channel = UInt(CHIChannel.width.W)
+    val channel = UInt(CHIChannel.width.W) // TODO: Del it because unuse
 
     def isTxReq = channel === CHIChannel.TXREQ
     def isTxRsp = channel === CHIChannel.TXRSP

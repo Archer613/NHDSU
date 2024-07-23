@@ -79,7 +79,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   txRsp.io.txState := chiCtrl.io.txState
   reqBufs.map(_.io.chi.txrsp).zipWithIndex.foreach {
     case(txrsp, i) =>
-      txrsp.valid := txRsp.io.flit.valid & txRsp.io.flit.bits.txnID === i.U
+      txrsp.valid := txRsp.io.flit.valid & txRsp.io.flit.bits.txnID(reqBufIdBits - 1, 0) === i.U
       txrsp.bits := txRsp.io.flit.bits
   }
   txRsp.io.flit.ready := true.B

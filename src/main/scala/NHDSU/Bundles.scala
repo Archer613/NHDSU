@@ -70,6 +70,7 @@ trait HasSnpTask extends DSUBundle { this: Bundle =>
 
 class SnpTaskBundle(implicit p: Parameters) extends DSUBundle with HasSnpTask with HasIDBits
 class MpSnpTaskBundle(implicit p: Parameters) extends DSUBundle with HasSnpTask with HasFromIDBits {
+    val srcOp       = UInt(6.W)
     val hitVec      = Vec(dsuparam.nrCore, Bool())
     val isSnpHlp    = Bool()
     val btWay       = UInt(blockWayBits.W) // block table
@@ -168,6 +169,8 @@ class DsDBBundle(beat: Int = 1)(implicit p: Parameters) extends DSUBundle {
 // ---------------------- ReqBuf Bundle ------------------- //
 class RBFSMState(implicit p: Parameters) extends Bundle {
     // schedule
+    val s_snp       = Bool()
+    val s_snpResp   = Bool()
     val s_req2mp    = Bool() // expect write back req
     val s_wbReq2mp  = Bool()
     val s_resp      = Bool()
@@ -176,6 +179,7 @@ class RBFSMState(implicit p: Parameters) extends Bundle {
     val s_dbidResp  = Bool()
 
     // wait
+    val w_snpResp   = Bool()
     val w_mpResp    = Bool()
     val w_dbid      = Bool()
     val w_dbData    = Bool()
