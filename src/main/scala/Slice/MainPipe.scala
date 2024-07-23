@@ -245,6 +245,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   }
   io.snpTask.valid                := needSnoop_s3 & !doneSnoop_s3
   io.snpTask.bits.from            := task_s3_g.bits.from
+  io.snpTask.bits.srcOp           := task_s3_g.bits.opcode
   io.snpTask.bits.opcode          := Mux(needSnp, snpOp, snpHlpOp)
   io.snpTask.bits.addr            := client_s3.addr
   io.snpTask.bits.hitVec          := client_s3.hitVec

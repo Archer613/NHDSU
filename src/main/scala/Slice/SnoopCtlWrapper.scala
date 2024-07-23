@@ -32,9 +32,8 @@ val snpCtls = Seq.fill(dsuparam.nrSnoopCtl) { Module(new SnoopCtl()) }
 
 
 // --------------------- Reg / Wire declaration ------------------------//
-  val freeVec = Wire(Vec(dsuparam.nrSnoopCtl, Bool()))
-  val reqSelId = WireInit(0.U(snoopCtlIdBits.W)) // for mpTask
-  val respSelId = WireInit(0.U(snoopCtlIdBits.W)) // for snpResp
+  val freeVec           = Wire(Vec(dsuparam.nrSnoopCtl, Bool()))
+  val reqSelId          = WireInit(0.U(snoopCtlIdBits.W)) // for mpTask
 
 // --------------------- Connection ------------------------//
   /*
@@ -66,6 +65,7 @@ val snpCtls = Seq.fill(dsuparam.nrSnoopCtl) { Module(new SnoopCtl()) }
    */
   fastArbDec2Dec(snpCtls.map(_.io.snpTask), io.snpTask, Some("SnpTaskArb"))
   fastArbDec2Dec(snpCtls.map(_.io.mpResp), io.mpResp, Some("mpTaskArb"))
+
 
 
 // --------------------- Connection ------------------------//
