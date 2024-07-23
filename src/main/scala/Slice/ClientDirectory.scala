@@ -146,7 +146,7 @@ val io = IO(new Bundle {
   val randomWay             = RegInit(0.U(cWayBits.W))
   randomWay                := Mux(refillReqValid_s2, LFSR(log2Ceil(ways))(cWayBits - 1, 0), 0.U(cWayBits.W))
   val metaInvalidVec        = stateAll_s3.map(_.metas.map(_.isInvalid))
-  val has_invalid_way_vec   = metaInvalidVec.map(Cat(_).orR)
+  val has_invalid_way_vec   = metaInvalidVec.map(Cat(_).andR)
   val has_invalid_way       = Cat(has_invalid_way_vec).orR
   val invalid_way           = PriorityMuxDefault(has_invalid_way_vec.zipWithIndex.map(x => x._1 -> x._2.U(cWayBits.W)),0.U)
 
