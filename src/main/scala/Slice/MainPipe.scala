@@ -201,7 +201,8 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   // gen new coherence with snoop
   val (srcRnNSWithSnp, othRnNSWithSnp, hSNSWithSnp, genNewCohWithSnpError)  = genNewCohWithSnp(task_s3_g.bits.opcode, hnState, task_s3_g.bits.resp, task_s3_g.bits.isSnpHlp)
   // gen new coherence without snoop
-  val (rnNSWithoutSnp, hnNSWithoutSnp, needRDown, genNewCohWithoutSnpError) = genNewCohWithoutSnp(task_s3_g.bits.opcode, hnState, otherHit_s3)
+  val (rnNSWithoutSnp, hnNSWithoutSnp, needRDown_, genNewCohWithoutSnpError) = genNewCohWithoutSnp(task_s3_g.bits.opcode, hnState, otherHit_s3)
+  val needRDown = needRDown_ & !task_s3_g.bits.isSnpHlp; dontTouch(needRDown) // SnpHlp may trigger needRDown but it not need do it forever
   // gen new coherence when req is write back
   val (rnNSWriteBack, hnNSWriteBack, genCopyBackNewCohError)                = genCopyBackNewCoh(task_s3_g.bits.opcode, hnState, task_s3_g.bits.resp, otherHit_s3)
   // Mux
@@ -433,15 +434,6 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   assert(!(needRDown & needRepl), "NeedRDown and NeedRepl Cant be valid at the same time")
   assert(!(needSnpHlp & needRepl), "NeedSnpHlp and NeedRepl Cant be valid at the same time")
 
-  // TODO:
-  switch(taskTypeVec.asUInt) {
-    //    is(CPU_REQ_OH)    { assert(!needSnp) }
-    //    is(CPU_REQ_OH)    { assert(!needSnpHlp) }
-    //    is(CPU_WRITE_OH)  { assert(!needRepl) }
-    //    is(MS_RESP_OH)    { assert(!needSnpHlp) }
-    is(SNP_RESP_OH) { when(task_s3_g.bits.isSnpHlp) { assert(!needRepl) }.otherwise { assert(!needSnpHlp) } }
-  }
-
   switch(taskTypeVec.asUInt) {
     is(CPU_REQ_OH)   { assert(!genSnpReqError & !genSnpHelperReqError & !genNewCohWithoutSnpError & !genRnRespError, "CPU_REQ has something error") }
     is(CPU_WRITE_OH) { assert(!genCopyBackNewCohError & !genReplaceReqError, "CPU_WRITE has something error") }
@@ -458,5 +450,5 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   // TIME OUT CHECK
   val cntReg = RegInit(0.U(64.W))
   cntReg := Mux(!task_s3_g.valid | canGo_s3, 0.U, cntReg + 1.U)
-  assert(cntReg < 5000.U, "MAINPIPE S3 TIMEOUT")
+  assert(cntReg < 5000.U, "MAINPIPE S3 TASK[0x%x] ADDR[0x%x] OP[0x%x] SNPHLP[0x%x] TIMEOUT", OHToUInt(taskTypeVec), task_s3_g.bits.addr, task_s3_g.bits.opcode, task_s3_g.bits.isSnpHlp.asUInt)
 }
