@@ -1,27 +1,25 @@
-package SubordinateNode
+package NHSN
 
 import chisel3._
 import chisel3.util._
-import NHSN.ValueDefine
-import NHSN._
+import org.chipsalliance.cde.config._
+import NHDSU.CHI._
 
 // Module definition with parameterized widths and depth
-class TxChan(val FLIT_WIDTH: Int = ValueDefine.FLIT_REQ_WIDTH) extends Module {
+class TxChan[T <: Data](gen : T) extends Module {
               
   val cntWidth               = ValueDefine.FIFO_DEPTH
 
  // -------------------------- IO declaration -----------------------------//
 
   val io                     = IO(new Bundle {
-    val reset                = Input(Bool())
-
     /* 
     CHI signals
      */ 
 
     val txflitpend_o         = Output(Bool())
     val txflitv_o            = Output(Bool())
-    val txflit_o             = Output(UInt(FLIT_WIDTH.W))
+    val txflit_o             = Output(gen)
     val txlcrdv_i            = Input(Bool())
 
 
@@ -38,7 +36,7 @@ class TxChan(val FLIT_WIDTH: Int = ValueDefine.FLIT_REQ_WIDTH) extends Module {
     val ch_full_o            = Output(Bool())              // FIFO is full
     val ch_empty_o           = Output(Bool())              // FIFO is empty
     val ch_push_i            = Input(Bool())               // Push a flit
-    val ch_flit_i            = Input(UInt(FLIT_WIDTH.W))    // Pushed flit
+    val ch_flit_i            = Input(gen)    // Pushed flit
   })
 
  // ----------------------- Reg/Wire declaration --------------------------//
@@ -50,7 +48,7 @@ class TxChan(val FLIT_WIDTH: Int = ValueDefine.FLIT_REQ_WIDTH) extends Module {
   val flitFifoFull           = Wire(Bool())
   val flitFifoEmpty          = Wire(Bool())
   val pop                    = Wire(Bool())
-  val txflit                 = Wire(UInt(FLIT_WIDTH.W))
+  val txflit                 = Wire(gen)
   val txflitv                = Wire(Bool())
   val txflitpend             = Wire(Bool())
 
@@ -66,7 +64,7 @@ class TxChan(val FLIT_WIDTH: Int = ValueDefine.FLIT_REQ_WIDTH) extends Module {
   /* 
   Flit FIFO
    */
-  val fifo                   = Module(new Queue(UInt(FLIT_WIDTH.W), ValueDefine.FIFO_DEPTH))
+  val fifo                   = Module(new Queue(gen, ValueDefine.FIFO_DEPTH))
   fifo.io.enq.valid         := io.ch_push_i
   fifo.io.enq.bits          := io.ch_flit_i
   fifo.io.deq.ready         := pop
@@ -87,9 +85,7 @@ class TxChan(val FLIT_WIDTH: Int = ValueDefine.FLIT_REQ_WIDTH) extends Module {
   Credit management
    */
 
-  when(io.reset) {
-    creditCnt := 0.U
-  } .elsewhen(creditCntWe) {
+  when(creditCntWe) {
     creditCnt := nxtCreditCnt
   }
   nxtCreditCnt := Mux(io.txlcrdv_i, creditCnt + 1.U, creditCnt - 1.U)
@@ -97,11 +93,8 @@ class TxChan(val FLIT_WIDTH: Int = ValueDefine.FLIT_REQ_WIDTH) extends Module {
   creditRtn := (io.txlinkactive_st_i === LinkStates.DEACTIVATE) && (creditCnt =/= 0.U)
 
   // Clean registered credit return signal for factoring in FLITV. The FLITV term must be one cycle later than the FLITPEND term.
-  when(io.reset) {
-    creditRtnReg := false.B
-  } .otherwise {
-    creditRtnReg := creditRtn
-  }
+
+  creditRtnReg := creditRtn
 
   // Output assignments
   io.ch_full_o := flitFifoFull
