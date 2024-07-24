@@ -73,7 +73,7 @@ class CpuChiRxSnp()(implicit p: Parameters) extends DSUModule {
   // ------------------------- Assert ------------------------------- //
   assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.SNP.SnpUnique |
                             io.flit.bits.opcode === CHIOp.SNP.SnpMakeInvalid |
-                            io.flit.bits.opcode === CHIOp.SNP.SnpNotSharedDirty, true.B))
+                            io.flit.bits.opcode === CHIOp.SNP.SnpNotSharedDirty, true.B), "DSU dont support RXSNP[0x%x]", io.flit.bits.opcode)
   assert(Mux(lcrdFreeNumReg.andR, !io.chi.lcrdv | flitv, true.B), "RXSNP Lcrd overflow")
 
 

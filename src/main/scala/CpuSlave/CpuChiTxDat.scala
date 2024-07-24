@@ -111,7 +111,7 @@ class CpuChiTxDat()(implicit p: Parameters) extends DSUModule {
   assert(queue.io.count <= dsuparam.nrRnTxLcrdMax.U, "queue.io.count cant over than nrRnTxLcrdMax")
   assert(lcrdFreeNum <= dsuparam.nrRnTxLcrdMax.U, "lcrd free num cant over than nrRnTxLcrdMax")
   assert(io.flit.ready, "io flit ready should always be true")
-  assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.DAT.CopyBackWrData | io.flit.bits.opcode === CHIOp.DAT.SnpRespData, true.B), "Dont support opcode[%d] except CopyBackWrData", io.flit.bits.opcode)
+  assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.DAT.CopyBackWrData | io.flit.bits.opcode === CHIOp.DAT.SnpRespData, true.B), "DSU dont support TXDAT[0x%x]", io.flit.bits.opcode)
 
 
 }
