@@ -52,7 +52,7 @@ class ConnectChil2()(implicit p: Parameters) extends DSUModule {
     txreq.allowRetry                        := io.l2Chi.tx.req.flit.allowRetry
     txreq.order                             := io.l2Chi.tx.req.flit.order
     txreq.pCrdType                          := io.l2Chi.tx.req.flit.pCrdType
-    txreq.memAttr                           := io.l2Chi.tx.req.flit.memAttr.asUInt
+    txreq.memAttr                           := io.l2Chi.tx.req.flit.memAttr
     txreq.snpAttr                           := io.l2Chi.tx.req.flit.snpAttr.asUInt
     txreq.traceTag                          := DontCare
     txreq.rsvdc                             := DontCare

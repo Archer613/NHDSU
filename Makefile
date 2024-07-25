@@ -18,3 +18,9 @@ test-top-chil2-onecore-1ul:
 
 test-top-chil2-dualcore-1ul:
 	mill -i NHDSU.test.runMain NHDSU.TestTop_CHIL2_DualCore_1UL -td build
+
+test-top-nhl2-onecore-1ul:
+	mill -i NHDSU.test.runMain NHDSU.TestTop_NHL2_OneCore_1UL -td build
+
+test-top-nhl2-dualcore-1ul:
+	mill -i NHDSU.test.runMain NHDSU.TestTop_NHL2_DualCore_1UL -td build
