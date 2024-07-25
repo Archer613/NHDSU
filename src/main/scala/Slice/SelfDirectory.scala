@@ -144,17 +144,22 @@ val io = IO(new Bundle {
    */
 
   val useRandomWay              = (dsuparam.replacementPolicy == "random").asBool
-  val randomWay                 = RegInit(0.U(sWayBits.W))
-  randomWay                    := Mux(refillReqValid_s2, LFSR(log2Ceil(ways))(sWayBits - 1, 0), 0.U(sWayBits.W))
-  when(reqRead_s2_reg.mes.alreayUseWayOH(randomWay) === true.B && refillReqValid_s3 && !Cat(hit_vec).orR){
-   randomWay                   := Mux(refillReqValid_s3, LFSR(log2Ceil(ways))(sWayBits - 1, 0), 0.U(sWayBits.W))
+  val noUseWayOH            = ~reqRead_s3_reg.mes.alreayUseWayOH
+  val addUseWayOH           = reqRead_s3_reg.mes.alreayUseWayOH + 1.U
+
+  val randomWay             = WireInit(0.U(cWayBits.W))
+  when(reqRead_s3_reg.mes.alreayUseWayOH === 0.U(ways.W)){
+    randomWay              := LFSR(log2Ceil(ways))
+  }.otherwise{
+    randomWay              := OHToUInt(noUseWayOH & addUseWayOH)
   }
+
   require(randomWay.getWidth == sWayBits)
   assert(randomWay <= ways.U)
   val chosenWay                 = Mux(has_invalid_way, invalid_way, Mux(useRandomWay, randomWay, replaceWay))
   val replacerReady             = if(dsuparam.replacementPolicy == "random") true.B else 
     replacer_sram_opt.get.io.r.req.ready
-  val repl_sram_r               = replacer_sram_opt.get.io.r(io.dirRead.fire && io.dirRead.bits.mes.refill & replacerReady, io.dirRead.bits.set).resp.data(0)
+  val repl_sram_r               = if(dsuparam.replacementPolicy == "random") 0.U else replacer_sram_opt.get.io.r(io.dirRead.fire && io.dirRead.bits.mes.refill & replacerReady, io.dirRead.bits.set).resp.data(0)
   val repl_state_s3             = RegEnable(repl_sram_r, 0.U(repl.nBits.W), refillReqValid_s2)
   replaceWay                   := repl.get_replace_way(repl_state_s3)
 
@@ -232,7 +237,7 @@ val io = IO(new Bundle {
       Mux(resetFinish, set_s3, resetIdx),
       1.U
     )
-  }else {
+  }else if(dsuparam.replacementPolicy == "plru"){
     val next_state_s3 = repl.get_next_state(repl_state_s3, touch_way_s3)
     replacer_sram_opt.get.io.w(
       !resetFinish || replaceWen,
