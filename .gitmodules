@@ -7,3 +7,6 @@
 [submodule "CoupledL2"]
 	path = CoupledL2
 	url = git@github.com:Archer613/CoupledL2.git
+[submodule "NHL2"]
+	path = NHL2
+	url = git@github.com:cyril0124/NHL2.git
