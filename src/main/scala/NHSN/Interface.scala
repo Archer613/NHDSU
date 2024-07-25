@@ -5,6 +5,7 @@ import chisel3.util._
 import org.chipsalliance.cde.config._
 import NHDSU._
 import NHDSU.CHI._
+import NHDSU.CHI.CHIOp._
 
 
 
@@ -14,7 +15,6 @@ class Interface(implicit p : Parameters) extends DSUModule {
 
 val io = IO(new Bundle {
 
-    val reset                    = Input(Bool())
     /* 
     RXREQ
      */
@@ -64,31 +64,31 @@ val io = IO(new Bundle {
     /* 
     Subsystem
      */
-    val val_read_o               = Output(Bool())
-    val val_rd_addr_o            = Output(UInt(addressBits.W))
-    val val_rd_data_i            = Input(UInt(dataBits.W))
-    val val_write_o              = Output(Bool())
-    val val_wr_addr_o            = Output(UInt(addressBits.W))
-    // val val_wr_strb_o            = Output(UInt(ValueDefine.STRB_WIDTH.W))
-    val val_wr_data_o            = Output(UInt(addressBits.W))
+    val read_valid_o             = Output(Bool())
+    val read_addr_o              = Output(UInt(addressBits.W))
+    val read_data_i              = Input(UInt(dataBits.W))
+    val write_valid_o            = Output(Bool())
+    val write_addr_o             = Output(UInt(addressBits.W))
+    val write_data_o             = Output(UInt(addressBits.W))
+    val read_ready_i             = Input(Bool())
+    val write_ready_i            = Input(Bool())
 })
 
  // -------------------------- Define declaration -----------------------------//
 
   val CHI_RESPERR_OKAY           = "b00".U(2.W)
   val CHI_RESPERR_NONDATA_ERR    = "b11".U(2.W)
+
+// -------------------------- Reg/Wire declaration -----------------------------//
  
   val rxreq_pop                  = WireInit(false.B)
   val rxreqFlit                  = io.rxdat_ch_flit_i
-  val rxreq_valid                = Wire(rxreq_pop)
 
 
   val rxdat_pop                  = WireInit(false.B)
   val rxdatFlit                  = io.rxdat_ch_flit_i
-  val rxdat_valid                = WireInit(rxdat_pop)
 
   
-  // rxdatFlit.
 
   val read_valid                 = WireInit(false.B)
   val write_valid                = WireInit(false.B)
@@ -98,7 +98,6 @@ val io = IO(new Bundle {
 
   val rxrsp_pop                  = WireInit(false.B)
   val rxrspFlit                  = io.rxrsp_ch_flit_i
-  val rxrsp_valid                = WireInit(rxrsp_pop)
 
   val wait_compack               = RegInit(false.B)
   val next_wait_compack          = WireInit(false.B)
@@ -108,13 +107,20 @@ val io = IO(new Bundle {
   val rxdat_crd_rtn              = WireInit(false.B)
   val rxrsp_crd_rtn              = WireInit(false.B)
 
-  val read_ongoing               = RegInit(false.B)
-  val next_read_ongoing          = WireInit(false.B)
-  val write_ongoing              = RegInit(false.B)
-  val next_write_ongoing         = WireInit(false.B)
+  val read_ongoing               = WireInit(false.B)
+  val write_ongoing              = WireInit(false.B)
 
-  rxreq_pop := io.rxreq_ch_active_i & io.rxreq_ch_flitv_i & !read_ongoing & !wait_compack  & !write_ongoing
 
+
+  rxreq_pop                     := io.rxreq_ch_active_i & io.rxreq_ch_flitv_i & !read_ongoing & 
+                                    !wait_compack  & !write_ongoing
+
+  unsupported_req               := rxreq_pop & rxreqFlit.opcode =/= REQ.ReadNoSnp & rxreqFlit.opcode =/= REQ.WriteNoSnpFull
   
+  
+  read_ongoing                  := rxreq_pop & rxreqFlit.opcode === REQ.ReadNoSnp 
+  write_ongoing                 := rxreq_pop & rxreqFlit.opcode === REQ.WriteNoSnpFull
+
+  rxdat_pop                     := io.rxdat_ch_active_i & io.rxdat_ch_flitv_i 
   
 }

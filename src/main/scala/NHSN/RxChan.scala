@@ -32,7 +32,7 @@ class RxChan[T <: Data](gen : T) extends Module {
 
   // ----------------------- Reg/Wire declaration --------------------------//
 
-  val flit_fifo           = Module(new Queue(gen, ValueDefine.FIFO_DEPTH))
+  val flit_fifo           = Module(new Queue(gen, ValueDefine.FIFO_DEPTH, pipe = true))
   val credit_cnt          = RegInit(0.U(CNT_WIDTH.W))
   val nxt_credit_cnt      = Wire(UInt(CNT_WIDTH.W))
   val credit_cnt_we       = Wire(Bool())
