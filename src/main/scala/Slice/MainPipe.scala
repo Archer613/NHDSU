@@ -49,7 +49,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
 
 // --------------------- Modules declaration ------------------------//
   val taskQ = Module(new Queue(new TaskBundle(), entries = nrMPQBeat, pipe = true, flow = true))
-  val dirResQ = Module(new Queue(new DirResp(), entries = nrMPQBeat, pipe = true, flow = true))
+  val dirResQ = Module(new Queue(new DirResp(), entries = nrMPQBeat + 2, pipe = true, flow = true)) // one for mp_s1 read Dir before send task to mp_2, one for mp_s3
 
 // --------------------- Reg/Wire declaration ------------------------//
   // s2 signals
