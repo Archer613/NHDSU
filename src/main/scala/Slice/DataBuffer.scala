@@ -105,7 +105,8 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   /*
    * receive MainPipe/DataStorage Read/Clean Req
    */
-  io.mpRCReq.ready := dataBuffer(io.mpRCReq.bits.dbid).state === DBState.WRITE_DONE |
+  io.mpRCReq.ready := dataBuffer(io.mpRCReq.bits.dbid).state === DBState.ALLOC      |
+                      dataBuffer(io.mpRCReq.bits.dbid).state === DBState.WRITE_DONE |
                       dataBuffer(io.mpRCReq.bits.dbid).state === DBState.READ_DONE
   io.dsRCReq.ready := dataBuffer(io.dsRCReq.bits.dbid).state === DBState.WRITE_DONE |
                       dataBuffer(io.dsRCReq.bits.dbid).state === DBState.READ_DONE
@@ -150,11 +151,13 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
           db.state      := Mux(hit, DBState.ALLOC, DBState.FREE)
         }
         is(DBState.ALLOC) {
-          val hit       = dataTDBVec.map( t => t.valid & t.bits.dbid === i.U).reduce(_ | _)
-          if(nrBeat > 1) {
-            db.state    := Mux(hit, DBState.WRITTING, DBState.ALLOC)
-          } else {
-            db.state    := Mux(hit, DBState.WRITE_DONE, DBState.ALLOC)
+          val hit         = dataTDBVec.map( t => t.valid & t.bits.dbid === i.U).reduce(_ | _)
+          val mpCleanHit  = io.mpRCReq.valid & io.mpRCReq.bits.dbid === i.U & io.mpRCReq.bits.isClean
+          when(mpCleanHit) {
+            db.state := DBState.FREE
+          }.otherwise {
+            if(nrBeat > 1) { db.state := Mux(hit, DBState.WRITTING, DBState.ALLOC) }
+            else           { db.state := Mux(hit, DBState.WRITE_DONE, DBState.ALLOC) }
           }
         }
         is(DBState.WRITTING) {
