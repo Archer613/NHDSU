@@ -142,7 +142,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     val dat = io.chi.txdat.bits
     snpRespReg.resp := Mux(io.chi.txrsp.fire, rsp.resp, dat.resp)
     snpRespReg.hasData := snpRetToSrcReg
-    snpRespReg.dbid := Mux(io.chi.txrsp.fire, rsp.dbID(dbIdBits-1, 0), dat.dbID(dbIdBits-1, 0)) // TODO: clean dataBuffer when snpRetToSrc bug get txrsp
+    snpRespReg.dbid := dbidReg // TODO: clean dataBuffer when snpRetToSrc bug get txrsp
   }
 
 
@@ -337,6 +337,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   assert(Mux(getDBNumReg === nrBeat.U, !io.dbDataValid, true.B), "ReqBuf get data from DataBuf overflow")
   assert(Mux(io.dbDataValid, fsmReg.s_resp & fsmReg.w_dbData, true.B), "When dbDataValid, ReqBuf should set s_resp and w_data")
   assert(Mux(io.dbDataValid, !fsmReg.w_mpResp, true.B), "When dbDataValid, ReqBuf should has been receive mpResp")
+
+  assert(Mux(fsmReg.w_snpResp & io.chi.txrsp.fire, !io.chi.txrsp.bits.resp(2), true.B))
 
   val cntReg = RegInit(0.U(64.W))
   cntReg := Mux(io.free, 0.U, cntReg + 1.U)
