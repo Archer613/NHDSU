@@ -104,7 +104,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 
   def getBtTag(x: UInt): UInt = {
     if(!mpBlockBySet) {
-      x(addressBits - 1, blockSetBits + offsetBits)
+      x(addressBits - 1, blockSetBits + offsetBits) // TODO: When !mpBlockBySet it must support useWayOH Check and RetryQueue
     } else {
       require(addressBits - sTagBits - 1 > blockSetBits + offsetBits)
       x(addressBits - sTagBits - 1, blockSetBits + offsetBits)

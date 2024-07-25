@@ -222,7 +222,7 @@ object TestTopCHIHelper {
   }
 }
 
-object TestTop_CHI_OneCore_1UL extends App {
+object TestTop_CHIL2_OneCore_1UL extends App {
 
   TestTopCHIHelper.gen(nrCore = 1, p => new TestTop_CHIL2(
     numCores = 1,
@@ -232,7 +232,7 @@ object TestTop_CHI_OneCore_1UL extends App {
 }
 
 
-object TestTop_CHI_DualCore_1UL extends App {
+object TestTop_CHIL2_DualCore_1UL extends App {
 
   TestTopCHIHelper.gen(nrCore = 2, p => new TestTop_CHIL2(
     numCores = 2,
