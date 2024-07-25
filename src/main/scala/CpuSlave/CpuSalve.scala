@@ -79,7 +79,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   txRsp.io.txState := chiCtrl.io.txState
   reqBufs.map(_.io.chi.txrsp).zipWithIndex.foreach {
     case(txrsp, i) =>
-      txrsp.valid := txRsp.io.flit.valid & txRsp.io.flit.bits.txnID(reqBufIdBits - 1, 0) === i.U
+      txrsp.valid := txRsp.io.flit.valid & txRsp.io.flit.bits.txnID === reqBufs(i).io.txRspId.bits & reqBufs(i).io.txRspId.valid
       txrsp.bits := txRsp.io.flit.bits
   }
   txRsp.io.flit.ready := true.B
@@ -156,7 +156,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
 
 // --------------------- Assertion ------------------------------- //
   assert(PopCount(reqBufs.map(_.io.chi.txdat.fire)) <= 1.U, "txDat only can be send to one reqBuf")
+  assert(Mux(txRsp.io.flit.valid, PopCount(reqBufs.map(_.io.chi.txrsp.fire)) === 1.U, true.B))
   assert(Mux(txDat.io.flit.valid, PopCount(reqBufs.map(_.io.chi.txdat.fire)) === 1.U, true.B))
-
 
 }
