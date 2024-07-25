@@ -149,8 +149,9 @@ val io = IO(new Bundle {
   val has_invalid_way_vec   = metaInvalidVec.map(Cat(_).andR)
   val has_invalid_way       = Cat(has_invalid_way_vec).orR
   val invalid_way           = PriorityMuxDefault(has_invalid_way_vec.zipWithIndex.map(x => x._1 -> x._2.U(cWayBits.W)),0.U)
+  dontTouch(has_invalid_way)
 
-  when(reqRead_s3_reg.mes.alreayUseWayOH(randomWay) === true.B && refillReqValid_s3){
+  when(reqRead_s3_reg.mes.alreayUseWayOH(randomWay) === true.B && refillReqValid_s3 && !hit_all){
      randomWay             := Mux(refillReqValid_s3, LFSR(log2Ceil(ways))(cWayBits - 1, 0), 0.U(cWayBits.W))
   }
   require(randomWay.getWidth == cWayBits)
@@ -159,11 +160,11 @@ val io = IO(new Bundle {
   val chosenWay             = Mux(has_invalid_way, invalid_way, Mux(useRandomWay, randomWay, replaceWay))
   val replacerReady         = if(dsuparam.replacementPolicy == "random") true.B else 
     replacer_sram_opt.get.io.r.req.ready
-  val repl_sram_r           = replacer_sram_opt.get.io.r(io.dirRead.fire & io.dirRead.bits.mes.refill, io.dirRead.bits.set).resp.data(0)
+  val repl_sram_r           = replacer_sram_opt.get.io.r(io.dirRead.fire & io.dirRead.bits.mes.refill & replacerReady, io.dirRead.bits.set).resp.data(0)
   val repl_state_s3         = RegEnable(repl_sram_r, 0.U(repl.nBits.W), refillReqValid_s2)
   replaceWay               := repl.get_replace_way(repl_state_s3)
 
-  val way_s3                = Mux(refillReqValid_s3 | !hit_all, chosenWay, hit_all_way)
+  val way_s3                = Mux(refillReqValid_s3 & !hit_all, chosenWay, hit_all_way)
   val failState             = VecInit(Seq.fill(dsuparam.nrCore)(false.B))
 
 
@@ -191,11 +192,11 @@ val io = IO(new Bundle {
 // -----------------------------------------------------------------------------------------
   val set_s3                    = reqRead_s3_reg.set
   val updateHit                 = reqReadValid_s3 && hit_all
-  val updateRefill              = refillReqValid_s3
-  replaceWen                   := refillReqValid_s3
+  val updateRefill              = refillReqValid_s3 && !hit_all
+  replaceWen                   := updateRefill | updateHit
 
-  val touch_way_s3              = Mux(refillReqValid_s3, replaceWay, way_s3)
-  val rrip_hit_s3               = Mux(refillReqValid_s3, false.B, hit_all)
+  val touch_way_s3              = Mux(refillReqValid_s3 && !hit_all, replaceWay, way_s3)
+  val rrip_hit_s3               = Mux(refillReqValid_s3 && !hit_all, false.B, hit_all)
 
   if(dsuparam.replacementPolicy == "srrip"){
     val next_state_s3 = repl.get_next_state(repl_state_s3, touch_way_s3)
