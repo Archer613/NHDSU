@@ -209,13 +209,13 @@ val io = IO(new Bundle {
 // ------------------------------------------ Assertion  ----------------------------------------------//
   assert(PopCount(selfDirs.map(_.io.dirRead.valid)) <= 1.U, "selfDirs dirRead: only one request can be entered at a time")
   assert(PopCount(clientDirs.map(_.io.dirRead.valid)) <= 1.U, "clientDirs dirRead: only one request can be entered at a time")
-  assert(!(selfDirs.map(_.io.dirRead.valid).reduce(_ | _) ^ clientDirs.map(_.io.dirRead.valid).reduce(_ | _)), "selfDirs and clientDirs dirRead must be pulled up at the same time")
+  assert(!(selfDirs.map(_.io.dirRead.fire).reduce(_ | _) ^ clientDirs.map(_.io.dirRead.fire).reduce(_ | _)), "selfDirs and clientDirs dirRead must be fire at the same time")
 
   assert(PopCount(selfDirs.map(_.io.dirWrite.valid)) <= 1.U, "selfDirs dirWrite: only one request can be entered at a time")
   assert(PopCount(clientDirs.map(_.io.dirWrite.valid)) <= 1.U, "clientDirs dirWrite: only one request can be entered at a time")
 
   assert(PopCount(selfDirs.map(_.io.dirResp.valid)) <= 1.U, "selfDirs dirResp: only one resp can be output at a time")
   assert(PopCount(clientDirs.map(_.io.dirResp.valid)) <= 1.U, "clientDirs dirResp: only one resp can be output at a time")
-  assert(selfDirs.map(_.io.dirResp.ready).reduce(_ & _), "selfDirs dirResp ready must be true")
-  assert(clientDirs.map(_.io.dirResp.ready).reduce(_ & _), "clientDirs dirResp ready must be true")
+  assert(Mux(selfDirs.map(_.io.dirResp.valid).reduce(_ | _), selfDirs.map(_.io.dirResp.ready).reduce(_ & _), true.B), "selfDirs dirResp ready must be true when resp valid")
+  assert(Mux(clientDirs.map(_.io.dirResp.valid).reduce(_ | _), clientDirs.map(_.io.dirResp.ready).reduce(_ & _), true.B), "clientDirs dirResp ready must be true when resp valid")
 }
