@@ -82,7 +82,7 @@ val io = IO(new Bundle {
 // -------------------------- Reg/Wire declaration -----------------------------//
  
   val rxreq_pop                  = WireInit(false.B)
-  val rxreqFlit                  = io.rxdat_ch_flit_i
+  val rxreqFlit                  = io.rxreq_ch_flit_i
 
 
   val rxdat_pop                  = WireInit(false.B)
@@ -107,20 +107,65 @@ val io = IO(new Bundle {
   val rxdat_crd_rtn              = WireInit(false.B)
   val rxrsp_crd_rtn              = WireInit(false.B)
 
-  val read_ongoing               = WireInit(false.B)
-  val write_ongoing              = WireInit(false.B)
+  val read_ongoing               = RegInit(false.B)
+  val next_read_ongoing          = WireInit(false.B)
+  val write_ongoing              = RegInit(false.B)
+  val next_write_ongoing         = WireInit(false.B)
+  
+  val rxdat_valid                = RegInit(false.B)
+  val next_rxdat_valid           = WireInit(false.B)
+
+  val txrsp_push                 = WireInit(false.B)
+  val txrspFlit                  = io.txrsp_ch_flit_o
+
+  val txdat_push                 = WireInit(false.B)
 
 
 
-  rxreq_pop                     := io.rxreq_ch_active_i & io.rxreq_ch_flitv_i & !read_ongoing & 
-                                    !wait_compack  & !write_ongoing
+  rxreq_pop                     := io.rxreq_ch_active_i  & !read_ongoing & !wait_compack  & !write_ongoing
 
   unsupported_req               := rxreq_pop & rxreqFlit.opcode =/= REQ.ReadNoSnp & rxreqFlit.opcode =/= REQ.WriteNoSnpFull
   
   
-  read_ongoing                  := rxreq_pop & rxreqFlit.opcode === REQ.ReadNoSnp 
-  write_ongoing                 := rxreq_pop & rxreqFlit.opcode === REQ.WriteNoSnpFull
+  next_read_ongoing             := rxreq_pop & rxreqFlit.opcode === REQ.ReadNoSnp || (read_ongoing & !(io.read_ready_i & io.read_valid_o))
+  read_ongoing                  := next_read_ongoing
+  read_valid                    := rxreq_pop & rxreqFlit.opcode === REQ.ReadNoSnp
 
-  rxdat_pop                     := io.rxdat_ch_active_i & io.rxdat_ch_flitv_i 
+  next_write_ongoing            := rxreq_pop & rxreqFlit.opcode === REQ.WriteNoSnpFull || (write_ongoing & !(io.write_ready_i & io.write_valid_o))
+  write_ongoing                 := next_write_ongoing
+  write_valid                   := rxreq_pop & rxreqFlit.opcode === REQ.WriteNoSnpFull
+
+  next_wait_compack             := (rxreq_pop & rxreqFlit.expCompAck || wait_compack) & !(rxrsp_pop & rxrspFlit.opcode === RSP.CompAck)
+  wait_compack                  := next_wait_compack
+
+  
+  
+  rxdat_pop                     := io.rxdat_ch_active_i  & io.write_ready_i 
+  next_rxdat_valid              := rxdat_pop || (rxdat_valid & write_ongoing & !io.write_ready_i) 
+  rxdat_valid                   := next_rxdat_valid
+
+
+  //------------------------------- RxRsp ---------------------------------//
+
+  rxrsp_pop                     := io.rxrsp_ch_active_i 
+
+
+
+  //------------------------------- TxRsp ---------------------------------//
+
+  txrsp_push                    := write_valid
+  txrspFlit                     := 0.U
+  txrspFlit.opcode              := RSP.CompDBIDResp
+  txrspFlit.respErr             := Mux(unsupported_req, CHI_RESPERR_NONDATA_ERR, CHI_RESPERR_OKAY)
+  txrspFlit.srcID               := rxreqFlit.tgtID
+  txrspFlit.txnID               := rxreqFlit.txnID
+
+  //------------------------------- TxDat ---------------------------------//
+
+  txdat_push                    := read_valid
+  
+  
+  
+
   
 }
