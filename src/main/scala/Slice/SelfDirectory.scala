@@ -101,13 +101,14 @@ val io = IO(new Bundle {
 
   val replaceWay            = WireInit(UInt(sWayBits.W), 0.U)
   val replaceWen            = WireInit(false.B)
+  val hit_s3                = WireInit(false.B)
 
 
 
 // -----------------------------------------------------------------------------------------
 // Stage 1 (dir read) / (dir write)
 // -----------------------------------------------------------------------------------------
-  io.dirRead.ready         := metaArray.io.r.req.ready && !io.dirWrite.fire  && io.resetFinish
+  io.dirRead.ready         := metaArray.io.r.req.ready && !io.dirWrite.fire  && io.resetFinish && !(refillReqValid_s3 && !hit_s3 || reqReadValid_s3 && hit_s3 )
   io.dirWrite.ready        := metaArray.io.w.req.ready && io.resetFinish
   
 
@@ -157,9 +158,7 @@ val io = IO(new Bundle {
   require(randomWay.getWidth == sWayBits)
   assert(randomWay <= ways.U)
   val chosenWay                 = Mux(has_invalid_way, invalid_way, Mux(useRandomWay, randomWay, replaceWay))
-  val replacerReady             = if(dsuparam.replacementPolicy == "random") true.B else 
-    replacer_sram_opt.get.io.r.req.ready
-  val repl_sram_r               = if(dsuparam.replacementPolicy == "random") 0.U else replacer_sram_opt.get.io.r(io.dirRead.fire && io.dirRead.bits.mes.refill & replacerReady, io.dirRead.bits.set).resp.data(0)
+  val repl_sram_r               = if(dsuparam.replacementPolicy == "random") 0.U else replacer_sram_opt.get.io.r(io.dirRead.fire, io.dirRead.bits.set).resp.data(0)
   val repl_state_s3             = RegEnable(repl_sram_r, 0.U(repl.nBits.W), refillReqValid_s2)
   replaceWay                   := repl.get_replace_way(repl_state_s3)
 
@@ -167,7 +166,7 @@ val io = IO(new Bundle {
   Hit result
    */
 
-  val hit_s3                    = Cat(hit_vec).orR
+   hit_s3                      := Cat(hit_vec).orR
   val set_s3                    = reqRead_s3_reg.set
   val way_s3                    = Mux(refillReqValid_s3 & !Cat(hit_vec).orR, chosenWay, hitWay)
   val wayOH_s3                  = UIntToOH(way_s3)
@@ -195,7 +194,7 @@ val io = IO(new Bundle {
 
   val updateHit                 = reqReadValid_s3 && hit_s3 
   val updateRefill              = refillReqValid_s3 && !hit_s3
-  replaceWen                   := updateRefill | updateHit
+  replaceWen                   := updateHit | updateRefill
 
   val touch_way_s3              = Mux(refillReqValid_s3 && !hit_s3, replaceWay, way_s3)
   val rrip_hit_s3               = Mux(refillReqValid_s3 && !hit_s3, false.B, hit_s3)
