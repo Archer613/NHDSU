@@ -38,7 +38,7 @@ case class DSUParam(
                     // sram
                     // enableSramClockGate: Boolean = true, // it will be always true
                     dirMulticycle: Int = 1,
-                    dataMulticycle: Int = 2,
+                    dataMulticycle: Int = 2, // TODO: data holdMcp
                     // chi
                     // can receive or send chi lcrd num
                     nrRnTxLcrdMax: Int = 4,
@@ -106,9 +106,15 @@ trait HasDSUParam {
     val nrReadCtlEntry  = 8
     val rcEntryBits     = log2Ceil(nrReadCtlEntry)
     // CHI TXNID Width
-    val chiTxnidBits       = 8
-    val chiDbidBits        = 8
+    val chiTxnidBits    = 8
+    val chiDbidBits     = 8
+    // replacement
+    val useRepl         = dsuparam.replacementPolicy != "random"
+    val sReplWayBits    = dsuparam.ways - 1;
+    val cReplWayBits    = dsuparam.clientWays - 1
+    require(dsuparam.replacementPolicy == "random" | dsuparam.replacementPolicy == "plru", "It should modify sReplWayBits and cReplWayBits when use replacement except of random or plru")
 
+    // requirement
     require(nrBlockSets <= dsuparam.sets)
     require(nrReadCtlEntry <= dsuparam.nrDataBufferEntry, "The maximum number of ReadCtl deal req logic is equal to nrDataBufferEntry")
     require(log2Ceil(dsuparam.nrReqBuf) <= chiTxnidBits-1) // txnID width -1, retain the highest bit

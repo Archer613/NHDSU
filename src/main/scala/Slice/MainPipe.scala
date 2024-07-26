@@ -48,8 +48,8 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   dontTouch(io.cpuResp)
 
 // --------------------- Modules declaration ------------------------//
-  val taskQ = Module(new Queue(new TaskBundle(), entries = nrMPQBeat, pipe = true, flow = true))
-  val dirResQ = Module(new Queue(new DirResp(), entries = nrMPQBeat + 2, pipe = true, flow = true)) // one for mp_s1 read Dir before send task to mp_2, one for mp_s3
+  val taskQ = Module(new Queue(new TaskBundle(), entries = nrMPQBeat, pipe = true, flow = false))
+  val dirResQ = Module(new Queue(new DirResp(), entries = nrMPQBeat + 2, pipe = true, flow = false)) // one for mp_s1 read Dir before send task to mp_2, one for mp_s3
 
 // --------------------- Reg/Wire declaration ------------------------//
   // s2 signals
@@ -319,10 +319,11 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(MS_RESP_OH)    { needWSDir_s3 := hnNS =/= hnState }
     is(SNP_RESP_OH)   { needWSDir_s3 := hnNS =/= hnState }
   }
-  io.sDirWrite.valid := needWSDir_s3 & !doneWSDir_s3
-  io.sDirWrite.bits.state := hnNS
-  io.sDirWrite.bits.addr := task_s3_g.bits.addr
-  io.sDirWrite.bits.wayOH := self_s3.wayOH
+  io.sDirWrite.valid          := needWSDir_s3 & !doneWSDir_s3
+  io.sDirWrite.bits.state     := hnNS
+  io.sDirWrite.bits.addr      := task_s3_g.bits.addr
+  io.sDirWrite.bits.wayOH     := self_s3.wayOH
+  if(useRepl) io.sDirWrite.bits.replMesOpt.get := self_s3.replMesOpt.get
 
 
   /*
@@ -334,14 +335,15 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(MS_RESP_OH)    { needWCDir_s3 := srcRnNS =/= srcState }
     is(SNP_RESP_OH)   { needWCDir_s3 := (srcRnNS =/= srcState | othRnNS =/= otherState) & !task_s3_g.bits.isSnpHlp }
   }
-  io.cDirWrite.valid := needWCDir_s3 & !doneWCDir_s3
-  io.cDirWrite.bits.addr := task_s3_g.bits.addr
+  io.cDirWrite.valid                := needWCDir_s3 & !doneWCDir_s3
+  io.cDirWrite.bits.addr            := task_s3_g.bits.addr
   io.cDirWrite.bits.metas.map(_.state).zipWithIndex.foreach {
     case(state, i) =>
       if(dsuparam.nrCore > 1) state := Mux(task_s3_g.bits.to.idL1 === i.U, srcRnNS, Mux(client_s3.hitVec(i), othRnNS, ChiState.I))
       else                    state := srcRnNS
   }
   io.cDirWrite.bits.wayOH := client_s3.wayOH
+  if(useRepl) io.cDirWrite.bits.replMesOpt.get := client_s3.replMesOpt.get
 
 
   /*

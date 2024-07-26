@@ -56,7 +56,7 @@ trait HasClientAddrBits extends DSUBundle with HasAddrBits {
 
 class DirReadBase(ways: Int) extends Bundle {
   val alreayUseWayOH = UInt(ways.W)
-  val refill = Bool()
+  val refill = Bool() // unuse
 }
 
 class DirRead(implicit p: Parameters) extends DSUBundle {
