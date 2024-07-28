@@ -232,6 +232,7 @@ val io = IO(new Bundle {
   if(useRepl) {
     assert(!(metaArray.io.r.req.fire ^ replArrayOpt.get.io.r.req.fire), "Must read meta and repl at the same time in S1")
   }
+  assert(Mux(io.dirRead.valid, !io.dirRead.bits.mes.alreayUseWayOH.andR, true.B))
   // s2
   if (useRepl) {
     assert(!(readPipe.io.deq.valid ^ replPipeOpt.get.io.deq.valid), "Must get meta and repl at the same time in S2")
