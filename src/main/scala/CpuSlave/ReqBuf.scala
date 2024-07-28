@@ -331,6 +331,22 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
 
 
 // --------------------- Assertion ------------------------------- //
+  // when it is free, it can receive or send mes
+  assert(Mux(io.free, !io.chi.txrsp.valid, true.B))
+  assert(Mux(io.free, !io.chi.txdat.valid, true.B))
+  assert(Mux(io.free, !io.chi.rxdat.valid, true.B))
+  assert(Mux(io.free, !io.chi.rxrsp.valid, true.B))
+  assert(Mux(io.free, !io.chi.rxsnp.valid, true.B))
+  assert(Mux(io.free, !io.txDatId.valid,   true.B))
+  assert(Mux(io.free, !io.txRspId.valid,   true.B))
+  assert(Mux(io.free, !io.mpResp.valid,    true.B))
+  assert(Mux(io.free, !io.snpResp.valid,   true.B))
+  assert(Mux(io.free, !io.wReq.valid,      true.B))
+  assert(Mux(io.free, !io.wResp.valid,     true.B))
+  assert(Mux(io.free, !io.dbDataValid,     true.B))
+
+  assert(Mux(io.mpResp.valid, io.mpResp.bits.addr === taskReg.addr, true.B))
+
   assert(Mux(!freeReg, !(io.chi.txreq.valid | io.snpTask.valid), true.B), "When ReqBuf valid, it cant input new req")
   assert(Mux(io.chi.txreq.valid | io.snpTask.valid, io.free, true.B), "Reqbuf cant block req input")
   assert(!(io.chi.txreq.valid & io.snpTask.valid), "Reqbuf cant receive txreq and snpTask at the same time")

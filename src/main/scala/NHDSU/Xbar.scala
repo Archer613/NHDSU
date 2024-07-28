@@ -12,6 +12,7 @@ import Utils.GenerateVerilog
 import Utils.IDConnector._
 import Utils.FastArb._
 
+// TODO: has some problem of XBar, req never enter slice_1
 
 class IdMap(implicit p: Parameters) extends DSUModule {
     val io = IO(new Bundle {
