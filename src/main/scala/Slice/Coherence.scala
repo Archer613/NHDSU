@@ -227,7 +227,9 @@ object Coherence {
           is(SC) { needSnp := self === SC | self === SD; error := false.B }
         }
       }
-      // TODO: Snoop Helper
+      is(CHIOp.REQ.Evict) {
+        needSnp := false.B; error := false.B
+      }
     }
     (snpOp, doNotGoToSD, retToSrc, needSnp, error)
   }
