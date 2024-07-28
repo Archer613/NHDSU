@@ -361,9 +361,6 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   taskResp_s3.opcode    := respOp
   taskResp_s3.resp      := respResp
   taskResp_s3.btWay     := task_s3_g.bits.btWay
-  taskResp_s3.from.idL0 := IdL0.SLICE
-  taskResp_s3.from.idL1 := io.sliceId
-  taskResp_s3.from.idL2 := DontCare
   taskResp_s3.to        := Mux(taskTypeVec(CPU_REQ), task_s3_g.bits.from, task_s3_g.bits.to)
   taskResp_s3.cleanBt   := !(needWCBT_s3 & !io.mpBTReq.bits.isClean) // when it write bt, cpuSlave dont need to clean bt
   // io

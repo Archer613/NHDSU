@@ -54,7 +54,7 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     val snpHasData  = Bool()
 }
 
-class RespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel{
+class RespBundle(implicit p: Parameters) extends DSUBundle with HasToIDBits with HasCHIChannel{
     val opcode      = UInt(6.W)
     val resp        = UInt(3.W)
     val addr        = UInt(addressBits.W) // TODO: Del it
