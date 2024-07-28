@@ -197,6 +197,14 @@ class BlockTableEntry(implicit p: Parameters) extends DSUBundle {
     // TODO: block by way full
 }
 
+class WCBlockTableMes(implicit p: Parameters) extends DSUBundle {
+    val wcVal   = Bool()               // Write / Clean block table set
+    val isClean = Bool()
+    val btTag   = UInt(blockTagBits.W) // Write / Clean block table tag
+    val btSet   = UInt(blockSetBits.W) // Write / Clean block table set
+    val btWay   = UInt(blockWayBits.W) // Write / Clean block table way
+}
+
 
 // -------------------- ReadCtl Bundle ------------------ //
 object RCState { // Read Ctl State
