@@ -96,12 +96,12 @@ trait HasDSUParam {
     val dsWayBits       = sWayBits
     val dsBankBits      = log2Ceil(dsuparam.nrDSBank)
     val dsSetBits       = log2Ceil(dsuparam.sets/dsuparam.nrDSBank)
-    // BLOCK TABLE: [blockTag] + [blockSet] + [offset]
+    // BLOCK TABLE: [blockTag] + [blockSet] + [bank] + [offset]
     val nrBlockWays     = dsuparam.ways * 2
     val nrBlockSets     = 16
     val blockWayBits    = log2Ceil(nrBlockWays)
     val blockSetBits    = log2Ceil(nrBlockSets)
-    val blockTagBits    = dsuparam.addressBits - blockSetBits - offsetBits
+    val blockTagBits    = dsuparam.addressBits - blockSetBits - bankBits - offsetBits
     // ReadCtl
     val nrReadCtlEntry  = 8
     val rcEntryBits     = log2Ceil(nrReadCtlEntry)

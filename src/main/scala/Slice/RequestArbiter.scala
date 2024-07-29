@@ -1,7 +1,7 @@
 package NHDSU.SLICE
 
 import NHDSU._
-import chisel3._
+import chisel3.{UInt, _}
 import chisel3.util._
 import org.chipsalliance.cde.config._
 import xs.utils.ParallelPriorityMux
@@ -62,6 +62,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   // select a way to store block mes
   val btRSet            = Wire(UInt(blockSetBits.W)) // Read block table set
   val btRTag            = Wire(UInt(blockTagBits.W)) // Read block table tag
+  val btRBank           = Wire(UInt(bankBits.W))     // Read block table bank
   val invWayVec         = Wire(Vec(nrBlockWays, Bool()))
   val blockWayNext      = Wire(UInt(blockWayBits.W))
   // need to block cpu task
@@ -78,6 +79,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   val task_s1_g         = RegInit(0.U.asTypeOf(Valid(new TaskBundle())))
   val dirAlreadyReadReg = RegInit(false.B)
 
+  dontTouch(btWCVec)
   dontTouch(blockBySnp)
   dontTouch(invWayVec)
   dontTouch(btRTag)
@@ -88,18 +90,22 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   dontTouch(blockCpuTask)
   dontTouch(blockCpuTaskVec)
 
+  def parseBTAddress(x: UInt): (UInt, UInt, UInt) = {
+    val (tag, set, modBank, bank, offset) = parseAddress(x, modBankBits = 0, setBits = blockSetBits, tagBits = blockTagBits)
+    (tag, set, bank)
+  }
+
   def getBtTag(x: UInt): UInt = {
     if(!mpBlockBySet) {
-      x(addressBits - 1, blockSetBits + offsetBits) // TODO: When !mpBlockBySet it must support useWayOH Check and RetryQueue
+      parseBTAddress(x)._3 // TODO: When !mpBlockBySet it must support useWayOH Check and RetryQueue
     } else {
-      require(addressBits - sTagBits - 1 > blockSetBits + offsetBits)
-      x(addressBits - sTagBits - 1, blockSetBits + offsetBits)
+      require(sSetBits + sDirBankBits > blockSetBits)
+      parseBTAddress(x)._3(sSetBits + sDirBankBits - 1 - blockSetBits, 0)
     }
+  }
+  def getBtSet(x: UInt): UInt = { parseBTAddress(x)._2 }
+  def getBtBank(x: UInt): UInt = { parseBTAddress(x)._1 }
 
-  }
-  def getBtSet(x: UInt): UInt = {
-    x(blockTagBits - 1,  offsetBits)
-  }
 // ------------------------ S0: Decide which task can enter mainpipe --------------------------//
   /*
    * MainPipe S3 snpTask cant be block
@@ -117,9 +123,10 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
    * Determine whether it need to block cputask
    * TODO: Add retry queue to
    */
-  btRTag := getBtTag(io.taskCpu.bits.addr)
-  btRSet := getBtSet(io.taskCpu.bits.addr)
-  blockCpuTaskVec := blockTableReg(btRSet).map { case b => b.valid & b.tag === btRTag }
+  btRTag  := getBtTag(io.taskCpu.bits.addr)
+  btRSet  := getBtSet(io.taskCpu.bits.addr)
+  btRBank := getBtBank(io.taskCpu.bits.addr)
+  blockCpuTaskVec := blockTableReg(btRSet).map { case b => b.valid & b.tag === btRTag & b.bank === btRBank }
   invWayVec := blockTableReg(btRSet).map { case b => !b.valid }
   blockWayNext := PriorityEncoder(invWayVec)
   blockCpuTask := blockCpuTaskVec.asUInt.orR | !invWayVec.asUInt.orR
@@ -169,18 +176,21 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   btWCVec(0).isClean  := true.B
   btWCVec(0).btTag    := getBtTag(taskClean_s0.bits.addr)
   btWCVec(0).btSet    := getBtSet(taskClean_s0.bits.addr)
+  btWCVec(0).btBank   := getBtBank(taskClean_s0.bits.addr)
   btWCVec(0).btWay    := taskClean_s0.bits.btWay
   // S0 Write
   btWCVec(1).wcVal    := task_s0.valid & canGo_s0 & task_s0.bits.writeBt
   btWCVec(1).isClean  := false.B
   btWCVec(1).btTag    := getBtTag(task_s0.bits.addr)
   btWCVec(1).btSet    := getBtSet(task_s0.bits.addr)
+  btWCVec(1).btBank   := getBtBank(task_s0.bits.addr)
   btWCVec(1).btWay    := task_s0.bits.btWay
   // S3 Write or Clean
   btWCVec(2).wcVal    := io.mpBTReq.valid
   btWCVec(2).isClean  := io.mpBTReq.bits.isClean
   btWCVec(2).btTag    := getBtTag(io.mpBTReq.bits.addr)
   btWCVec(2).btSet    := getBtSet(io.mpBTReq.bits.addr)
+  btWCVec(2).btBank   := getBtBank(io.mpBTReq.bits.addr)
   btWCVec(2).btWay    := io.mpBTReq.bits.btWay
   io.mpBTReq.ready    := true.B
 
@@ -192,10 +202,11 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
           val hitMes = btWCVec(OHToUInt(hitVec))
           when(hitVec.reduce(_ | _)) {
             table.valid := !hitMes.isClean
-            when(!hitMes.isClean) { table.tag := hitMes.btTag }
+            when(!hitMes.isClean) { table.tag := hitMes.btTag; table.bank := hitMes.btBank }
           }
           assert(Mux(hitVec.reduce(_ | _) & hitMes.isClean, table.valid, true.B), "Clean block table[0x%x][0x%x] must be valid", set.U, way.U)
           assert(Mux(hitVec.reduce(_ | _) & hitMes.isClean, table.tag === hitMes.btTag, true.B) ,"Clean block table[0x%x][0x%x] tag[0x%x] must match cleanTask.tag[0x%x]", set.U, way.U, table.tag, hitMes.btTag)
+          assert(Mux(hitVec.reduce(_ | _) & hitMes.isClean, table.bank === hitMes.btBank, true.B) ,"Clean block table[0x%x][0x%x] bank[0x%x] must match cleanTask.bank[0x%x]", set.U, way.U, table.bank, hitMes.btBank)
           assert(PopCount(hitVec) <= 1.U)
       }
   }

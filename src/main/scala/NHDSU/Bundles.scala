@@ -194,6 +194,7 @@ class RBFSMState(implicit p: Parameters) extends Bundle {
 class BlockTableEntry(implicit p: Parameters) extends DSUBundle {
     val valid   = Bool()
     val tag     = UInt(blockTagBits.W)
+    val bank  = UInt(bankBits.W)
     // TODO: block by way full
 }
 
@@ -202,6 +203,7 @@ class WCBlockTableMes(implicit p: Parameters) extends DSUBundle {
     val isClean = Bool()
     val btTag   = UInt(blockTagBits.W) // Write / Clean block table tag
     val btSet   = UInt(blockSetBits.W) // Write / Clean block table set
+    val btBank  = UInt(bankBits.W)     // Write / Clean block table bank
     val btWay   = UInt(blockWayBits.W) // Write / Clean block table way
 }
 
