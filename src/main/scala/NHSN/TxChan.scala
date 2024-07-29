@@ -32,7 +32,6 @@ class TxChan[T <: Data](gen : T) extends Module {
     /* 
     Internal channel interface
      */
-
     val ch_full_o            = Output(Bool())              // FIFO is full
     val ch_empty_o           = Output(Bool())              // FIFO is empty
     val ch_push_i            = Input(Bool())               // Push a flit
@@ -88,7 +87,7 @@ class TxChan[T <: Data](gen : T) extends Module {
   when(creditCntWe) {
     creditCnt := nxtCreditCnt
   }
-  nxtCreditCnt := Mux(io.txlcrdv_i, creditCnt + 1.U, creditCnt - 1.U)
+  nxtCreditCnt := Mux(io.txlcrdv_i, creditCnt + 1.U, Mux(creditRtn, 0.U, creditCnt - 1.U))
   creditCntWe := (io.txlcrdv_i ^ pop) || creditRtn
   creditRtn := (io.txlinkactive_st_i === LinkStates.DEACTIVATE) && (creditCnt =/= 0.U)
 

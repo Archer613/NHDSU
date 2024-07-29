@@ -19,9 +19,9 @@ class RxChan[T <: Data](gen : T) extends Module {
     val rxlcrdv_o         = Output(Bool())
     val rxlinkactive_st_i = Input(UInt(2.W))
 
-    /* 
-    Internal channel interface
-     */ 
+ /* 
+  * Internal channel interface
+  */ 
 
     val ch_active_o       = Output(Bool())
     val ch_flitv_o        = Output(Bool())
@@ -53,8 +53,9 @@ class RxChan[T <: Data](gen : T) extends Module {
     credit_cnt           := nxt_credit_cnt
   }
 
-  nxt_credit_cnt         := Mux(nxt_rxlcrdv, credit_cnt + 1.U, credit_cnt - 1.U)
-  credit_cnt_we          := nxt_rxlcrdv ^ io.ch_pop_i
+
+  nxt_credit_cnt         := Mux(nxt_rxlcrdv, credit_cnt + 1.U, Mux(io.ch_crd_rtn_i, 0.U, credit_cnt - 1.U))
+  credit_cnt_we          := nxt_rxlcrdv ^ io.ch_pop_i | io.ch_crd_rtn_i
 
   rxlcrdv                := nxt_rxlcrdv
 
