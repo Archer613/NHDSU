@@ -85,7 +85,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   /*
    * Convert wbReq to btWay
    */
-  txDat.io.btWay.valid  := txReqWb.valid
+  txDat.io.btWay.valid  := txReqWb.fire
   txDat.io.btWay.addr   := wbReq.bits.addr
   txDat.io.btWay.btWay  := wbReq.bits.btWay
   txDat.io.btWay.txnid  := Cat(1.U, temp)
