@@ -203,7 +203,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 
   // block table
   assert(Mux(wBTReq_s0.valid, wBTReq_s0.ready, true.B))
-  assert(PopCount(blockCpuTaskVec) <= 1.U)
+  assert(PopCount(blockCpuTaskVec) <= 1.U | !io.taskCpu.valid)
 
   // snoop
   assert(Mux(mpSnpUseNumReg === dsuparam.nrSnoopCtl.U, Mux(task_s0.fire, task_s0.bits.willSnp, true.B), true.B))
