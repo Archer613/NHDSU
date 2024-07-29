@@ -105,7 +105,6 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
   io.mpResp.bits.resp       := respReg.resp
   io.mpResp.bits.isWB       := false.B
   io.mpResp.bits.isSnpHlp   := mpTaskReg.isSnpHlp
-  io.mpResp.bits.cleanBt    := false.B
   io.mpResp.bits.writeBt    := false.B
   io.mpResp.bits.readDir    := true.B
   io.mpResp.bits.btWay      := mpTaskReg.btWay

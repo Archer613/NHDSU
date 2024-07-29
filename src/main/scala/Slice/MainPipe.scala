@@ -29,11 +29,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     // Req to dataBuffer
     val dbRCReq     = Decoupled(new DBRCReq())
     // MainPipe S3 clean or lock BlockTable
-    val mpBTReq     = Decoupled(new Bundle {
-      val addr      = UInt(addressBits.W)
-      val btWay     = UInt(blockWayBits.W)
-      val isClean   = Bool()
-    })
+    val wcBTReq     = Decoupled(new WCBTBundle())
     val releaseSnp  = Output(Bool())
   })
 
@@ -48,8 +44,8 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   dontTouch(io.cpuResp)
 
 // --------------------- Modules declaration ------------------------//
-  val taskQ = Module(new Queue(new TaskBundle(), entries = nrMPQBeat, pipe = true, flow = false))
-  val dirResQ = Module(new Queue(new DirResp(), entries = nrMPQBeat + 2, pipe = true, flow = false)) // one for mp_s1 read Dir before send task to mp_2, one for mp_s3
+  val taskQ = Module(new Queue(new TaskBundle(), entries = nrMPQBeat, pipe = false, flow = false))
+  val dirResQ = Module(new Queue(new DirResp(), entries = nrMPQBeat + 2, pipe = false, flow = false)) // one for mp_s1 read Dir before send task to mp_2, one for mp_s3
 
 // --------------------- Reg/Wire declaration ------------------------//
   // s2 signals
@@ -362,7 +358,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   taskResp_s3.resp      := respResp
   taskResp_s3.btWay     := task_s3_g.bits.btWay
   taskResp_s3.to        := Mux(taskTypeVec(CPU_REQ), task_s3_g.bits.from, task_s3_g.bits.to)
-  taskResp_s3.cleanBt   := !(needWCBT_s3 & !io.mpBTReq.bits.isClean) // when it write bt, cpuSlave dont need to clean bt
+  taskResp_s3.cleanBt   := !(needWCBT_s3 & !io.wcBTReq.bits.isClean) // when it write bt, cpuSlave dont need to clean bt
   // io
   io.cpuResp.valid      := needResp_s3 & !doneResp_s3
   io.cpuResp.bits       := taskResp_s3
@@ -397,10 +393,11 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(MS_RESP_OH)    { needWCBT_s3 := needSnpHlp }
     is(SNP_RESP_OH)   { needWCBT_s3 := task_s3_g.bits.isSnpHlp }
   }
-  io.mpBTReq.valid := needWCBT_s3 & !doneWCBT_s3
-  io.mpBTReq.bits.isClean := !needSnpHlp & !needRepl
-  io.mpBTReq.bits.btWay := task_s3_g.bits.btWay
-  io.mpBTReq.bits.addr := Mux(needRepl, self_s3.addr, Mux(needSnpHlp, client_s3.addr, task_s3_g.bits.addr)) // write new block tag when need needRepl or snpHlp
+  io.wcBTReq.valid        := needWCBT_s3 & !doneWCBT_s3
+  io.wcBTReq.bits.isClean := !needSnpHlp & !needRepl
+  io.wcBTReq.bits.btWay   := task_s3_g.bits.btWay
+  io.wcBTReq.bits.to      := DontCare
+  io.wcBTReq.bits.addr    := Mux(needRepl, self_s3.addr, Mux(needSnpHlp, client_s3.addr, task_s3_g.bits.addr)) // write new block tag when need needRepl or snpHlp
 
 
   /*
@@ -413,7 +410,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   doneReadDB_s3  := Mux(doneReadDB_s3, !canGo_s3, io.dbRCReq.fire   & !canGo_s3)
   doneResp_s3    := Mux(doneResp_s3,   !canGo_s3, io.cpuResp.fire   & !canGo_s3)
   doneReq_s3     := Mux(doneReq_s3,    !canGo_s3, io.msTask.fire    & !canGo_s3)
-  doneWCBT_s3    := Mux(doneWCBT_s3,   !canGo_s3, io.mpBTReq.fire   & !canGo_s3)
+  doneWCBT_s3    := Mux(doneWCBT_s3,   !canGo_s3, io.wcBTReq.fire   & !canGo_s3)
   val needToDo_s3 = Seq(needSnoop_s3, needWSDir_s3, needWCDir_s3, needRWDS_s3, needReadDB_s3, needResp_s3, needReq_s3, needWCBT_s3)
   val done_s3 = Seq(io.snpTask.fire   | doneSnoop_s3,
                     io.sDirWrite.fire | doneWSDir_s3,
@@ -422,7 +419,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
                     io.dbRCReq.fire   | doneReadDB_s3,
                     io.cpuResp.fire   | doneResp_s3,
                     io.msTask.fire    | doneReq_s3,
-                    io.mpBTReq.fire   | doneWCBT_s3)
+                    io.wcBTReq.fire   | doneWCBT_s3)
   canGo_s3 := needToDo_s3.zip(done_s3).map(a => !a._1 | a._2).reduce(_ & _) & taskTypeVec.asUInt.orR
 
 // -------------------------- Assertion ------------------------------- //

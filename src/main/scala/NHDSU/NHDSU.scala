@@ -87,6 +87,9 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
     xbar.io.mpTask.in <> cpuSalves.map(_.io.mpTask)
     xbar.io.mpTask.out <> slices.map(_.io.cpuTask)
 
+    xbar.io.clTask.in <> cpuSalves.map(_.io.clTask)
+    xbar.io.clTask.out <> slices.map(_.io.cpuClTask)
+
     xbar.io.mpResp.in <> slices.map(_.io.cpuResp)
     xbar.io.mpResp.out <> cpuSalves.map(_.io.mpResp)
 
@@ -102,6 +105,7 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
             s.io.msTask <> m.io.mpTask
             s.io.msResp <> m.io.mpResp
             s.io.dbSigs2Ms <> m.io.dbSigs
+            s.io.msClTask <> m.io.clTask
     }
 
 }

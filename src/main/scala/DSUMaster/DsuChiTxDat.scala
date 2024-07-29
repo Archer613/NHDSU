@@ -21,7 +21,7 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
     val btWay     = Input(new BTWayWithTxnidBundle())
     val txState   = Input(UInt(LinkStates.width.W))
     val dataFDB   = Flipped(Decoupled(new MsDBOutData()))
-    val mpResp    = Decoupled(new TaskBundle())
+    val clTask    = Decoupled(new WCBTBundle())
   })
 
 
@@ -38,7 +38,6 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
   val respSelId       = Wire(UInt(dbIdBits.W))
   val btWayHitVec     = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
   val btWaySelId      = Wire(UInt(dbIdBits.W))
-  val mpResp          = WireInit(0.U.asTypeOf(new TaskBundle()))
 
 // ------------------------- Logic ------------------------------- //
   /*
@@ -49,7 +48,7 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
     case (buf, i) =>
       when(btWayAllocId === i.U & io.btWay.valid) {
         buf := io.btWay
-      }.elsewhen(btWaySelId === i.U & io.mpResp.fire) {
+      }.elsewhen(btWaySelId === i.U & io.clTask.fire) {
         buf.valid := false.B
       }
   }
@@ -81,21 +80,16 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
   respSelId := PriorityEncoder(respHitVec)
 
   // Receive data from DataBuffer
-  io.dataFDB.ready := respHitVec.asUInt.orR & Mux(io.dataFDB.bits.isLast, io.mpResp.fire, btWayHitVec.asUInt.orR) & flitCanGo
+  io.dataFDB.ready := respHitVec.asUInt.orR & Mux(io.dataFDB.bits.isLast, io.clTask.fire, btWayHitVec.asUInt.orR) & flitCanGo
 
   /*
    * Clean block table in ReqArb
    */
-  io.mpResp.valid := respHitVec.asUInt.orR & btWayHitVec.asUInt.orR & io.dataFDB.valid & io.dataFDB.bits.isLast & flitCanGo
-  io.mpResp.bits  := mpResp
-  mpResp.cleanBt  := true.B
-  mpResp.writeBt  := false.B
-  mpResp.btWay    := btWayBufVec(btWaySelId).btWay
-  mpResp.addr     := btWayBufVec(btWaySelId).addr
-  io.mpResp.bits.from.idL0  := IdL0.MASTER
-  io.mpResp.bits.from.idL1  := DontCare
-  io.mpResp.bits.from.idL2  := DontCare
-  io.mpResp.bits.to         := DontCare
+  io.clTask.valid         := respHitVec.asUInt.orR & btWayHitVec.asUInt.orR & io.dataFDB.valid & io.dataFDB.bits.isLast & flitCanGo
+  io.clTask.bits.isClean  := true.B
+  io.clTask.bits.btWay    := btWayBufVec(btWaySelId).btWay
+  io.clTask.bits.addr     := btWayBufVec(btWaySelId).addr
+  io.clTask.bits.to       := DontCare
 
   /*
    * task to TXREQFLIT
@@ -117,7 +111,7 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
   flit.traceTag := DontCare
   flit.be       := Fill(flit.be.getWidth, 1.U(1.W))
   flit.data     := io.dataFDB.bits.data
-  flitv         := respHitVec.asUInt.orR & Mux(io.dataFDB.bits.isLast, io.mpResp.fire, btWayHitVec.asUInt.orR) & io.dataFDB.valid & flitCanGo
+  flitv         := respHitVec.asUInt.orR & Mux(io.dataFDB.bits.isLast, io.clTask.fire, btWayHitVec.asUInt.orR) & io.dataFDB.valid & flitCanGo
 
   /*
    * set reg value
@@ -153,7 +147,7 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
   io.chi.flit := flitReg
 
 // --------------------- Assertion ------------------------------- //
-  assert(Mux(io.dataFDB.fire & io.dataFDB.bits.isLast, io.mpResp.fire, !io.mpResp.fire))
+  assert(Mux(io.dataFDB.fire & io.dataFDB.bits.isLast, io.clTask.fire, !io.clTask.fire))
   assert(Mux(flitv, flit.opcode === CHIOp.DAT.NonCopyBackWrData, true.B))
   assert(PopCount(respHitVec.asUInt) <= 1.U)
   assert(PopCount(btWayHitVec.asUInt) <= 1.U)

@@ -46,7 +46,6 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     val resp        = UInt(3.W) // snpResp or wbReq; resp.width = 3
     val isWB        = Bool() // write back
     val isSnpHlp    = Bool() // req is from snoop helper
-    val cleanBt     = Bool() // clean block table in ReqArb
     val writeBt     = Bool() // write block table in ReqArb
     val readDir     = Bool()
     val btWay       = UInt(blockWayBits.W) // block table
@@ -194,17 +193,14 @@ class RBFSMState(implicit p: Parameters) extends Bundle {
 class BlockTableEntry(implicit p: Parameters) extends DSUBundle {
     val valid   = Bool()
     val tag     = UInt(blockTagBits.W)
-    val bank  = UInt(bankBits.W)
+    val bank    = UInt(bankBits.W)
     // TODO: block by way full
 }
 
-class WCBlockTableMes(implicit p: Parameters) extends DSUBundle {
-    val wcVal   = Bool()               // Write / Clean block table set
+class WCBTBundle(implicit p: Parameters) extends DSUBundle with HasToIDBits {
+    val addr    = UInt(addressBits.W)
+    val btWay   = UInt(blockWayBits.W) // block table
     val isClean = Bool()
-    val btTag   = UInt(blockTagBits.W) // Write / Clean block table tag
-    val btSet   = UInt(blockSetBits.W) // Write / Clean block table set
-    val btBank  = UInt(bankBits.W)     // Write / Clean block table bank
-    val btWay   = UInt(blockWayBits.W) // Write / Clean block table way
 }
 
 

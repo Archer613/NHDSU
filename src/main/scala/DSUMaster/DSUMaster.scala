@@ -14,6 +14,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
     val chi           = CHIBundleDownstream(chiBundleParams)
     val chiLinkCtrl   = new CHILinkCtrlIO()
     // mainpipe
+    val clTask        = Decoupled(new WCBTBundle())
     val mpTask        = Flipped(Decoupled(new TaskBundle())) // Consider splitting the Bundle into rReq and wbReq
     val mpResp        = Decoupled(new TaskBundle())
     // dataBuffer
@@ -110,6 +111,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   txDat.io.chi <> io.chi.txdat
   txDat.io.txState := chiCtrl.io.txState
   txDat.io.dataFDB <> io.dbSigs.dataFDB
+  txDat.io.clTask <> io.clTask
 
   txReq.io.chi <> io.chi.txreq
   txReq.io.txState := chiCtrl.io.txState
@@ -123,6 +125,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   readCtl.io.mpTask <> rReq
   readCtl.io.dbWReq <> io.dbSigs.wReq
   readCtl.io.dbWResp <> io.dbSigs.wResp
+  readCtl.io.mpResp <> io.mpResp
 
 
   // req sel by io.mpTask.bits.isWB
@@ -132,7 +135,5 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   rReq.bits := io.mpTask.bits
   io.mpTask.ready := Mux(io.mpTask.bits.isWB, wbReq.ready, rReq.ready)
 
-  // select one mpResp to Output
-  fastArbDec2Dec(Seq(txDat.io.mpResp, readCtl.io.mpResp), io.mpResp, Some("mpRespArb"))
 
 }

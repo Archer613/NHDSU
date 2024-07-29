@@ -39,6 +39,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
     // mainpipe
     val mpTask        = Decoupled(new TaskBundle())
     val mpResp        = Flipped(ValidIO(new RespBundle()))
+    val clTask        = Decoupled(new WCBTBundle())
     // dataBuffer
     val dbSigs        = new CpuDBBundle()
   })
@@ -143,6 +144,8 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
 
 
   // ReqBuf output:
+  // clTask ---[fastArb]---> reqArb
+  fastArbDec2Dec(reqBufs.map(_.io.clTask), io.clTask, Some("cleanBTArb"))
   // mpTask ---[fastArb]---> mainPipe
   fastArbDec2Dec(reqBufs.map(_.io.mpTask), io.mpTask, Some("mainPipeArb"))
   // snpResp ---[fastArb]---> snpCtrl

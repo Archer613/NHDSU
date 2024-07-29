@@ -15,11 +15,13 @@ class Slice()(implicit p: Parameters) extends DSUModule {
     val snpTask       = Decoupled(new SnpTaskBundle())
     val snpResp       = Flipped(ValidIO(new SnpRespBundle()))
     // mainpipe <-> cpuslave
+    val cpuClTask     = Flipped(Decoupled(new WCBTBundle()))
     val cpuTask       = Flipped(Decoupled(new TaskBundle()))
     val cpuResp       = Decoupled(new RespBundle())
     // dataBuffer <-> CPUSLAVE
     val dbSigs2Cpu    = Flipped(new CpuDBBundle())
     // dataBuffer <-> DSUMASTER
+    val msClTask      = Flipped( Decoupled(new WCBTBundle()))
     val dbSigs2Ms     = Flipped(new MsDBBundle())
     val msTask        = Decoupled(new TaskBundle())
     val msResp        = Flipped(Decoupled(new TaskBundle()))
@@ -66,7 +68,9 @@ class Slice()(implicit p: Parameters) extends DSUModule {
   reqArb.io.mpTask <> mainPipe.io.arbTask
   reqArb.io.dirRstFinish :=  directory.io.resetFinish
   reqArb.io.txReqQFull := (mpReqQueue.entries.asUInt - mpReqQueue.io.count <= pipeDepth.asUInt)
-  reqArb.io.mpBTReq <> mainPipe.io.mpBTReq
+  reqArb.io.wcBTReqVec(2) <> io.cpuClTask
+  reqArb.io.wcBTReqVec(1) <> io.msClTask
+  reqArb.io.wcBTReqVec(0) <> mainPipe.io.wcBTReq
   reqArb.io.snpFreeNum := snpCtl.io.freeNum
   reqArb.io.mpReleaseSnp := mainPipe.io.releaseSnp
 
