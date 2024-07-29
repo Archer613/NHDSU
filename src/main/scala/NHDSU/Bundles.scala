@@ -86,14 +86,15 @@ class SnpRespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits wit
 object DBState {
     val width       = 3
     // FREE -> ALLOC -> WRITING -> WRITE_DONE -> FREE
-    // FREE -> ALLOC -> WRITING -> WRITE_DONE -> READING(needClean) -> FREE
-    // FREE -> ALLOC -> WRITING -> WRITE_DONE -> READING(!needClean) -> READ_DONE -> READING(needClean) -> FREE
+    // FREE -> ALLOC -> WRITING -> WRITE_DONE -> READING(needClean) -> READ(needClean) -> FREE
+    // FREE -> ALLOC -> WRITING -> WRITE_DONE -> READING(!needClean) -> READ(!needClean) -> READ_DONE -> READING(needClean) -> READ(needClean) -> FREE
     val FREE        = "b000".U
     val ALLOC       = "b001".U
     val WRITTING    = "b010".U // Has been written some beats
     val WRITE_DONE  = "b011".U // Has been written all beats
-    val READING     = "b100".U // Ready to read or already partially read
-    val READ_DONE   = "b101".U // Has been read all beat
+    val READ        = "b100".U // Ready to read
+    val READING     = "b101".U // Already partially read
+    val READ_DONE   = "b110".U // Has been read all beat
 }
 class DBEntry(implicit p: Parameters) extends DSUBundle with HasToIDBits {
     val state       = UInt(DBState.width.W)

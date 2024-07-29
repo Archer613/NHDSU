@@ -4,6 +4,7 @@ import NHDSU._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
+import Utils.Encoder.RREncoder
 
 class DataBuffer()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
@@ -44,9 +45,6 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   // dataTDB
   val dataTDBVec  = Seq(io.ms2db.dataTDB, io.ds2db.dataTDB, io.cpu2db.dataTDB)
   // dataFDB
-  val outDsValVec   = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
-  val outMsValVec   = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
-  val outCpuValVec  = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
   val outDsID       = Wire(UInt(dbIdBits.W))
   val outMsID       = Wire(UInt(dbIdBits.W))
   val outCpuID      = Wire(UInt(dbIdBits.W))
@@ -115,29 +113,33 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
    * send data to DS / MS / CPU
    * send Data to Ms must be RR
    */
-  outDsValVec := dataBuffer.map( d => d.state === DBState.READING & d.to.idL0 === IdL0.SLICE )
-  outMsValVec := dataBuffer.map( d => d.state === DBState.READING & d.to.idL0 === IdL0.MASTER )
-  outCpuValVec := dataBuffer.map( d => d.state === DBState.READING & d.to.idL0 === IdL0.CPU )
+  val dsReadValVec  = dataBuffer.map( d => d.state === DBState.READ & d.to.idL0 === IdL0.SLICE )
+  val msReadValVec  = dataBuffer.map( d => d.state === DBState.READ & d.to.idL0 === IdL0.MASTER )
+  val cpuReadValVec = dataBuffer.map( d => d.state === DBState.READ & d.to.idL0 === IdL0.CPU )
 
-  outDsID := PriorityEncoder(outDsValVec)
-  outMsID := PriorityEncoder(outMsValVec)
-  outCpuID := PriorityEncoder(outCpuValVec)
+  val dsReadingValVec   = dataBuffer.map(d => d.state === DBState.READING & d.to.idL0 === IdL0.SLICE)
+  val msReadingValVec   = dataBuffer.map(d => d.state === DBState.READING & d.to.idL0 === IdL0.MASTER)
+  val cpuReadingValVec  = dataBuffer.map(d => d.state === DBState.READING & d.to.idL0 === IdL0.CPU)
 
-  io.ds2db.dataFDB.valid := outDsValVec.reduce(_ | _)
-  io.ms2db.dataFDB.valid := outMsValVec.reduce(_ | _)
-  io.cpu2db.dataFDB.valid := outCpuValVec.reduce(_ | _)
+  outDsID   := Mux(dsReadingValVec.reduce(_ | _),   PriorityEncoder(dsReadingValVec),   PriorityEncoder(dsReadValVec))
+  outMsID   := Mux(msReadingValVec.reduce(_ | _),   PriorityEncoder(msReadingValVec),   RREncoder(msReadValVec))
+  outCpuID  := Mux(cpuReadingValVec.reduce(_ | _),  PriorityEncoder(cpuReadingValVec),  PriorityEncoder(cpuReadValVec))
 
-  io.ds2db.dataFDB.bits.data := dataBuffer(outDsID).getBeat
-  io.ms2db.dataFDB.bits.data := dataBuffer(outMsID).getBeat
+  io.ds2db.dataFDB.valid  := dsReadValVec.reduce(_ | _) | dsReadingValVec.reduce(_ | _)
+  io.ms2db.dataFDB.valid  := msReadValVec.reduce(_ | _) | msReadingValVec.reduce(_ | _)
+  io.cpu2db.dataFDB.valid := cpuReadValVec.reduce(_ | _) | cpuReadingValVec.reduce(_ | _)
+
+  io.ds2db.dataFDB.bits.data  := dataBuffer(outDsID).getBeat
+  io.ms2db.dataFDB.bits.data  := dataBuffer(outMsID).getBeat
   io.cpu2db.dataFDB.bits.data := dataBuffer(outCpuID).getBeat
 
-  io.ds2db.dataFDB.bits.dataID := dataBuffer(outDsID).toDataID
-  io.ms2db.dataFDB.bits.dataID := dataBuffer(outMsID).toDataID
+  io.ds2db.dataFDB.bits.dataID  := dataBuffer(outDsID).toDataID
+  io.ms2db.dataFDB.bits.dataID  := dataBuffer(outMsID).toDataID
   io.cpu2db.dataFDB.bits.dataID := dataBuffer(outCpuID).toDataID
 
-  io.ds2db.dataFDB.bits.dbid := outDsID
-  io.ms2db.dataFDB.bits.dbid := dataBuffer(outMsID).to.idL2 // more info can see DSUMAster
-  io.cpu2db.dataFDB.bits.to := dataBuffer(outCpuID).to
+  io.ds2db.dataFDB.bits.dbid  := outDsID
+  io.ms2db.dataFDB.bits.dbid  := dataBuffer(outMsID).to.idL2 // more info can see DSUMAster
+  io.cpu2db.dataFDB.bits.to   := dataBuffer(outCpuID).to
 
 
   /*
@@ -172,16 +174,25 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
           val to        = Mux(mpHit, io.mpRCReq.bits.to,      io.dsRCReq.bits.to)
           val needClean = Mux(mpHit, io.mpRCReq.bits.isClean, io.dsRCReq.bits.isClean)
           val needRead  = Mux(mpHit, io.mpRCReq.bits.isRead,  io.dsRCReq.bits.isRead)
-          db.state      := Mux(mpHit | dsHit, Mux(needRead, DBState.READING, DBState.FREE), DBState.WRITE_DONE)
+          db.state      := Mux(mpHit | dsHit, Mux(needRead, DBState.READ, DBState.FREE), DBState.WRITE_DONE)
           db.to         := Mux(mpHit | dsHit, to, db.to)
           db.beatRNum   := 0.U
           db.needClean  := Mux(mpHit | dsHit, needClean, db.needClean)
+        }
+        is(DBState.READ) {
+          val dsHit     = io.ds2db.dataFDB.fire & outDsID === i.U
+          val msHit     = io.ms2db.dataFDB.fire & outMsID === i.U
+          val cpuHit    = io.cpu2db.dataFDB.fire & outCpuID === i.U
+          val hit       = dsHit | msHit | cpuHit
+          val readDone  = db.beatRNum === (nrBeat - 1).U
+          db.state      := Mux(hit, Mux(readDone, Mux(db.needClean, DBState.FREE, DBState.READ_DONE), DBState.READING), DBState.READ)
+          db.beatRNum   := db.beatRNum + hit.asUInt
         }
         is(DBState.READING) {
           val dsHit     = io.ds2db.dataFDB.fire & outDsID === i.U
           val msHit     = io.ms2db.dataFDB.fire & outMsID === i.U
           val cpuHit    = io.cpu2db.dataFDB.fire & outCpuID === i.U
-          val hit       = dsHit | msHit |cpuHit
+          val hit       = dsHit | msHit | cpuHit
           val readDone  = db.beatRNum === (nrBeat - 1).U
           db.state      := Mux(hit & readDone, Mux(db.needClean, DBState.FREE, DBState.READ_DONE), DBState.READING)
           db.beatRNum   := db.beatRNum + hit.asUInt
@@ -196,6 +207,10 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
 
   assert(Mux(io.mpRCReq.fire, io.mpRCReq.bits.isRead | io.mpRCReq.bits.isClean, true.B))
   assert(Mux(io.dsRCReq.fire, io.dsRCReq.bits.isRead | io.dsRCReq.bits.isClean, true.B))
+
+  assert(PopCount(dsReadingValVec) <= 1.U)
+  assert(PopCount(msReadingValVec) <= 1.U)
+  assert(PopCount(cpuReadingValVec) <= 1.U)
 
   val cntVecReg  = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U(64.W) }))
   cntVecReg.zip(dataBuffer.map(_.state)).foreach{ case(cnt, s) => cnt := Mux(s === DBState.FREE, 0.U, cnt + 1.U) }
