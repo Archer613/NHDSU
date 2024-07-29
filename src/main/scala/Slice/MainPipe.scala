@@ -446,5 +446,5 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   // TIME OUT CHECK
   val cntReg = RegInit(0.U(64.W))
   cntReg := Mux(!task_s3_g.valid | canGo_s3, 0.U, cntReg + 1.U)
-  assert(cntReg < 5000.U, "MAINPIPE S3 TASK[0x%x] ADDR[0x%x] OP[0x%x] SNPHLP[0x%x] TIMEOUT", OHToUInt(taskTypeVec), task_s3_g.bits.addr, task_s3_g.bits.opcode, task_s3_g.bits.isSnpHlp.asUInt)
+  assert(cntReg < TIMEOUT_MP.U, "MAINPIPE S3 TASK[0x%x] ADDR[0x%x] OP[0x%x] SNPHLP[0x%x] TIMEOUT", OHToUInt(taskTypeVec), task_s3_g.bits.addr, task_s3_g.bits.opcode, task_s3_g.bits.isSnpHlp.asUInt)
 }

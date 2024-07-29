@@ -112,7 +112,8 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
                       dataBuffer(io.dsRCReq.bits.dbid).state === DBState.READ_DONE
 
   /*
-   * send data to DS/MS/CPU
+   * send data to DS / MS / CPU
+   * send Data to Ms must be RR
    */
   outDsValVec := dataBuffer.map( d => d.state === DBState.READING & d.to.idL0 === IdL0.SLICE )
   outMsValVec := dataBuffer.map( d => d.state === DBState.READING & d.to.idL0 === IdL0.MASTER )
@@ -198,5 +199,5 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
 
   val cntVecReg  = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U(64.W) }))
   cntVecReg.zip(dataBuffer.map(_.state)).foreach{ case(cnt, s) => cnt := Mux(s === DBState.FREE, 0.U, cnt + 1.U) }
-  cntVecReg.zipWithIndex.foreach{ case(cnt, i) => assert(cnt < 5000.U, "DATABUF[%d] TIMEOUT", i.U) }
+  cntVecReg.zipWithIndex.foreach{ case(cnt, i) => assert(cnt < TIMEOUT_DB.U, "DATABUF[%d] TIMEOUT", i.U) }
 }

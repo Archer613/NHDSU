@@ -159,7 +159,7 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
   // TIMEOUT CHECK
   val cntVecReg = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U(64.W) }))
   cntVecReg.zip(respBufVec.map(_.valid)).foreach { case (cnt, v) => cnt := Mux(!v, 0.U, cnt + 1.U) }
-  cntVecReg.zipWithIndex.foreach { case (cnt, i) => assert(cnt < 5000.U, "TXDAT[%d] WAIT DATA TIMEOUT", i.U) }
+  cntVecReg.zipWithIndex.foreach { case (cnt, i) => assert(cnt < TIMEOUT_TXD.U, "TXDAT[%d] TIMEOUT", i.U) }
 
 
 }

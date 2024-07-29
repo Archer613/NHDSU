@@ -363,5 +363,5 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
 
   val cntReg = RegInit(0.U(64.W))
   cntReg := Mux(io.free, 0.U, cntReg + 1.U)
-  assert(cntReg < 8000.U, "REQBUF[0x%x] ADDR[0x%x] OP[0x%x] SNP[0x%x] TIMEOUT", io.reqBufId, taskReg.addr, taskReg.opcode, taskReg.from.isSLICE.asUInt)
+  assert(cntReg < TIMEOUT_RB.U, "REQBUF[0x%x] ADDR[0x%x] OP[0x%x] SNP[0x%x] TIMEOUT", io.reqBufId, taskReg.addr, taskReg.opcode, taskReg.from.isSLICE.asUInt)
 }

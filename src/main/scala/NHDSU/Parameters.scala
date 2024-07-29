@@ -113,6 +113,17 @@ trait HasDSUParam {
     val sReplWayBits    = dsuparam.ways - 1;
     val cReplWayBits    = dsuparam.clientWays - 1
     require(dsuparam.replacementPolicy == "random" | dsuparam.replacementPolicy == "plru", "It should modify sReplWayBits and cReplWayBits when use replacement except of random or plru")
+    // TIMEOUT CHECK CNT VALUE
+    val TIMEOUT_RB      = 10000 // ReqBuf
+    val TIMEOUT_DB      = 8000  // DataBuffer
+    val TIMEOUT_BT      = 8000  // BlockTable
+    val TIMEOUT_MP      = 8000  // MainPipe
+    val TIMEOUT_SNP     = 8000  // SnoopCtl
+    val TIMEOUT_DS      = 6000  // DataStorage
+    val TIMEOUT_RC      = 6000  // ReadCtl
+    val TIMEOUT_TXD     = 1000  // DsuChiTxDat
+
+
 
     // requirement
     require(nrBlockSets <= dsuparam.sets)
