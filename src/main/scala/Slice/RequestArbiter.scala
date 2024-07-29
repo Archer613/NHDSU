@@ -101,7 +101,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
    * is(MS_RESP_OH)    { needSnoop_s3 := needSnpHlp }
    * is(SNP_RESP_OH)   { needSnoop_s3 := false.B }
    */
-  mpSnpUseNumReg  := mpSnpUseNumReg + (task_s0.fire & task_s0.bits.willSnp).asUInt - io.mpReleaseSnp.asUInt
+  mpSnpUseNumReg  := mpSnpUseNumReg + (task_s0.valid & canGo_s0 & task_s0.bits.willSnp).asUInt - io.mpReleaseSnp.asUInt
   blockBySnp      := (io.snpFreeNum - mpSnpUseNumReg) === 0.U
 
   /*
