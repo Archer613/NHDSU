@@ -398,9 +398,9 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     is(SNP_RESP_OH)   { needWCBT_s3 := task_s3_g.bits.isSnpHlp }
   }
   io.mpBTReq.valid := needWCBT_s3 & !doneWCBT_s3
-  io.mpBTReq.bits.isClean := !needSnpHlp
+  io.mpBTReq.bits.isClean := !needSnpHlp & !needRepl
   io.mpBTReq.bits.btWay := task_s3_g.bits.btWay
-  io.mpBTReq.bits.addr := Mux(needRepl, self_s3.addr, Mux(needSnpHlp, client_s3.addr, task_s3_g.bits.addr)) // write new block tag when need snpHlp
+  io.mpBTReq.bits.addr := Mux(needRepl, self_s3.addr, Mux(needSnpHlp, client_s3.addr, task_s3_g.bits.addr)) // write new block tag when need needRepl or snpHlp
 
 
   /*

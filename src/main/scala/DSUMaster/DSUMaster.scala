@@ -5,6 +5,7 @@ import NHDSU.CHI.{CHIBundleDownstream, CHILinkCtrlIO}
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
+import Utils.FastArb.fastArbDec2Dec
 
 class DSUMaster()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
@@ -80,6 +81,14 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   txReqWb.bits.txnid  := Cat(1.U, temp)
   wbReq.ready         := txReqWb.ready
 
+  /*
+   * Convert wbReq to btWay
+   */
+  txDat.io.btWay.valid  := txReqWb.valid
+  txDat.io.btWay.addr   := wbReq.bits.addr
+  txDat.io.btWay.btWay  := wbReq.bits.btWay
+  txDat.io.btWay.txnid  := Cat(1.U, temp)
+
 
   /*
    * connect io.chi <-> chiXXX <-> dataBuffer/readCtl
@@ -112,7 +121,6 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
 
   // readCtl
   readCtl.io.mpTask <> rReq
-  readCtl.io.mpResp <> io.mpResp
   readCtl.io.dbWReq <> io.dbSigs.wReq
   readCtl.io.dbWResp <> io.dbSigs.wResp
 
@@ -124,6 +132,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   rReq.bits := io.mpTask.bits
   io.mpTask.ready := Mux(io.mpTask.bits.isWB, wbReq.ready, rReq.ready)
 
-
+  // select one mpResp to Output
+  fastArbDec2Dec(Seq(txDat.io.mpResp, readCtl.io.mpResp), io.mpResp, Some("mpRespArb"))
 
 }
