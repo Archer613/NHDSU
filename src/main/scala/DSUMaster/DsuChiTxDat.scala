@@ -70,13 +70,13 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
   /*
    * has one btWay buf hit when data from DataBuffer
    */
-  btWayHitVec := btWayBufVec.map { case buf => buf.valid & buf.txnid(dbIdBits - 1, 0) === io.dataFDB.bits.dbid }
+  btWayHitVec := btWayBufVec.map { case buf => buf.valid & buf.txnid(chiTxnidBits - 2, 0) === io.dataFDB.bits.to.idL2 }
   btWaySelId := PriorityEncoder(btWayHitVec)
 
   /*
    * has one resp buf hit when data from DataBuffer
    */
-  respHitVec := respBufVec.map{ case buf => buf.valid & buf.txnid(dbIdBits - 1, 0) === io.dataFDB.bits.dbid }
+  respHitVec := respBufVec.map{ case buf => buf.valid & buf.txnid(chiTxnidBits - 2, 0) === io.dataFDB.bits.to.idL2 }
   respSelId := PriorityEncoder(respHitVec)
 
   // Receive data from DataBuffer

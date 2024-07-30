@@ -99,15 +99,17 @@ trait HasDSUParam {
     // BLOCK TABLE: [blockTag] + [blockSet] + [bank] + [offset]
     val nrBlockWays     = dsuparam.ways * 2
     val nrBlockSets     = 16
-    val blockWayBits    = log2Ceil(nrBlockWays)
-    val blockSetBits    = log2Ceil(nrBlockSets)
+    val blockWayBits    = log2Ceil(nrBlockWays) // 3
+    val blockSetBits    = log2Ceil(nrBlockSets) // 4
     val blockTagBits    = dsuparam.addressBits - blockSetBits - bankBits - offsetBits
+    val replTxnidBits   = blockSetBits + blockWayBits
     // ReadCtl
     val nrReadCtlEntry  = 8
     val rcEntryBits     = log2Ceil(nrReadCtlEntry)
     // CHI TXNID Width
     val chiTxnidBits    = 8
     val chiDbidBits     = 8
+    require(blockWayBits + blockSetBits <= chiTxnidBits - 1, "HN -> SN WB Txnid = Cat(1'b1, blockSet, blockWay)")
     // replacement
     val useRepl         = dsuparam.replacementPolicy != "random"
     val sReplWayBits    = dsuparam.ways - 1;
@@ -147,6 +149,18 @@ trait HasDSUParam {
         val tag     = set       >> setBits
         // return: [5:tag] [4:set] [3:modBank] [2:bank] [1:offset]
         (tag(tagBits - 1, 0), set(setBits - 1, 0), modBank(modBankBits - 1, 0), bank(bankBits - 1, 0), offset(offsetBits - 1, 0))
+    }
+
+    def parseBTAddress(x: UInt): (UInt, UInt, UInt) = {
+        val tag = WireInit(0.U(blockTagBits.W))
+        val (tag_, set, modBank, bank, offset) = parseAddress(x, modBankBits = 0, setBits = blockSetBits, tagBits = blockTagBits)
+        if (!mpBlockBySet) {
+            tag := tag_ // TODO: When !mpBlockBySet it must support useWayOH Check and RetryQueue
+        } else {
+            require(sSetBits + sDirBankBits > blockSetBits)
+            tag := tag_(sSetBits + sDirBankBits - 1 - blockSetBits, 0)
+        }
+        (tag, set, bank)
     }
 
     def toDataID(x: UInt): UInt = {

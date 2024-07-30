@@ -74,8 +74,8 @@ class DsuChiRxRsp()(implicit p: Parameters) extends DSUModule {
   io.resp2rc.valid        := queue.io.deq.valid & queue.io.deq.bits.opcode === CHIOp.RSP.ReadReceipt
   io.resp2rc.bits         := queue.io.deq.bits
   io.resp2dat.valid       := queue.io.deq.valid & queue.io.deq.bits.opcode === CHIOp.RSP.CompDBIDResp
-  io.resp2dat.txnid  := queue.io.deq.bits.txnID
-  io.resp2dat.dbid   := queue.io.deq.bits.dbID
+  io.resp2dat.txnid       := queue.io.deq.bits.txnID
+  io.resp2dat.dbid        := queue.io.deq.bits.dbID
   queue.io.deq.ready      := true.B
 
 

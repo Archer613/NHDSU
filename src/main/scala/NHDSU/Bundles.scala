@@ -19,7 +19,7 @@ object IdL0 {
 class IDBundle(implicit p: Parameters) extends DSUBundle {
     val idL0 = UInt(IdL0.width.W) // Module: IDL0 [3.W]
     val idL1 = UInt(max(coreIdBits, bankBits).W) // SubModule: CpuSlaves, Slices [max:2.W]
-    val idL2 = UInt(max(reqBufIdBits, max(snoopCtlIdBits, dbIdBits)).W) // SubSubModule: ReqBufs, SnpCtls, DataBufs [max:4.W]
+    val idL2 = UInt(max(reqBufIdBits, max(snoopCtlIdBits, replTxnidBits)).W) // SubSubModule: ReqBufs, SnpCtls, blockSets + blockWays [max:7.W]
 
     def isSLICE  = idL0 === IdL0.SLICE
     def isCPU    = idL0 === IdL0.CPU
@@ -144,14 +144,14 @@ class CpuDBBundle(implicit p: Parameters) extends DSUBundle {
 // MASTER Bundle
 class MsDBWReq(implicit p: Parameters) extends DSUBundle                                        // MS  ---[wReq] ---> DB
 class MsDBWResp(implicit p: Parameters) extends DSUBundle with HasDBID                          // DB  ---[wResp] --> MS
-class MsDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData with HasDBID         // DB  ---[Data] ---> MS
+class MsDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData with HasToIDBits     // DB  ---[Data] ---> MS
 class MsDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasDBID          // MS  ---[Data] ---> DB
 
 class MsDBBundle(implicit p: Parameters) extends DSUBundle {
     val wReq        = Decoupled(new MsDBWReq)                        // from[None];  to[None];
-    val wResp       = Flipped(Decoupled(new MsDBWResp))              // from[None];  to[None];   hasDBID
-    val dataFDB     = Flipped(Decoupled(new MsDBOutData))            // from[None];  to[None];   hasDBID
-    val dataTDB     = Decoupled(new MsDBInData)                      // from[None];  to[None];   hasDBID
+    val wResp       = Flipped(Decoupled(new MsDBWResp))              // from[None];  to[None];                          hasDBID
+    val dataFDB     = Flipped(Decoupled(new MsDBOutData))            // from[None];  to[MASTER][dontCare][replTxnid];
+    val dataTDB     = Decoupled(new MsDBInData)                      // from[None];  to[None];                          hasDBID
 }
 
 // DS Bundle

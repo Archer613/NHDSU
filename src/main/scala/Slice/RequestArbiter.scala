@@ -80,18 +80,6 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   dontTouch(blockCpuTaskVec)
   dontTouch(wcBTReq_s0)
 
-  def parseBTAddress(x: UInt): (UInt, UInt, UInt) = {
-    val tag = WireInit(0.U(blockTagBits.W))
-    val (tag_, set, modBank, bank, offset) = parseAddress(x, modBankBits = 0, setBits = blockSetBits, tagBits = blockTagBits)
-    if (!mpBlockBySet) {
-      tag := tag_ // TODO: When !mpBlockBySet it must support useWayOH Check and RetryQueue
-    } else {
-      require(sSetBits + sDirBankBits > blockSetBits)
-      tag := tag_(sSetBits + sDirBankBits - 1 - blockSetBits, 0)
-    }
-    (tag, set, bank)
-  }
-
 // ------------------------ S0: Decide which task can enter mainpipe --------------------------//
   /*
    * MainPipe S3 snpTask cant be block

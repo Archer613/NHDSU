@@ -60,6 +60,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
    * WriteReq:
    * A' is used to identify the request as a WriteBack
    * A' = Cat(1'b1, A(7.W))
+   * A  = Cat(btSet, btWay)
    * CHI:
    * *** Requester(TxnID = A')           ----[WriteNoSnp]---->   Completer(TxnID = A')
    * *** Requester(TxnID = A', DBID = B) <---[CompDBIDResp]---   Completer(TxnID = A', DBID = B)
@@ -77,9 +78,9 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   txReqWb.valid       := wbReq.valid
   txReqWb.bits.opcode := wbReq.bits.opcode
   txReqWb.bits.addr   := wbReq.bits.addr
-  val temp            = WireInit(0.U((chiTxnidBits - 1).W))
-  temp                := wbReq.bits.dbid
-  txReqWb.bits.txnid  := Cat(1.U, temp)
+  val replTxnid       = WireInit(0.U((chiTxnidBits - 1).W))
+  replTxnid           := Cat(parseBTAddress(wbReq.bits.addr)._2, wbReq.bits.btWay)
+  txReqWb.bits.txnid  := Cat(1.U, replTxnid)
   wbReq.ready         := txReqWb.ready
 
   /*
@@ -88,7 +89,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   txDat.io.btWay.valid  := txReqWb.fire
   txDat.io.btWay.addr   := wbReq.bits.addr
   txDat.io.btWay.btWay  := wbReq.bits.btWay
-  txDat.io.btWay.txnid  := Cat(1.U, temp)
+  txDat.io.btWay.txnid  := Cat(1.U, replTxnid)
 
 
   /*

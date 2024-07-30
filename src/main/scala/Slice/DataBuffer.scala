@@ -138,7 +138,7 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   io.cpu2db.dataFDB.bits.dataID := dataBuffer(outCpuID).toDataID
 
   io.ds2db.dataFDB.bits.dbid  := outDsID
-  io.ms2db.dataFDB.bits.dbid  := dataBuffer(outMsID).to.idL2 // more info can see DSUMAster
+  io.ms2db.dataFDB.bits.to    := dataBuffer(outMsID).to
   io.cpu2db.dataFDB.bits.to   := dataBuffer(outCpuID).to
 
 

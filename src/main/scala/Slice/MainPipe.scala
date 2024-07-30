@@ -273,6 +273,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val rDS = needResp_s3 & !needRDown & !needSnp & taskResp_s3.isRxDat
   val wDS = needWDS
   val rwDS = needWDS & needRepl
+  val replTxnid = Cat(parseBTAddress(self_s3.addr)._2, task_s3_g.bits.btWay)
   switch(taskTypeVec.asUInt) {
     is(CPU_REQ_OH)    { needRWDS_s3 := rDS }
     is(CPU_WRITE_OH)  { needRWDS_s3 := wDS | rwDS }
@@ -284,9 +285,9 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   io.dsReq.bits.wayOH := self_s3.wayOH
   io.dsReq.bits.ren := rDS | rwDS
   io.dsReq.bits.wen := wDS | rwDS
-  io.dsReq.bits.to.idL0 := Mux(needRepl, IdL0.MASTER,         task_s3_g.bits.from.idL0)
-  io.dsReq.bits.to.idL1 := Mux(needRepl, DontCare,            task_s3_g.bits.from.idL1)
-  io.dsReq.bits.to.idL2 := Mux(needRepl, task_s3_g.bits.dbid, task_s3_g.bits.from.idL2)
+  io.dsReq.bits.to.idL0 := Mux(needRepl, IdL0.MASTER, task_s3_g.bits.from.idL0)
+  io.dsReq.bits.to.idL1 := Mux(needRepl, DontCare,    task_s3_g.bits.from.idL1)
+  io.dsReq.bits.to.idL2 := Mux(needRepl, replTxnid,   task_s3_g.bits.from.idL2)
   io.dsReq.bits.dbid := task_s3_g.bits.dbid
 
 
