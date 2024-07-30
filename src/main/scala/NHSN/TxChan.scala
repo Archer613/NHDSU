@@ -72,34 +72,34 @@ class TxChan[T <: Data](gen : T) extends Module {
   flitFifoFull              := !fifo.io.enq.ready
 
   // Flit popped when the FIFO isn't empty and the channel is in credit, provided the link is active.
-  pop := (creditCnt =/= 0.U) && !flitFifoEmpty && (io.txlinkactive_st_i === LinkStates.RUN)
+  pop                       := (creditCnt =/= 0.U) && !flitFifoEmpty && (io.txlinkactive_st_i === LinkStates.RUN)
 
   // The output flit comes from the FIFO in the normal case but is zeroed out
   // when the link is not active. This creates the L-credit return flit.
-  txflit := Mux(io.txlinkactive_st_i === LinkStates.RUN, fifo.io.deq.bits, 0.U)
-  txflitv := pop || creditRtnReg
-  txflitpend := io.ch_push_i || !flitFifoEmpty || (io.txlinkactive_st_i === LinkStates.DEACTIVATE)
+  txflit                    := Mux(io.txlinkactive_st_i === LinkStates.RUN, fifo.io.deq.bits, 0.U)
+  txflitv                   := pop || creditRtnReg
+  txflitpend                := io.ch_push_i || !flitFifoEmpty || (io.txlinkactive_st_i === LinkStates.DEACTIVATE)
 
   /* 
   Credit management
    */
 
   when(creditCntWe) {
-    creditCnt := nxtCreditCnt
+    creditCnt               := nxtCreditCnt
   }
-  nxtCreditCnt := Mux(io.txlcrdv_i, creditCnt + 1.U, Mux(creditRtn, 0.U, creditCnt - 1.U))
-  creditCntWe := (io.txlcrdv_i ^ pop) || creditRtn
-  creditRtn := (io.txlinkactive_st_i === LinkStates.DEACTIVATE) && (creditCnt =/= 0.U)
+  nxtCreditCnt              := Mux(io.txlcrdv_i, creditCnt + 1.U, Mux(creditRtn, 0.U, creditCnt - 1.U))
+  creditCntWe               := (io.txlcrdv_i ^ pop) || creditRtn
+  creditRtn                 := (io.txlinkactive_st_i === LinkStates.DEACTIVATE) && (creditCnt =/= 0.U)
 
   // Clean registered credit return signal for factoring in FLITV. The FLITV term must be one cycle later than the FLITPEND term.
 
-  creditRtnReg := creditRtn
+  creditRtnReg              := creditRtn
 
   // Output assignments
-  io.ch_full_o := flitFifoFull
-  io.ch_empty_o := flitFifoEmpty
-  io.txflitpend_o := txflitpend
-  io.txflitv_o := txflitv
-  io.txflit_o := txflit
+  io.ch_full_o              := flitFifoFull
+  io.ch_empty_o             := flitFifoEmpty
+  io.txflitpend_o           := txflitpend
+  io.txflitv_o              := txflitv
+  io.txflit_o               := txflit
 }
 

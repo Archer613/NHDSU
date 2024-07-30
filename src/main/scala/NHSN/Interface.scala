@@ -95,7 +95,6 @@ val io = IO(new Bundle {
   val read_addr                  = WireInit(0.U(addressBits.W))
   val write_valid                = WireInit(false.B)
   val unsupported_req            = WireInit(false.B)
-  val rxreq_beats                = RegInit(0.U(ValueDefine.BEATS_WIDTH.W))
 
 
   val rxrsp_pop                  = WireInit(false.B)
@@ -130,6 +129,8 @@ val io = IO(new Bundle {
   val useReceipt                 = WireInit(false.B)
   val useCompDBID                = WireInit(false.B)
 
+  val nrBeats                    = WireInit(0.U(2.W))
+
 
 // ----------------------------------- Rxreq -----------------------------------//
 
@@ -161,6 +162,14 @@ val io = IO(new Bundle {
 
   useCompDBID                   := rxreq_pop & rxreqFlit.opcode === REQ.WriteNoSnpFull
 
+/* 
+ * Read or write beats
+ */
+  when(rxreq_pop & (rxreqFlit.opcode === REQ.ReadNoSnp || rxreqFlit.opcode === REQ.WriteNoSnpFull)){
+    nrBeats                     := (dsuparam.blockBytes / dsuparam.beatBytes).asUInt 
+  }
+  
+  
   
   //------------------------------------- RxDat -------------------------------//
   rxdat_pop                     := io.rxdat_ch_active_i  & io.write_ready_i 
