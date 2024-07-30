@@ -3,22 +3,13 @@ package NHDSU.DSUMASTER
 import NHDSU._
 import NHDSU.CHI._
 import chisel3._
-import chisel3.util.{Decoupled, Fill, PopCount, PriorityEncoder, Valid, is, switch}
+import chisel3.util.{Decoupled, PopCount, PriorityEncoder, Fill, is, switch, Cat}
 import org.chipsalliance.cde.config._
 
-class BTWayWithTxnidBundle(implicit p: Parameters) extends DSUBundle {
-  val valid   = Bool()
-  val addr    = UInt(addressBits.W)
-  val btWay   = UInt(blockWayBits.W)
-  val txnid   = UInt(chiTxnidBits.W)
-}
-
 class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
-  // TODO: The architecture of txDat can be optimized
   val io = IO(new Bundle {
     val chi       = CHIChannelIO(new CHIBundleDAT(chiBundleParams))
     val rspResp   = Input(new RxRespBundle())
-    val btWay     = Input(new BTWayWithTxnidBundle())
     val txState   = Input(UInt(LinkStates.width.W))
     val dataFDB   = Flipped(Decoupled(new MsDBOutData()))
     val clTask    = Decoupled(new WCBTBundle())
@@ -32,65 +23,41 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
   val flit            = WireInit(0.U.asTypeOf(new CHIBundleDAT(chiBundleParams)))
   val flitv           = WireInit(false.B)
   val flitCanGo       = WireInit(false.B)
-  val btWayBufVec     = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U.asTypeOf(new BTWayWithTxnidBundle()) }))
   val respBufVec      = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U.asTypeOf(new RxRespBundle()) }))
-  val respHitVec      = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
-  val respSelId       = Wire(UInt(dbIdBits.W))
-  val btWayHitVec     = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
-  val btWaySelId      = Wire(UInt(dbIdBits.W))
+  val hitVec          = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
+  val selId           = Wire(UInt(dbIdBits.W))
 
 // ------------------------- Logic ------------------------------- //
   /*
-   * Receive btWay from mpTask
-   */
-  val btWayAllocId = PriorityEncoder(btWayBufVec.map(!_.valid))
-  btWayBufVec.zipWithIndex.foreach {
-    case (buf, i) =>
-      when(btWayAllocId === i.U & io.btWay.valid) {
-        buf := io.btWay
-      }.elsewhen(btWaySelId === i.U & io.clTask.fire) {
-        buf.valid := false.B
-      }
-  }
-
-
-  /*
    * Receive resp from rsp
    */
-  val respAllocId = PriorityEncoder(respBufVec.map(!_.valid))
+  val allocId = PriorityEncoder(respBufVec.map(!_.valid))
   respBufVec.zipWithIndex.foreach {
     case(buf, i) =>
-      when(respAllocId === i.U & io.rspResp.valid){
+      when(allocId === i.U & io.rspResp.valid){
         buf := io.rspResp
-      }.elsewhen(respSelId === i.U & io.dataFDB.bits.isLast & flitv) {
+      }.elsewhen(selId === i.U & io.dataFDB.bits.isLast & flitv) {
         buf.valid := false.B
       }
   }
 
   /*
-   * has one btWay buf hit when data from DataBuffer
+   * has one buf hit data from DataBuffer
    */
-  btWayHitVec := btWayBufVec.map { case buf => buf.valid & buf.txnid(chiTxnidBits - 2, 0) === io.dataFDB.bits.to.idL2 }
-  btWaySelId := PriorityEncoder(btWayHitVec)
-
-  /*
-   * has one resp buf hit when data from DataBuffer
-   */
-  respHitVec := respBufVec.map{ case buf => buf.valid & buf.txnid(chiTxnidBits - 2, 0) === io.dataFDB.bits.to.idL2 }
-  respSelId := PriorityEncoder(respHitVec)
-
-  // Receive data from DataBuffer
-  io.dataFDB.ready := respHitVec.asUInt.orR & Mux(io.dataFDB.bits.isLast, io.clTask.fire, btWayHitVec.asUInt.orR) & flitCanGo
+  hitVec := respBufVec.map{ case buf => buf.valid & buf.txnid(chiTxnidBits - 2, 0) === io.dataFDB.bits.to.idL2 }
+  selId := PriorityEncoder(hitVec)
+  io.dataFDB.ready := hitVec.asUInt.orR & Mux(io.dataFDB.bits.isLast, io.clTask.ready, true.B)
 
   /*
    * Clean block table in ReqArb
    */
-  io.clTask.valid         := respHitVec.asUInt.orR & btWayHitVec.asUInt.orR & io.dataFDB.valid & io.dataFDB.bits.isLast & flitCanGo
+  val clTaskWay           = respBufVec(selId).txnid(blockWayBits - 1, 0)
+  val clTaskSet           = respBufVec(selId).txnid(blockSetBits + blockWayBits - 1, blockWayBits)
+  io.clTask.valid         := io.dataFDB.valid & io.dataFDB.bits.isLast
   io.clTask.bits.isClean  := true.B
-  io.clTask.bits.btWay    := btWayBufVec(btWaySelId).btWay
-  io.clTask.bits.addr     := btWayBufVec(btWaySelId).addr
+  io.clTask.bits.btWay    := clTaskWay
+  io.clTask.bits.addr     := Cat(0.U(blockTagBits.W), clTaskSet, 0.U(bankBits.W), 0.U(offsetBits.W))
   io.clTask.bits.to       := DontCare
-
   /*
    * task to TXREQFLIT
    * Read* txnID:       0XXX_XXXX, X = dbid
@@ -99,7 +66,7 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
   flit.qos      := DontCare
   flit.tgtID    := dsuparam.idmap.SNID.U
   flit.srcID    := dsuparam.idmap.HNID.U
-  flit.txnID    := respBufVec(respSelId).dbid
+  flit.txnID    := respBufVec(selId).dbid
   flit.homeNID  := DontCare
   flit.opcode   := CHIOp.DAT.NonCopyBackWrData
   flit.respErr  := DontCare
@@ -111,7 +78,7 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
   flit.traceTag := DontCare
   flit.be       := Fill(flit.be.getWidth, 1.U(1.W))
   flit.data     := io.dataFDB.bits.data
-  flitv         := respHitVec.asUInt.orR & Mux(io.dataFDB.bits.isLast, io.clTask.fire, btWayHitVec.asUInt.orR) & io.dataFDB.valid & flitCanGo
+  flitv         := hitVec.asUInt.orR & io.dataFDB.valid & Mux(io.dataFDB.bits.isLast, io.clTask.ready, true.B) & flitCanGo
 
   /*
    * set reg value
@@ -149,10 +116,8 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
 // --------------------- Assertion ------------------------------- //
   assert(Mux(io.dataFDB.fire & io.dataFDB.bits.isLast, io.clTask.fire, !io.clTask.fire))
   assert(Mux(flitv, flit.opcode === CHIOp.DAT.NonCopyBackWrData, true.B))
-  assert(PopCount(respHitVec.asUInt) <= 1.U)
-  assert(PopCount(btWayHitVec.asUInt) <= 1.U)
+  assert(PopCount(hitVec.asUInt) <= 1.U)
   assert(flit.be.andR, "be[0x%x] should all valid", flit.be)
-  assert(Mux(PopCount(btWayBufVec.map(_.valid)) === dsuparam.nrDataBufferEntry.U, !io.btWay.valid, true.B))
   assert(Mux(PopCount(respBufVec.map(_.valid)) === dsuparam.nrDataBufferEntry.U, !io.rspResp.valid, true.B))
   assert(Mux(io.rspResp.valid, io.rspResp.txnid(chiTxnidBits - 1), true.B))
 

@@ -5,7 +5,6 @@ import NHDSU.CHI.{CHIBundleDownstream, CHILinkCtrlIO}
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
-import Utils.FastArb.fastArbDec2Dec
 
 class DSUMaster()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
@@ -82,14 +81,6 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   replTxnid           := Cat(parseBTAddress(wbReq.bits.addr)._2, wbReq.bits.btWay)
   txReqWb.bits.txnid  := Cat(1.U, replTxnid)
   wbReq.ready         := txReqWb.ready
-
-  /*
-   * Convert wbReq to btWay
-   */
-  txDat.io.btWay.valid  := txReqWb.fire
-  txDat.io.btWay.addr   := wbReq.bits.addr
-  txDat.io.btWay.btWay  := wbReq.bits.btWay
-  txDat.io.btWay.txnid  := Cat(1.U, replTxnid)
 
 
   /*
