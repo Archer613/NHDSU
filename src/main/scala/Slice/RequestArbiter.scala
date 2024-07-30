@@ -42,11 +42,6 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   io.dirRstFinish <> DontCare
 
 
-// --------------------- Modules declaration ------------------------//
-
-
-
-
 // --------------------- Reg / Wire / Def declaration ------------------------//
   // SnpCtl block signals
   val mpSnpUseNumReg    = RegInit(0.U((snoopCtlIdBits + 1).W))
@@ -97,7 +92,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
    * Determine whether it need to block cputask
    * TODO: Add retry queue to
    */
-  val(btRTag, btRSet, btRBank) = parseBTAddress(io.taskCpu.bits.addr)
+  val(btRTag, btRSet, btRBank) = parseBTAddress(io.taskCpu.bits.addr); dontTouch(btRTag); dontTouch(btRSet); dontTouch(btRBank)
   blockCpuTaskVec := blockTableReg(btRSet).map { case b => b.valid & b.tag === btRTag & b.bank === btRBank }
   invWayVec := blockTableReg(btRSet).map { case b => !b.valid }
   blockWayNext := PriorityEncoder(invWayVec)
@@ -192,7 +187,12 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 
   // block table
   assert(Mux(wBTReq_s0.valid, wBTReq_s0.ready, true.B))
-  assert(PopCount(blockCpuTaskVec) <= 1.U | !io.taskCpu.valid)
+  if(mpBlockBySet) {
+    assert(PopCount(blockCpuTaskVec) <= dsuparam.nrBank.U | !io.taskCpu.valid)
+  } else {
+    assert(PopCount(blockCpuTaskVec) <= 1.U | !io.taskCpu.valid)
+  }
+
 
   // snoop
   assert(Mux(mpSnpUseNumReg === dsuparam.nrSnoopCtl.U, Mux(task_s0.fire, task_s0.bits.willSnp, true.B), true.B))
