@@ -5,6 +5,7 @@ import NHDSU.CHI.{CHIBundleDownstream, CHILinkCtrlIO}
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
+import Utils.FastArb.fastArbDec2Dec
 
 class DSUMaster()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
@@ -13,6 +14,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
     val chi           = CHIBundleDownstream(chiBundleParams)
     val chiLinkCtrl   = new CHILinkCtrlIO()
     // mainpipe
+    val clTask        = Decoupled(new WCBTBundle())
     val mpTask        = Flipped(Decoupled(new TaskBundle())) // Consider splitting the Bundle into rReq and wbReq
     val mpResp        = Decoupled(new TaskBundle())
     // dataBuffer
@@ -80,6 +82,14 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   txReqWb.bits.txnid  := Cat(1.U, temp)
   wbReq.ready         := txReqWb.ready
 
+  /*
+   * Convert wbReq to btWay
+   */
+  txDat.io.btWay.valid  := txReqWb.fire
+  txDat.io.btWay.addr   := wbReq.bits.addr
+  txDat.io.btWay.btWay  := wbReq.bits.btWay
+  txDat.io.btWay.txnid  := Cat(1.U, temp)
+
 
   /*
    * connect io.chi <-> chiXXX <-> dataBuffer/readCtl
@@ -101,6 +111,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   txDat.io.chi <> io.chi.txdat
   txDat.io.txState := chiCtrl.io.txState
   txDat.io.dataFDB <> io.dbSigs.dataFDB
+  txDat.io.clTask <> io.clTask
 
   txReq.io.chi <> io.chi.txreq
   txReq.io.txState := chiCtrl.io.txState
@@ -112,9 +123,9 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
 
   // readCtl
   readCtl.io.mpTask <> rReq
-  readCtl.io.mpResp <> io.mpResp
   readCtl.io.dbWReq <> io.dbSigs.wReq
   readCtl.io.dbWResp <> io.dbSigs.wResp
+  readCtl.io.mpResp <> io.mpResp
 
 
   // req sel by io.mpTask.bits.isWB
@@ -123,7 +134,6 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   wbReq.bits := io.mpTask.bits
   rReq.bits := io.mpTask.bits
   io.mpTask.ready := Mux(io.mpTask.bits.isWB, wbReq.ready, rReq.ready)
-
 
 
 }

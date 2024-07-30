@@ -105,7 +105,6 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
   io.mpResp.bits.resp       := respReg.resp
   io.mpResp.bits.isWB       := false.B
   io.mpResp.bits.isSnpHlp   := mpTaskReg.isSnpHlp
-  io.mpResp.bits.cleanBt    := false.B
   io.mpResp.bits.writeBt    := false.B
   io.mpResp.bits.readDir    := true.B
   io.mpResp.bits.btWay      := mpTaskReg.btWay
@@ -124,5 +123,5 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
   // TIME OUT CHECK
   val cntReg = RegInit(0.U(64.W))
   cntReg := Mux(!validReg, 0.U, cntReg + 1.U)
-  assert(cntReg < 3000.U, "SNPCTL[%d] TIMEOUT", io.snpId)
+  assert(cntReg < TIMEOUT_SNP.U, "SNPCTL[0x%x] OP[0x%x] ADDR[0x%x] SNPHLP[%d] TIMEOUT", io.snpId, mpTaskReg.opcode, mpTaskReg.addr, mpTaskReg.isSnpHlp.asUInt)
 }

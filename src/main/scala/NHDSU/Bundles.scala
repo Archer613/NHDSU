@@ -46,7 +46,6 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     val resp        = UInt(3.W) // snpResp or wbReq; resp.width = 3
     val isWB        = Bool() // write back
     val isSnpHlp    = Bool() // req is from snoop helper
-    val cleanBt     = Bool() // clean block table in ReqArb
     val writeBt     = Bool() // write block table in ReqArb
     val readDir     = Bool()
     val btWay       = UInt(blockWayBits.W) // block table
@@ -54,7 +53,7 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     val snpHasData  = Bool()
 }
 
-class RespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasCHIChannel{
+class RespBundle(implicit p: Parameters) extends DSUBundle with HasToIDBits with HasCHIChannel{
     val opcode      = UInt(6.W)
     val resp        = UInt(3.W)
     val addr        = UInt(addressBits.W) // TODO: Del it
@@ -87,14 +86,15 @@ class SnpRespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits wit
 object DBState {
     val width       = 3
     // FREE -> ALLOC -> WRITING -> WRITE_DONE -> FREE
-    // FREE -> ALLOC -> WRITING -> WRITE_DONE -> READING(needClean) -> FREE
-    // FREE -> ALLOC -> WRITING -> WRITE_DONE -> READING(!needClean) -> READ_DONE -> READING(needClean) -> FREE
+    // FREE -> ALLOC -> WRITING -> WRITE_DONE -> READING(needClean) -> READ(needClean) -> FREE
+    // FREE -> ALLOC -> WRITING -> WRITE_DONE -> READING(!needClean) -> READ(!needClean) -> READ_DONE -> READING(needClean) -> READ(needClean) -> FREE
     val FREE        = "b000".U
     val ALLOC       = "b001".U
     val WRITTING    = "b010".U // Has been written some beats
     val WRITE_DONE  = "b011".U // Has been written all beats
-    val READING     = "b100".U // Ready to read or already partially read
-    val READ_DONE   = "b101".U // Has been read all beat
+    val READ        = "b100".U // Ready to read
+    val READING     = "b101".U // Already partially read
+    val READ_DONE   = "b110".U // Has been read all beat
 }
 class DBEntry(implicit p: Parameters) extends DSUBundle with HasToIDBits {
     val state       = UInt(DBState.width.W)
@@ -194,7 +194,14 @@ class RBFSMState(implicit p: Parameters) extends Bundle {
 class BlockTableEntry(implicit p: Parameters) extends DSUBundle {
     val valid   = Bool()
     val tag     = UInt(blockTagBits.W)
+    val bank    = UInt(bankBits.W)
     // TODO: block by way full
+}
+
+class WCBTBundle(implicit p: Parameters) extends DSUBundle with HasToIDBits {
+    val addr    = UInt(addressBits.W)
+    val btWay   = UInt(blockWayBits.W) // block table
+    val isClean = Bool()
 }
 
 

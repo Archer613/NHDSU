@@ -12,6 +12,7 @@ import Utils.GenerateVerilog
 import Utils.IDConnector._
 import Utils.FastArb._
 
+// TODO: has some problem of XBar, req never enter slice_1
 
 class IdMap(implicit p: Parameters) extends DSUModule {
     val io = IO(new Bundle {
@@ -67,6 +68,10 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
             val in = Vec(dsuparam.nrCore, Flipped(Decoupled(new TaskBundle())))
             val out = Vec(dsuparam.nrBank, Decoupled(new TaskBundle()))
         }
+        val clTask = new Bundle {
+            val in = Vec(dsuparam.nrCore, Flipped(Decoupled(new WCBTBundle())))
+            val out = Vec(dsuparam.nrBank, Decoupled(new WCBTBundle()))
+        }
         val mpResp = new Bundle {
             val in = Vec(dsuparam.nrBank, Flipped(Decoupled(new RespBundle())))
             val out = Vec(dsuparam.nrCore, ValidIO(new RespBundle()))
@@ -79,12 +84,15 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
     })
 
     // ------------------------------------------ Modules declaration And Connection ----------------------------------------------//
-    val taskIdMaps = Seq.fill(dsuparam.nrCore) { Module(new IdMap()) }
-    val wReqIdMaps = Seq.fill(dsuparam.nrCore) { Module(new IdMap()) }
+    val taskIdMaps      = Seq.fill(dsuparam.nrCore) { Module(new IdMap()) }
+    val clTaskIdMaps    = Seq.fill(dsuparam.nrCore) { Module(new IdMap()) }
+    val wReqIdMaps      = Seq.fill(dsuparam.nrCore) { Module(new IdMap()) }
 
     // --------------------- Wire declaration ------------------------//
     val mpTaskRemap     = Wire(Vec(dsuparam.nrCore, Decoupled(new TaskBundle())))
     val mpTaskRedir     = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new TaskBundle()))))
+    val clTaskRemap     = Wire(Vec(dsuparam.nrCore, Decoupled(new WCBTBundle())))
+    val clTaskRedir     = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new WCBTBundle()))))
     val mpRespRedir     = Wire(Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new RespBundle()))))
     val snpTaskRedir    = Wire(Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new SnpTaskBundle()))))
     val snpRespRedir    = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new SnpRespBundle()))))
@@ -106,6 +114,14 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
             m.io.inBank := io.mpTask.in(i).bits.to.idL1
             mpTaskRemap(i).bits.to.idL1 := m.io.outBank
     }
+    // clean Task idL1 reMap
+    clTaskRemap.zip(io.clTask.in).foreach { case (reMap, in) => reMap <> in }
+    clTaskIdMaps.zipWithIndex.foreach {
+        case (m, i) =>
+            m.io.bankVal <> io.bankVal
+            m.io.inBank := io.clTask.in(i).bits.to.idL1
+            clTaskRemap(i).bits.to.idL1 := m.io.outBank
+    }
     // wReq idL1 reMap
     wReqRemap.zip(io.dbSigs.in.map(_.wReq)).foreach { case(reMap, in) => reMap <> in }
     wReqIdMaps.zipWithIndex.foreach {
@@ -121,6 +137,10 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
     // mpTask ---[idSel]---[arb]---> mainPipe
     mpTaskRemap.zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, mpTaskRedir(i), level = 1) }
     io.mpTask.out.zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(mpTaskRedir.map(_(i)), m, Some("mpTaskArb")) }
+
+    // mpTask ---[idSel]---[arb]---> mainPipe
+    clTaskRemap.zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, clTaskRedir(i), level = 1) }
+    io.clTask.out.zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(clTaskRedir.map(_(i)), m, Some("cleanTaskArb")) }
 
     // mainPipe ---[fastArb]---[idSel]---> cpuSlaves
     io.mpResp.in.zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, mpRespRedir(i), level = 1) }

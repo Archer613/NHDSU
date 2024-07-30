@@ -136,11 +136,10 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
   io.mpResp.bits.from.idL2  := DontCare
   io.mpResp.bits.to         := fsmSel.from
   io.mpResp.bits.isWB       := false.B
-  io.mpResp.bits.cleanBt    := false.B
   io.mpResp.bits.writeBt    := false.B
   io.mpResp.bits.readDir    := true.B
   io.mpResp.bits.btWay      := fsmSel.btWay
-  io.mpResp.bits.resp       := false.B
+  io.mpResp.bits.resp       := DontCare
   io.mpResp.bits.isSnpHlp   := DontCare
   io.mpResp.bits.willSnp    := true.B
   io.mpResp.bits.snpHasData := DontCare
@@ -155,7 +154,7 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
   // TIMEOUT CHECK
   val cntVecReg = RegInit(VecInit(Seq.fill(nrReadCtlEntry) { 0.U(64.W) }))
   cntVecReg.zip(fsmReg.map(_.state)).foreach { case (cnt, s) => cnt := Mux(s === RCState.FREE, 0.U, cnt + 1.U) }
-  cntVecReg.zipWithIndex.foreach { case (cnt, i) => assert(cnt < 5000.U, "READCTL[%d] TIMEOUT", i.U) }
+  cntVecReg.zipWithIndex.foreach { case (cnt, i) => assert(cnt < TIMEOUT_RC.U, "READCTL[%d] ADDR[0x%x] STATE[0x%x] TIMEOUT", i.U, fsmReg(i).addr, fsmReg(i).state) }
 
 
 }

@@ -69,6 +69,7 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
   dontTouch(dsReqEntries)
   dontTouch(freeVec)
   dontTouch(allocId)
+  dontTouch(rReadyVec)
 
 // --------------------- Logic ------------------------//
   /*
@@ -201,12 +202,12 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
         is(READ_DS) {
           val hit = dsReadId === i.U & rFireVec.asUInt.orR
           when(hit){ fsm.rBeatNum := fsm.rBeatNum + 1.U }
-          when(io.dbSigs2DB.dataTDB.valid){ fsm.sBeatNum := fsm.sBeatNum + 1.U }
+          when(io.dbSigs2DB.dataTDB.valid & io.dbSigs2DB.dataTDB.bits.dbid === fsm.wDBID){ fsm.sBeatNum := fsm.sBeatNum + 1.U }
           when(hit & fsm.rBeatNum === (nrBeat - 1).U){ fsm.state := WRITE_DB }
         }
         is(WRITE_DB) {
           val hit = io.dbSigs2DB.dataTDB.fire & io.dbSigs2DB.dataTDB.bits.isLast & io.dbSigs2DB.dataTDB.bits.dbid === fsm.wDBID
-          when(io.dbSigs2DB.dataTDB.valid){ fsm.sBeatNum := fsm.sBeatNum + 1.U }
+          when(io.dbSigs2DB.dataTDB.valid & io.dbSigs2DB.dataTDB.bits.dbid === fsm.wDBID){ fsm.sBeatNum := fsm.sBeatNum + 1.U }
           when(hit){ fsm.state := RC_DB2OTH }
         }
         is(RC_DB2OTH) {
@@ -241,7 +242,7 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
 
   val cntVecReg = RegInit(VecInit(Seq.fill(nrEntry) { 0.U(64.W) }))
   cntVecReg.zip(dsReqEntries.map(_.state)).foreach { case (cnt, s) => cnt := Mux(s === FREE, 0.U, cnt + 1.U) }
-  cntVecReg.zipWithIndex.foreach { case (cnt, i) => assert(cnt < 5000.U, "DSREQ_ENTRY[%d] TIMEOUT", i.U) }
+  cntVecReg.zipWithIndex.foreach { case (cnt, i) => assert(cnt < TIMEOUT_DS.U, "DSREQ_ENTRY[%d] TIMEOUT", i.U) }
 
 
 

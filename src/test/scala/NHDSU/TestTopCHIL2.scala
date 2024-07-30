@@ -14,7 +14,7 @@ import freechips.rocketchip.tile.MaxHartIdBits
 import huancun.AliasField
 import coupledL2.prefetch._
 import coupledL2.tl2chi._
-import utility.{ChiselDB, FileRegisters, TLLogger}
+import utility.{ChiselDB, FileRegisters, TLLogger, PerfCounterOptionsKey, PerfCounterOptions}
 import coupledL2._
 import xs.utils.perf.{DebugOptions, DebugOptionsKey}
 
@@ -68,7 +68,7 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
   }
 
   // val l2 = LazyModule(new TL2CHICoupledL2())
-  val l2_nodes = (0 until numCores).map(i => LazyModule(new TL2CHICoupledL2()(new Config((_, _, _) => {
+  val l2_nodes = (0 until numCores).map(i => LazyModule(new TL2CHICoupledL2()(new Config((site, here, up) => {
     case L2ParamKey => cacheParams.copy(
       name                = s"L2_$i",
       hartId              = i,
@@ -76,6 +76,11 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     case EnableCHI => true
     case BankBitsKey => log2Ceil(banks)
     case MaxHartIdBits => log2Up(numCores)
+    case PerfCounterOptionsKey => PerfCounterOptions(
+      here(L2ParamKey).enablePerf && !here(L2ParamKey).FPGAPlatform,
+      here(L2ParamKey).enableRollingDB && !here(L2ParamKey).FPGAPlatform,
+      i
+    )
   }))))
 
   val bankBinders = (0 until numCores).map(_ => BankBinder(banks, 64))
@@ -222,7 +227,7 @@ object TestTopCHIHelper {
   }
 }
 
-object TestTop_CHI_OneCore_1UL extends App {
+object TestTop_CHIL2_OneCore_1UL extends App {
 
   TestTopCHIHelper.gen(nrCore = 1, p => new TestTop_CHIL2(
     numCores = 1,
@@ -232,7 +237,7 @@ object TestTop_CHI_OneCore_1UL extends App {
 }
 
 
-object TestTop_CHI_DualCore_1UL extends App {
+object TestTop_CHIL2_DualCore_1UL extends App {
 
   TestTopCHIHelper.gen(nrCore = 2, p => new TestTop_CHIL2(
     numCores = 2,

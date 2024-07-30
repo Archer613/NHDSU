@@ -39,6 +39,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
     // mainpipe
     val mpTask        = Decoupled(new TaskBundle())
     val mpResp        = Flipped(ValidIO(new RespBundle()))
+    val clTask        = Decoupled(new WCBTBundle())
     // dataBuffer
     val dbSigs        = new CpuDBBundle()
   })
@@ -79,7 +80,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   txRsp.io.txState := chiCtrl.io.txState
   reqBufs.map(_.io.chi.txrsp).zipWithIndex.foreach {
     case(txrsp, i) =>
-      txrsp.valid := txRsp.io.flit.valid & txRsp.io.flit.bits.txnID(reqBufIdBits - 1, 0) === i.U
+      txrsp.valid := txRsp.io.flit.valid & txRsp.io.flit.bits.txnID === reqBufs(i).io.txRspId.bits & reqBufs(i).io.txRspId.valid
       txrsp.bits := txRsp.io.flit.bits
   }
   txRsp.io.flit.ready := true.B
@@ -89,7 +90,8 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   txDat.io.dataTDB <> io.dbSigs.dataTDB
   reqBufs.map(_.io.chi.txdat).zipWithIndex.foreach {
     case (txdat, i) =>
-      txdat.valid := txDat.io.flit.valid & txDat.io.flit.bits.txnID === reqBufs(i).io.txDatId.bits & reqBufs(i).io.txDatId.valid
+      // The highest bit is reserved for txnid duplicates when distinguishing Snp
+      txdat.valid := txDat.io.flit.valid & txDat.io.flit.bits.txnID(chiTxnidBits-2, 0) === reqBufs(i).io.txDatId.bits(chiTxnidBits-2, 0) & reqBufs(i).io.txDatId.valid //
       txdat.bits := txDat.io.flit.bits
   }
   txDat.io.flit.ready := true.B
@@ -142,6 +144,8 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
 
 
   // ReqBuf output:
+  // clTask ---[fastArb]---> reqArb
+  fastArbDec2Dec(reqBufs.map(_.io.clTask), io.clTask, Some("cleanBTArb"))
   // mpTask ---[fastArb]---> mainPipe
   fastArbDec2Dec(reqBufs.map(_.io.mpTask), io.mpTask, Some("mainPipeArb"))
   // snpResp ---[fastArb]---> snpCtrl
@@ -156,7 +160,7 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
 
 // --------------------- Assertion ------------------------------- //
   assert(PopCount(reqBufs.map(_.io.chi.txdat.fire)) <= 1.U, "txDat only can be send to one reqBuf")
+  assert(Mux(txRsp.io.flit.valid, PopCount(reqBufs.map(_.io.chi.txrsp.fire)) === 1.U, true.B))
   assert(Mux(txDat.io.flit.valid, PopCount(reqBufs.map(_.io.chi.txdat.fire)) === 1.U, true.B))
-
 
 }

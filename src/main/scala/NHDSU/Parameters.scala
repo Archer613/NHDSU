@@ -38,7 +38,7 @@ case class DSUParam(
                     // sram
                     // enableSramClockGate: Boolean = true, // it will be always true
                     dirMulticycle: Int = 1,
-                    dataMulticycle: Int = 2,
+                    dataMulticycle: Int = 2, // TODO: data holdMcp
                     // chi
                     // can receive or send chi lcrd num
                     nrRnTxLcrdMax: Int = 4,
@@ -96,19 +96,36 @@ trait HasDSUParam {
     val dsWayBits       = sWayBits
     val dsBankBits      = log2Ceil(dsuparam.nrDSBank)
     val dsSetBits       = log2Ceil(dsuparam.sets/dsuparam.nrDSBank)
-    // BLOCK TABLE: [blockTag] + [blockSet] + [offset]
+    // BLOCK TABLE: [blockTag] + [blockSet] + [bank] + [offset]
     val nrBlockWays     = dsuparam.ways * 2
     val nrBlockSets     = 16
     val blockWayBits    = log2Ceil(nrBlockWays)
     val blockSetBits    = log2Ceil(nrBlockSets)
-    val blockTagBits    = dsuparam.addressBits - blockSetBits - offsetBits
+    val blockTagBits    = dsuparam.addressBits - blockSetBits - bankBits - offsetBits
     // ReadCtl
     val nrReadCtlEntry  = 8
     val rcEntryBits     = log2Ceil(nrReadCtlEntry)
     // CHI TXNID Width
-    val chiTxnidBits       = 8
-    val chiDbidBits        = 8
+    val chiTxnidBits    = 8
+    val chiDbidBits     = 8
+    // replacement
+    val useRepl         = dsuparam.replacementPolicy != "random"
+    val sReplWayBits    = dsuparam.ways - 1;
+    val cReplWayBits    = dsuparam.clientWays - 1
+    require(dsuparam.replacementPolicy == "random" | dsuparam.replacementPolicy == "plru", "It should modify sReplWayBits and cReplWayBits when use replacement except of random or plru")
+    // TIMEOUT CHECK CNT VALUE
+    val TIMEOUT_RB      = 10000 // ReqBuf
+    val TIMEOUT_DB      = 8000  // DataBuffer
+    val TIMEOUT_BT      = 8000  // BlockTable
+    val TIMEOUT_MP      = 8000  // MainPipe
+    val TIMEOUT_SNP     = 8000  // SnoopCtl
+    val TIMEOUT_DS      = 6000  // DataStorage
+    val TIMEOUT_RC      = 6000  // ReadCtl
+    val TIMEOUT_TXD     = 1000  // DsuChiTxDat
 
+
+
+    // requirement
     require(nrBlockSets <= dsuparam.sets)
     require(nrReadCtlEntry <= dsuparam.nrDataBufferEntry, "The maximum number of ReadCtl deal req logic is equal to nrDataBufferEntry")
     require(log2Ceil(dsuparam.nrReqBuf) <= chiTxnidBits-1) // txnID width -1, retain the highest bit

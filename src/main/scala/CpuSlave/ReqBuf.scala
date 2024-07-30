@@ -16,9 +16,11 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     val reqBufId    = Input(UInt(reqBufIdBits.W))
     // CHI
     val chi         = Flipped(CHIBundleDecoupled(chiBundleParams))
-    val txDatId     = ValidIO(UInt((bankBits+dbIdBits).W))
+    val txDatId     = ValidIO(UInt(chiTxnidBits.W))
+    val txRspId     = ValidIO(UInt(chiTxnidBits.W))
     // mainpipe
     val mpTask      = Decoupled(new TaskBundle())
+    val clTask      = Decoupled(new WCBTBundle())
     val mpResp      = Flipped(ValidIO(new RespBundle()))
     // snpCtrl
     val snpTask     = Flipped(Decoupled(new SnpTaskBundle()))
@@ -53,11 +55,10 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   val getDBNumReg     = RegInit(0.U(log2Ceil(nrBeat+1).W))
   val getAllDat       = WireInit(false.B)
   val getDatNumReg    = RegInit(0.U(log2Ceil(nrBeat + 1).W))
-  val cleanTask       = WireInit(0.U.asTypeOf(new TaskBundle()))
-  val cleanTaskVal    = WireInit(false.B)
   val snpDoNotGoToSDReg = RegInit(false.B)
   val snpRetToSrcReg    = RegInit(false.B)
   val snpRespReg      = RegInit(0.U.asTypeOf(new SnpRespBundle()))
+  val snpTxnid        = WireInit(0.U(chiTxnidBits.W))
 
   dontTouch(reqTxnIDReg)
   dontTouch(dbidReg)
@@ -67,6 +68,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   dontTouch(getAllDat)
   dontTouch(getDatNumReg)
   dontTouch(release)
+  dontTouch(snpTxnid)
 
 // ---------------------------  Receive Req/Resp Logic --------------------------------//
   /*
@@ -88,7 +90,6 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     task.to.idL0    := IdL0.SLICE
     task.to.idL1    := parseAddress(txreq.addr)._2
     // task other
-    task.cleanBt    := false.B
     task.writeBt    := true.B
     task.readDir    := true.B
     task.willSnp    := !task.isWB
@@ -123,8 +124,6 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
    */
   dbidReg           := Mux(io.wResp.fire, Cat(io.wResp.bits.from.idL1, io.wResp.bits.dbid), Mux(io.free, 0.U, dbidReg))
   taskReg.dbid      := dbidReg
-  io.txDatId.valid  := fsmReg.w_rnData
-  io.txDatId.bits   := dbidReg // for cpuTxDat determine destination
 
   /*
    * Receive CputxDat.resp and Count txDat Data Valid
@@ -140,17 +139,30 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     val rsp = io.chi.txrsp.bits
     val dat = io.chi.txdat.bits
     snpRespReg.resp := Mux(io.chi.txrsp.fire, rsp.resp, dat.resp)
-    snpRespReg.hasData := io.chi.txdat.fire
-    snpRespReg.dbid := dat.dbID(dbIdBits-1, 0)
+    snpRespReg.hasData := snpRetToSrcReg
+    snpRespReg.dbid := dbidReg // TODO: clean dataBuffer when snpRetToSrc bug get txrsp
   }
 
 
 // ---------------------------  Output Req/Resp Logic --------------------------------//
+
+  /*
+   * for txDat or txRsp sel reqBuf input
+   * WriteBack:         txnid = dbid
+   * Snp With Data:     txnid = Cat(1.U, dbid)
+   * snp Without Data:  txnid = reqBufId
+   */
+  io.txDatId.valid := fsmReg.w_rnData
+  io.txDatId.bits := dbidReg // for cpuTxDat determine destination
+  io.txRspId.valid := fsmReg.w_snpResp | fsmReg.w_compAck
+  io.txRspId.bits := Mux(fsmReg.w_compAck, io.reqBufId, snpTxnid)
+
+
   /*
    * Output snoop Req
    *
-   * reqBufId'  = Cat(1.U, reqBufId)
-   * dbid'      = Cat(0.U, sliceId, dbid)
+   * reqBufId'  = Cat(0.U, reqBufId)
+   * dbid'      = Cat(1.U, sliceId, dbid)
    *
    * !snpRetToSrc:
    * *** ReqBuf ---Snoop[txnid = reqBufId']--->      RN
@@ -161,10 +173,11 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
    * *** RN     ---SnpRespData[txnid = dbid']--->   DataBuffer
    */
   val temp = WireInit(0.U((chiTxnidBits - 1).W))
-  temp := io.reqBufId
+  temp := dbidReg
+  snpTxnid := Mux(snpRetToSrcReg, Cat(1.U, temp), io.reqBufId)
   io.chi.rxsnp.valid            := fsmReg.s_snp & !fsmReg.w_dbid
   io.chi.rxsnp.bits.srcID       := dsuparam.idmap.HNID.U
-  io.chi.rxsnp.bits.txnID       := Mux(snpRetToSrcReg, dbidReg, Cat(1.U, temp))
+  io.chi.rxsnp.bits.txnID       := snpTxnid
   io.chi.rxsnp.bits.addr        := taskReg.addr(addressBits-1, addressBits-io.chi.rxsnp.bits.addr.getWidth)
   io.chi.rxsnp.bits.opcode      := taskReg.opcode
   io.chi.rxsnp.bits.retToSrc    := snpRetToSrcReg
@@ -191,17 +204,21 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   /*
    * task or resp output
    */
-  cleanTask.from.idL0 := IdL0.CPU
-  cleanTask.from.idL1 := io.cpuSlvId
-  cleanTask.from.idL2 := io.reqBufId
-  cleanTask.to.idL0   := IdL0.SLICE
-  cleanTask.addr      := taskReg.addr
-  cleanTask.btWay     := respReg.btWay
-  cleanTask.cleanBt   := true.B
-  cleanTask.writeBt   := false.B
-  cleanTaskVal        := fsmReg.s_clean & PopCount(fsmReg.asUInt) === 1.U // only clean need to do
-  io.mpTask.valid     := (fsmReg.s_wbReq2mp & !fsmReg.w_rnData) | fsmReg.s_req2mp | cleanTaskVal
-  io.mpTask.bits      := Mux(cleanTaskVal, cleanTask, taskReg)
+  io.mpTask.valid     := (fsmReg.s_wbReq2mp & !fsmReg.w_rnData) | fsmReg.s_req2mp
+  io.mpTask.bits      := taskReg
+
+
+  /*
+   * clean block table task
+   */
+  io.clTask.valid         := fsmReg.s_clean & PopCount(fsmReg.asUInt) === 1.U // only clean need to do
+  io.clTask.bits.to.idL0  := IdL0.SLICE
+  io.clTask.bits.to.idL1  := DontCare
+  io.clTask.bits.to.idL2  := DontCare
+  io.clTask.bits.addr     := taskReg.addr
+  io.clTask.bits.btWay    := respReg.btWay
+  io.clTask.bits.isClean  := true.B
+
 
   /*
    * chi rxdat output
@@ -287,7 +304,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     // send
     fsmReg.s_req2mp   := Mux(io.mpTask.fire, false.B, fsmReg.s_req2mp)
     fsmReg.s_resp     := Mux(io.chi.rxrsp.fire | (io.chi.rxdat.fire & getAllDB), false.B, fsmReg.s_resp)
-    fsmReg.s_clean    := Mux((io.mpTask.fire & io.mpTask.bits.cleanBt) | (io.mpResp.fire & !io.mpResp.bits.cleanBt), false.B, fsmReg.s_clean)
+    fsmReg.s_clean    := Mux(io.clTask.fire | (io.mpResp.fire & !io.mpResp.bits.cleanBt), false.B, fsmReg.s_clean)
     // wait
     fsmReg.w_mpResp   := Mux(io.mpResp.fire, false.B, fsmReg.w_mpResp)
     fsmReg.w_dbData   := Mux(io.mpResp.fire & io.mpResp.bits.isRxDat, true.B, Mux(getAllDB, false.B, fsmReg.w_dbData))
@@ -311,11 +328,27 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
      */
     fsmReg.s_getDBID  := Mux(io.wReq.fire, false.B, fsmReg.s_getDBID)
     fsmReg.w_dbid     := Mux(io.wResp.fire, false.B, fsmReg.w_dbid)
-    fsmReg.w_rnData   := Mux(getAllDat, false.B, fsmReg.w_rnData)
+    fsmReg.w_rnData   := Mux(getAllDat | (io.chi.txrsp.fire & fsmReg.w_snpResp), false.B, fsmReg.w_rnData) // when need wait snp resp data but only get resp, cancel w_rnData
   }
 
 
 // --------------------- Assertion ------------------------------- //
+  // when it is free, it can receive or send mes
+  assert(Mux(io.free, !io.chi.txrsp.valid, true.B))
+  assert(Mux(io.free, !io.chi.txdat.valid, true.B))
+  assert(Mux(io.free, !io.chi.rxdat.valid, true.B))
+  assert(Mux(io.free, !io.chi.rxrsp.valid, true.B))
+  assert(Mux(io.free, !io.chi.rxsnp.valid, true.B))
+  assert(Mux(io.free, !io.txDatId.valid,   true.B))
+  assert(Mux(io.free, !io.txRspId.valid,   true.B))
+  assert(Mux(io.free, !io.mpResp.valid,    true.B))
+  assert(Mux(io.free, !io.snpResp.valid,   true.B))
+  assert(Mux(io.free, !io.wReq.valid,      true.B))
+  assert(Mux(io.free, !io.wResp.valid,     true.B))
+  assert(Mux(io.free, !io.dbDataValid,     true.B))
+
+  assert(Mux(io.mpResp.valid, io.mpResp.bits.addr === taskReg.addr, true.B))
+
   assert(Mux(!freeReg, !(io.chi.txreq.valid | io.snpTask.valid), true.B), "When ReqBuf valid, it cant input new req")
   assert(Mux(io.chi.txreq.valid | io.snpTask.valid, io.free, true.B), "Reqbuf cant block req input")
   assert(!(io.chi.txreq.valid & io.snpTask.valid), "Reqbuf cant receive txreq and snpTask at the same time")
@@ -326,7 +359,9 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   assert(Mux(io.dbDataValid, fsmReg.s_resp & fsmReg.w_dbData, true.B), "When dbDataValid, ReqBuf should set s_resp and w_data")
   assert(Mux(io.dbDataValid, !fsmReg.w_mpResp, true.B), "When dbDataValid, ReqBuf should has been receive mpResp")
 
+  assert(Mux(fsmReg.w_snpResp & io.chi.txrsp.fire, !io.chi.txrsp.bits.resp(2), true.B))
+
   val cntReg = RegInit(0.U(64.W))
   cntReg := Mux(io.free, 0.U, cntReg + 1.U)
-  assert(cntReg < 5000.U, "REQBUF TIMEOUT")
+  assert(cntReg < TIMEOUT_RB.U, "REQBUF[0x%x] ADDR[0x%x] OP[0x%x] SNP[0x%x] TIMEOUT", io.reqBufId, taskReg.addr, taskReg.opcode, taskReg.from.isSLICE.asUInt)
 }

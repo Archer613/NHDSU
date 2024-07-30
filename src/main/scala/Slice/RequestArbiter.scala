@@ -1,10 +1,11 @@
 package NHDSU.SLICE
 
 import NHDSU._
-import chisel3._
+import chisel3.{UInt, _}
 import chisel3.util._
 import org.chipsalliance.cde.config._
 import xs.utils.ParallelPriorityMux
+import Utils.FastArb.fastPriorityArbDec2Val
 
 class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
@@ -27,12 +28,9 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
     val dirRstFinish  = Input(Bool())
     // Lock Signal from TxReqQueue
     val txReqQFull    = Input(Bool())
-    // MainPipe S3 clean or lock BlockTable
-    val mpBTReq       = Flipped(Decoupled(new Bundle {
-        val addr      = UInt(addressBits.W)
-        val btWay     = UInt(blockWayBits.W)
-        val isClean   = Bool()
-    }))
+
+    // Cpu / Master / MainPipe S3 clean or lock BlockTable
+    val wcBTReqVec    = Vec(3, Flipped(Decoupled(new WCBTBundle())))
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -57,20 +55,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   val blockTableReg = RegInit(VecInit(Seq.fill(nrBlockSets) {
     VecInit(Seq.fill(nrBlockWays) {0.U.asTypeOf(new BlockTableEntry())})
   }))
-  val taskClean_s0      = Wire(Bool())
-  // clean/write blockTable s0
-  val btWCVal_s0        = Wire(Bool()) // Clean/Write block table set
-  val btWCSet_s0        = Wire(UInt(blockSetBits.W)) // Clean/Write block table set
-  val btWTag_s0         = Wire(UInt(blockTagBits.W)) // Write block table tag
-  val btWCWay_s0        = Wire(UInt(blockWayBits.W)) // Clean/Write block table way
-  // clean/write blockTable s3
-  val btWCVal_s3        = Wire(Bool()) // Clean/Write block table set
-  val btWCSet_s3        = Wire(UInt(blockSetBits.W)) // Clean/Write block table set
-  val btWTag_s3         = Wire(UInt(blockTagBits.W)) // Write block table tag
-  val btWCWay_s3        = Wire(UInt(blockWayBits.W)) // Clean/Write block table way
   // select a way to store block mes
-  val btRSet            = Wire(UInt(blockSetBits.W)) // Read block table set
-  val btRTag            = Wire(UInt(blockTagBits.W)) // Read block table tag
   val invWayVec         = Wire(Vec(nrBlockWays, Bool()))
   val blockWayNext      = Wire(UInt(blockWayBits.W))
   // need to block cpu task
@@ -80,7 +65,8 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   val task_s0           = WireInit(0.U.asTypeOf(Valid(new TaskBundle())))
   val canGo_s0          = WireInit(false.B)
   val taskSelVec        = Wire(Vec(3, Bool()))
-  val taskCleanSelVec   = Wire(Vec(3, Bool()))
+  val wBTReq_s0         = WireInit(0.U.asTypeOf(Decoupled(new WCBTBundle())))
+  val wcBTReq_s0        = WireInit(0.U.asTypeOf(Valid(new WCBTBundle())))
   // s1
   val canGo_s1          = WireInit(false.B)
   val task_s1_g         = RegInit(0.U.asTypeOf(Valid(new TaskBundle())))
@@ -88,32 +74,24 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 
   dontTouch(blockBySnp)
   dontTouch(invWayVec)
-  dontTouch(taskClean_s0)
-  dontTouch(btWCVal_s0)
-  dontTouch(btWCSet_s0)
-  dontTouch(btWTag_s0)
-  dontTouch(btWCVal_s3)
-  dontTouch(btWCSet_s3)
-  dontTouch(btWTag_s3)
-  dontTouch(btRTag)
-  dontTouch(btRSet)
   dontTouch(task_s0)
   dontTouch(taskSelVec)
   dontTouch(blockCpuTask)
   dontTouch(blockCpuTaskVec)
+  dontTouch(wcBTReq_s0)
 
-  def getBtTag(x: UInt): UInt = {
-    if(!mpBlockBySet) {
-      x(addressBits - 1, blockSetBits + offsetBits)
+  def parseBTAddress(x: UInt): (UInt, UInt, UInt) = {
+    val tag = WireInit(0.U(blockTagBits.W))
+    val (tag_, set, modBank, bank, offset) = parseAddress(x, modBankBits = 0, setBits = blockSetBits, tagBits = blockTagBits)
+    if (!mpBlockBySet) {
+      tag := tag_ // TODO: When !mpBlockBySet it must support useWayOH Check and RetryQueue
     } else {
-      require(addressBits - sTagBits - 1 > blockSetBits + offsetBits)
-      x(addressBits - sTagBits - 1, blockSetBits + offsetBits)
+      require(sSetBits + sDirBankBits > blockSetBits)
+      tag := tag_(sSetBits + sDirBankBits - 1 - blockSetBits, 0)
     }
+    (tag, set, bank)
+  }
 
-  }
-  def getBtSet(x: UInt): UInt = {
-    x(blockTagBits - 1,  offsetBits)
-  }
 // ------------------------ S0: Decide which task can enter mainpipe --------------------------//
   /*
    * MainPipe S3 snpTask cant be block
@@ -124,16 +102,15 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
    * is(MS_RESP_OH)    { needSnoop_s3 := needSnpHlp }
    * is(SNP_RESP_OH)   { needSnoop_s3 := false.B }
    */
-  mpSnpUseNumReg  := mpSnpUseNumReg + (task_s0.fire & task_s0.bits.willSnp).asUInt - io.mpReleaseSnp.asUInt
+  mpSnpUseNumReg  := mpSnpUseNumReg + (task_s0.valid & canGo_s0 & task_s0.bits.willSnp).asUInt - io.mpReleaseSnp.asUInt
   blockBySnp      := (io.snpFreeNum - mpSnpUseNumReg) === 0.U
 
   /*
    * Determine whether it need to block cputask
    * TODO: Add retry queue to
    */
-  btRTag := getBtTag(io.taskCpu.bits.addr)
-  btRSet := getBtSet(io.taskCpu.bits.addr)
-  blockCpuTaskVec := blockTableReg(btRSet).map { case b => b.valid & b.tag === btRTag }
+  val(btRTag, btRSet, btRBank) = parseBTAddress(io.taskCpu.bits.addr)
+  blockCpuTaskVec := blockTableReg(btRSet).map { case b => b.valid & b.tag === btRTag & b.bank === btRBank }
   invWayVec := blockTableReg(btRSet).map { case b => !b.valid }
   blockWayNext := PriorityEncoder(invWayVec)
   blockCpuTask := blockCpuTaskVec.asUInt.orR | !invWayVec.asUInt.orR
@@ -142,66 +119,54 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
    * Priority(!task.isClean): taskSnp > taskMs > taskCpu
    * Priority(task.isClean): taskSnp > taskMs > taskCpu
    */
-  taskSelVec(0) := io.taskSnp.valid & !io.taskSnp.bits.cleanBt
-  taskSelVec(1) := io.taskMs.valid  & !io.taskMs.bits.cleanBt & !blockBySnp
-  taskSelVec(2) := io.taskCpu.valid & !io.taskCpu.bits.cleanBt & !blockCpuTask & !blockBySnp
+  taskSelVec(0) := io.taskSnp.valid
+  taskSelVec(1) := io.taskMs.valid  & !blockBySnp
+  taskSelVec(2) := io.taskCpu.valid & !blockCpuTask & !blockBySnp
 
-  taskCleanSelVec(0) := io.taskSnp.valid & io.taskSnp.bits.cleanBt
-  taskCleanSelVec(1) := io.taskMs.valid  & io.taskMs.bits.cleanBt
-  taskCleanSelVec(2) := io.taskCpu.valid & io.taskCpu.bits.cleanBt
-
-  taskClean_s0 := taskCleanSelVec.asUInt.orR
 
   /*
-   * Priority: clean > !clean
+   * select task
    */
   task_s0.valid := taskSelVec.asUInt.orR
-  task_s0.bits := Mux(taskClean_s0,
-                  ParallelPriorityMux(taskCleanSelVec.asUInt, Seq(io.taskSnp.bits, io.taskMs.bits, io.taskCpu.bits)),
-                  ParallelPriorityMux(taskSelVec.asUInt, Seq(io.taskSnp.bits, io.taskMs.bits, io.taskCpu.bits)))
-  canGo_s0 := canGo_s1 | !task_s1_g.valid | taskClean_s0
+  task_s0.bits := ParallelPriorityMux(taskSelVec.asUInt, Seq(io.taskSnp.bits, io.taskMs.bits, io.taskCpu.bits))
+  canGo_s0 := canGo_s1 | !task_s1_g.valid
 
   // set task block table value
-  when(!taskClean_s0 & task_s0.bits.writeBt){ task_s0.bits.btWay := blockWayNext }
+  when(task_s0.bits.writeBt){ task_s0.bits.btWay := blockWayNext }
 
   /*
    * task ready
    */
-  io.taskSnp.ready := canGo_s0 & task_s0.bits.from.idL0 === IdL0.SLICE
-  io.taskMs.ready  := canGo_s0 & (!blockBySnp | io.taskMs.bits.cleanBt) & task_s0.bits.from.idL0 === IdL0.MASTER
-  io.taskCpu.ready := canGo_s0 & ((!blockCpuTask & !blockBySnp) | io.taskCpu.bits.cleanBt) & task_s0.bits.from.idL0 === IdL0.CPU
+  io.taskSnp.ready := canGo_s0  & task_s0.bits.from.isSLICE
+  io.taskMs.ready  := canGo_s0 & !blockBySnp & task_s0.bits.from.isMASTER
+  io.taskCpu.ready := canGo_s0 & !blockCpuTask & !blockBySnp & task_s0.bits.from.isCPU
 
   /*
    * Write/Clean block table when task_s0.valid and canGo_s0
    */
-  btWCVal_s0 := (task_s0.valid & canGo_s0 & task_s0.bits.writeBt) | taskClean_s0
-  btWTag_s0  := getBtTag(task_s0.bits.addr)
-  btWCSet_s0 := getBtSet(task_s0.bits.addr)
-  btWCWay_s0 := task_s0.bits.btWay
-
-  btWCVal_s3 := io.mpBTReq.valid
-  btWTag_s3  := getBtTag(io.mpBTReq.bits.addr)
-  btWCSet_s3 := getBtSet(io.mpBTReq.bits.addr)
-  btWCWay_s3 := io.mpBTReq.bits.btWay
-  io.mpBTReq.ready := true.B
+  // S0 Write
+  wBTReq_s0.valid         := task_s0.valid & canGo_s0 & task_s0.bits.writeBt
+  wBTReq_s0.bits.isClean  := false.B
+  wBTReq_s0.bits.addr     := task_s0.bits.addr
+  wBTReq_s0.bits.btWay    := task_s0.bits.btWay
+  // sel one req to write or clean Req
+  fastPriorityArbDec2Val(Seq(wBTReq_s0) ++ io.wcBTReqVec, wcBTReq_s0)
 
   blockTableReg.zipWithIndex.foreach {
     case(table, set) =>
       table.zipWithIndex.foreach {
         case(table, way) =>
-          val hit_s0 = set.U === btWCSet_s0 & way.U === task_s0.bits.btWay & btWCVal_s0
-          val hit_s3 = set.U === btWCSet_s3 & way.U === io.mpBTReq.bits.btWay & btWCVal_s3
-          when(hit_s0) {
-            table.valid := !taskClean_s0
-            when(!taskClean_s0) { table.tag := btWTag_s0 }
-          }.elsewhen(hit_s3) {
-            table.valid := !io.mpBTReq.bits.isClean
-            when(!io.mpBTReq.bits.isClean) { table.tag := btWTag_s3 }
+          val (btTag, btSet, btBank) = parseBTAddress(wcBTReq_s0.bits.addr)
+          val hit = wcBTReq_s0.valid & btSet === set.U & wcBTReq_s0.bits.btWay === way.U
+          when(hit) {
+            table.valid := !wcBTReq_s0.bits.isClean
+            when(!wcBTReq_s0.bits.isClean) { table.tag := btTag; table.bank := btBank }
           }
-          assert(!(hit_s0 & hit_s3))
+          assert(Mux(hit & wcBTReq_s0.bits.isClean, table.valid, true.B), "Clean block table[0x%x][0x%x] must be valid", set.U, way.U)
+          assert(Mux(hit & wcBTReq_s0.bits.isClean, table.tag === btTag, true.B) ,"Clean block table[0x%x][0x%x] tag[0x%x] must match cleanTask.tag[0x%x]", set.U, way.U, table.tag, btTag)
+          assert(Mux(hit & wcBTReq_s0.bits.isClean, table.bank === btBank, true.B) ,"Clean block table[0x%x][0x%x] bank[0x%x] must match cleanTask.bank[0x%x]", set.U, way.U, table.bank, btBank)
       }
   }
-
 
 
 // ------------------------ S1: Read Dir and send task to MainPipe --------------------------//
@@ -231,20 +196,14 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 
 
 // ------------------------ Assertion --------------------------//
-  // s0
-  val btCTag_s0 = getBtTag(task_s0.bits.addr)
-  assert(Mux(taskClean_s0, blockTableReg(btWCSet_s0)(btWCWay_s0).valid, true.B), "Clean block table must be valid")
-  assert(Mux(taskClean_s0, blockTableReg(btWCSet_s0)(btWCWay_s0).tag === btCTag_s0, true.B), "Clean block table tag[0x%x] must match cleanTask.tag[0x%x]", blockTableReg(btWCSet_s0)(btWCWay_s0).tag, btCTag_s0)
-  assert(Mux(taskClean_s0, !task_s0.valid, true.B), "When clean block table, task_s0 cant be valid")
-  assert(Mux(taskClean_s0 | task_s0.valid, !(task_s0.bits.cleanBt & task_s0.bits.writeBt), true.B), "Task writeBT and cleanBT cant be valid at the same time")
-  // s3
-  val btCTag_s3 = getBtTag(io.mpBTReq.bits.addr)
-  assert(Mux(io.mpBTReq.fire & io.mpBTReq.bits.isClean, blockTableReg(btWCSet_s3)(btWCWay_s3).valid, true.B), "Clean block table must be valid")
-  assert(Mux(io.mpBTReq.fire & io.mpBTReq.bits.isClean, blockTableReg(btWCSet_s3)(btWCWay_s3).tag === btCTag_s3, true.B), "Clean block table tag must match cleanTask.tag")
   // io.taskXXX
   assert(Mux(io.taskCpu.valid, io.taskCpu.bits.from.idL0 === IdL0.CPU, true.B), "taskCpu should from CPU")
   assert(Mux(io.taskMs.valid, io.taskMs.bits.from.idL0 === IdL0.MASTER, true.B), "taskMs should from MASTER")
   assert(Mux(io.taskSnp.valid, io.taskSnp.bits.from.idL0 === IdL0.SLICE, true.B), "taskSnp should from SLICE")
+
+  // block table
+  assert(Mux(wBTReq_s0.valid, wBTReq_s0.ready, true.B))
+  assert(PopCount(blockCpuTaskVec) <= 1.U | !io.taskCpu.valid)
 
   // snoop
   assert(Mux(mpSnpUseNumReg === dsuparam.nrSnoopCtl.U, Mux(task_s0.fire, task_s0.bits.willSnp, true.B), true.B))
@@ -254,6 +213,6 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
     case(vec, set) =>
       val cntVecReg = RegInit(VecInit(Seq.fill(nrBlockWays) { 0.U(64.W) }))
       cntVecReg.zip(vec.map(_.valid)).foreach { case (cnt, v) => cnt := Mux(!v, 0.U, cnt + 1.U) }
-      cntVecReg.zipWithIndex.foreach { case (cnt, way) => assert(cnt < 5000.U, "ReqArb blockTable[%d][%d] TIMEOUT", set.U, way.U) }
+      cntVecReg.zipWithIndex.foreach { case (cnt, way) => assert(cnt < TIMEOUT_BT.U, "ReqArb blockTable[%d][%d] TIMEOUT", set.U, way.U) }
   }
 }

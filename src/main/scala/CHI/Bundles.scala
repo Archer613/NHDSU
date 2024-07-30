@@ -1,5 +1,6 @@
 package NHDSU.CHI
 
+import CHI.{RespErr, Order, MemAttr}
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
@@ -28,7 +29,7 @@ class CHIBundleREQ(params: CHIBundleParameters) extends Bundle {
     val allowRetry     = Bool()
     val order          = UInt(2.W)
     val pCrdType       = UInt(4.W)
-    val memAttr        = UInt(4.W)
+    val memAttr        = new MemAttr
     val snpAttr        = UInt(1.W)
     val lpID           = UInt(5.W)
     val excl           = Bool()

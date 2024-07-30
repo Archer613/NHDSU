@@ -23,8 +23,9 @@ class CDirRead(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBund
 
 class CDirWrite(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasClientAddrBits {
   override def useAddrVal: Boolean = useAddr
-  val wayOH = UInt(dsuparam.clientWays.W)
-  val metas = Vec(dsuparam.nrCore, new CHIStateBundle())
+  val wayOH       = UInt(dsuparam.clientWays.W)
+  val metas       = Vec(dsuparam.nrCore, new CHIStateBundle())
+  val replMesOpt  = if(!useRepl) None else Some(UInt(cReplWayBits.W))
 
   def toCDirMetaEntry() = {
     val entry = Wire(new CDirMetaEntry)
@@ -37,9 +38,10 @@ class CDirWrite(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBun
 
 class CDirResp(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasClientAddrBits {
   override def useAddrVal: Boolean = useAddr
-  val wayOH = UInt(dsuparam.clientWays.W)
-  val metas = Vec(dsuparam.nrCore, new CHIStateBundle())
-  val hitVec = Vec(dsuparam.nrCore, Bool())
+  val wayOH      = UInt(dsuparam.clientWays.W)
+  val metas      = Vec(dsuparam.nrCore, new CHIStateBundle())
+  val hitVec     = Vec(dsuparam.nrCore, Bool())
+  val replMesOpt = if(!useRepl) None else Some(UInt(cReplWayBits.W))
 }
 
 class ClientDirectory()(implicit p: Parameters) extends DSUModule {
@@ -48,211 +50,203 @@ val io = IO(new Bundle {
   val dirRead   = Flipped(Decoupled(new CDirRead))
   val dirWrite  = Flipped(Decoupled(new CDirWrite))
   val dirResp   = Decoupled(new CDirResp)
-
-  // TODO: update replacer SRAM
-
-  val resetFinish = Output(Bool())
 })
-  dontTouch(io)
-
-  val repl                   = ReplacementPolicy.fromString(dsuparam.replacementPolicy, dsuparam.clientWays)
-  val ways                   = dsuparam.clientWays
-  val sets                   = dsuparam.clientSets/dsuparam.nrClientDirBank
-
-// --------------------- Modules and SRAM declaration ------------------------//
-  val clientArray = Module(new SRAMTemplate(new CDirMetaEntry, dsuparam.clientSets/dsuparam.nrClientDirBank, dsuparam.clientWays,
-    singlePort = true))
-
-  val replacer_sram_opt = if(dsuparam.replacementPolicy == "random") None else 
-    Some(Module(new SRAMTemplate(UInt(repl.nBits.W), dsuparam.clientSets, 1, singlePort = true,
-    shouldReset = true)))
 
 
-// --------------------- Reg/Wire declaration ------------------------//
+  val ways = dsuparam.clientWays
+  val sets = dsuparam.clientSets / dsuparam.nrClientDirBank
 
-  /* 
-  Basic logic
+// --------------------- Modules declaration ------------------------//
+  val repl          = ReplacementPolicy.fromString(dsuparam.replacementPolicy, ways)
+
+  val metaArray     = Module(new SRAMTemplate(new CDirMetaEntry(), sets, ways, singlePort = true, multicycle = dsuparam.dirMulticycle, shouldReset = true))
+
+  val replArrayOpt  = if(!useRepl) None else Some(Module(new SRAMTemplate(UInt(repl.nBits.W), sets, way = 1, singlePort = true, shouldReset = true)))
+
+  val readPipe      = Module(new Pipe(new CDirRead(), latency = dsuparam.dirMulticycle))
+
+  val replPipeOpt   = if(!useRepl) None else Some(Module(new Pipe(UInt(repl.nBits.W), latency = dsuparam.dirMulticycle-1)))
+
+
+// ----------------------- Reg/Wire declaration --------------------------//
+  // s1
+  val dirReadValid    = WireInit(false.B)
+  // s2
+  val valid_s2        = WireInit(false.B)
+  val metaResp_s2     = Wire(Vec(ways, new CDirMetaEntry()))
+  val dirRead_s2      = WireInit(0.U.asTypeOf(new CDirRead()))
+  val replResp_s2     = WireInit(0.U(repl.nBits.W))
+  // s3
+  val valid_s3_g      = RegInit(false.B)
+  val metaResp_s3_g   = Reg(Vec(ways, new CDirMetaEntry()))
+  val dirRead_s3_g    = RegInit(0.U.asTypeOf(new CDirRead()))
+  val replResp_s3_g   = RegInit(0.U(repl.nBits.W))
+  val hitWayVec       = Wire(Vec(ways, Bool()))
+  val selInvWayVec    = Wire(Vec(ways, Bool()))
+  val replWay         = WireInit(0.U(ways.W))
+  val invMetas        = Wire(Vec(dsuparam.nrCore, new CHIStateBundle()))
+
+
+// ------------------------------ S1: Read / Write SRAM -----------------------------------//
+  /*
+   * Read SRAM
    */
-
-  val metaWen                = io.dirWrite.fire || !io.resetFinish
-  val resetIdx               = RegInit((sets - 1).U)
-  val resetFinish            = RegInit(false.B)
+  metaArray.io.r.req.valid        := dirReadValid
+  metaArray.io.r.req.bits.setIdx  := io.dirRead.bits.set
 
   /*
-  Stage 2
-  */
-
-  val stateRead              = Wire(Vec(ways, new CDirMetaEntry))
-  val refillReqValid_s2      = RegNext(io.dirRead.bits.mes.refill && io.dirRead.fire) 
-  val reqRead_s2_reg         = RegEnable(io.dirRead.bits, 0.U.asTypeOf(io.dirRead.bits), io.dirRead.fire)
-  val reqReadValid_s2        = RegNext(io.dirRead.fire)
-
-  /* 
-  Stage 3
+   * Read Repl SRAM
    */
-  val reqReadValid_s3       = RegNext(reqReadValid_s2)
-  val refillReqValid_s3     = RegNext(refillReqValid_s2)
-  val reqRead_s3_reg        = RegEnable(reqRead_s2_reg, 0.U.asTypeOf(reqRead_s2_reg), reqReadValid_s2)
-  val stateAll_s3           = RegEnable(stateRead, 0.U.asTypeOf(stateRead), reqReadValid_s2)
-
-  /* 
-  Replace logic
-   */
-  val replaceWay            = WireInit(UInt(cWayBits.W),0.U)
-  val replaceWen            = WireInit(false.B)
-
-
-// -----------------------------------------------------------------------------------------
-// Stage 1 (dir read) / (dir write)
-// -----------------------------------------------------------------------------------------
-  io.dirRead.ready          := clientArray.io.r.req.ready && !io.dirWrite.fire && io.resetFinish
-  io.dirWrite.ready         := clientArray.io.w.req.ready && io.resetFinish
-  
-
-// -----------------------------------------------------------------------------------------
-// Stage 2(dir read)
-// -----------------------------------------------------------------------------------------
-  stateRead                 := clientArray.io.r(io.dirRead.fire, io.dirRead.bits.set).resp.data
-  clientArray.io.w(
-    metaWen,
-    Mux(io.resetFinish, io.dirWrite.bits.toCDirMetaEntry(), 0.U.asTypeOf(new CDirMetaEntry)),
-    Mux(io.resetFinish, io.dirWrite.bits.set, resetIdx),
-    Mux(io.resetFinish, io.dirWrite.bits.wayOH, Fill(ways, "b1".U))
-  )
-
-// -----------------------------------------------------------------------------------------
-// Stage 3(dir read)
-// -----------------------------------------------------------------------------------------
-
-  /* 
-  Hit logic
-   */
-
-  val tagMatchVec           = stateAll_s3.map(_.tag(cTagBits - 1, 0) === reqRead_s3_reg.tag)
-  val bankMatchVec          = stateAll_s3.map(_.bank === reqRead_s3_reg.bank)
-  val stateHitVec2d         = stateAll_s3.map(_.metas.map(!_.isInvalid))
-  val stateHitVec           = stateHitVec2d.map(row => Cat(row).orR)
-  val hit_tag_bank_vec      = tagMatchVec.zip(bankMatchVec).map(x => x._1 && x._2)
-  val hit_all_vec           = hit_tag_bank_vec.zip(stateHitVec).map(x => x._1 && x._2)
-  val hit_all               = Cat(hit_all_vec).orR
-  val hit_all_way           = Mux(hit_all, OHToUInt(hit_all_vec), 0.U(cWayBits.W))
-  val hitWayState           = stateAll_s3(hit_all_way).metas.map(!_.isInvalid)
-
-  /* 
-  Replace logic
-   */
-
-  val useRandomWay          = (dsuparam.replacementPolicy == "random").asBool
-  val randomWay             = RegInit(0.U(cWayBits.W))
-  randomWay                := Mux(refillReqValid_s2, LFSR(log2Ceil(ways))(cWayBits - 1, 0), 0.U(cWayBits.W))
-  val metaInvalidVec        = stateAll_s3.map(_.metas.map(_.isInvalid))
-  val has_invalid_way_vec   = metaInvalidVec.map(Cat(_).andR)
-  val has_invalid_way       = Cat(has_invalid_way_vec).orR
-  val invalid_way           = PriorityMuxDefault(has_invalid_way_vec.zipWithIndex.map(x => x._1 -> x._2.U(cWayBits.W)),0.U)
-
-  when(reqRead_s3_reg.mes.alreayUseWayOH(randomWay) === true.B && refillReqValid_s3){
-     randomWay             := Mux(refillReqValid_s3, LFSR(log2Ceil(ways))(cWayBits - 1, 0), 0.U(cWayBits.W))
-  }
-  require(randomWay.getWidth == cWayBits)
-  assert(randomWay <= ways.U)
-
-  val chosenWay             = Mux(has_invalid_way, invalid_way, Mux(useRandomWay, randomWay, replaceWay))
-  val replacerReady         = if(dsuparam.replacementPolicy == "random") true.B else 
-    replacer_sram_opt.get.io.r.req.ready
-  val repl_sram_r           = replacer_sram_opt.get.io.r(io.dirRead.fire & io.dirRead.bits.mes.refill, io.dirRead.bits.set).resp.data(0)
-  val repl_state_s3         = RegEnable(repl_sram_r, 0.U(repl.nBits.W), refillReqValid_s2)
-  replaceWay               := repl.get_replace_way(repl_state_s3)
-
-  val way_s3                = Mux(refillReqValid_s3 | !hit_all, chosenWay, hit_all_way)
-  val failState             = VecInit(Seq.fill(dsuparam.nrCore)(false.B))
-
-
-  /* 
-  io out logic
-   */
-
-   io.dirResp.bits.hitVec  := hitWayState
-
-    when(!hit_all || !reqReadValid_s3){
-    io.dirResp.bits.hitVec := failState
+  if(useRepl) {
+    replArrayOpt.get.io.r.req.valid       := io.dirRead.valid
+    replArrayOpt.get.io.r.req.bits.setIdx := io.dirRead.bits.set
   }
 
-   io.dirResp.bits.tag     := Mux(refillReqValid_s3 & !hit_all, stateAll_s3(chosenWay).tag, reqRead_s3_reg.tag)
-   io.dirResp.bits.set     := reqRead_s3_reg.set
-   io.dirResp.bits.bank    := reqRead_s3_reg.bank
-   io.dirResp.bits.wayOH   := UIntToOH(way_s3)
-   // io.dirResp.bits.metas   := stateAll_s3(hit_tag_bank_way).metas
-   // io.dirResp.bits.metas   := Mux(hit_tag_bank, stateAll_s3(hit_tag_bank_way).metas, 0.U.asTypeOf(io.dirResp.bits.metas))
-   io.dirResp.bits.metas   := Mux(hit_all, stateAll_s3(hit_all_way).metas, stateAll_s3(way_s3).metas)
-   io.dirResp.valid        := reqReadValid_s3
-
-// -----------------------------------------------------------------------------------------
-// Update replacer_sram_opt
-// -----------------------------------------------------------------------------------------
-  val set_s3                    = reqRead_s3_reg.set
-  val updateHit                 = reqReadValid_s3 && hit_all
-  val updateRefill              = refillReqValid_s3
-  replaceWen                   := refillReqValid_s3
-
-  val touch_way_s3              = Mux(refillReqValid_s3, replaceWay, way_s3)
-  val rrip_hit_s3               = Mux(refillReqValid_s3, false.B, hit_all)
-
-  if(dsuparam.replacementPolicy == "srrip"){
-    val next_state_s3 = repl.get_next_state(repl_state_s3, touch_way_s3)
-    val repl_init = Wire(Vec(ways, UInt(2.W)))
-    repl_init.foreach(_ := 2.U(2.W))
-    replacer_sram_opt.get.io.w(
-      !resetFinish || replaceWen,
-      Mux(resetFinish, next_state_s3, repl_init.asUInt),
-      Mux(resetFinish, set_s3, resetIdx),
-      1.U
-    )
-  } else if(dsuparam.replacementPolicy == "drrip"){
-    //Set Dueling
-    val PSEL = RegInit(512.U(10.W)) //32-monitor sets, 10-bits psel
-    // track monitor sets' hit rate for each policy: srrip-0,128...3968;brrip-64,192...4032
-    when(refillReqValid_s3 && (set_s3(6,0)===0.U) && !rrip_hit_s3){  //SDMs_srrip miss
-      PSEL := PSEL + 1.U
-    } .elsewhen(refillReqValid_s3 && (set_s3(6,0)===64.U) && !rrip_hit_s3){ //SDMs_brrip miss
-      PSEL := PSEL - 1.U
-    }
-    // decide use which policy by policy selection counter, for insertion
-    /* if set -> SDMs: use fix policy
-       else if PSEL(MSB)==0: use srrip
-       else if PSEL(MSB)==1: use brrip */
-    val repl_type = WireInit(false.B)
-    repl_type := Mux(set_s3(6,0)===0.U, false.B,
-      Mux(set_s3(6,0)===64.U, true.B,
-        Mux(PSEL(9)===0.U, false.B, true.B)))    // false.B - srrip, true.B - brrip
-    val next_state_s3 = repl.get_next_state(repl_state_s3, touch_way_s3)
-
-    val repl_init = Wire(Vec(ways, UInt(2.W)))
-    repl_init.foreach(_ := 2.U(2.W))
-    replacer_sram_opt.get.io.w(
-      !resetFinish || replaceWen,
-      Mux(resetFinish, next_state_s3, repl_init.asUInt),
-      Mux(resetFinish, set_s3, resetIdx),
-      1.U
-    )
+  /*
+   * Set Dir Read Valid and Ready
+   */
+  if(!useRepl) {
+    dirReadValid      := io.dirRead.valid
+    io.dirRead.ready  := metaArray.io.r.req.ready
   } else {
-    val next_state_s3 = repl.get_next_state(repl_state_s3, touch_way_s3)
-    replacer_sram_opt.get.io.w(
-      !resetFinish || replaceWen,
-      Mux(resetFinish, next_state_s3, 0.U),
-      Mux(resetFinish, set_s3, resetIdx),
-      1.U
-    )
+    dirReadValid      := io.dirRead.valid & !replArrayOpt.get.io.w.req.valid
+    io.dirRead.ready  := metaArray.io.r.req.ready & !replArrayOpt.get.io.w.req.valid
   }
 
-  /* 
-  Reset logic
+  /*
+   * enter pipe
    */
+  readPipe.io.enq.valid := io.dirRead.fire
+  readPipe.io.enq.bits  := io.dirRead.bits
 
-  when(resetIdx === 0.U){
-    resetFinish        := true.B
-  }.otherwise{
-    resetFinish        := false.B
-    resetIdx           := resetIdx - 1.U 
+  /*
+   * Write SRAM
+   */
+  io.dirWrite.ready                   := metaArray.io.w.req.ready
+  metaArray.io.w.req.valid            := io.dirWrite.valid
+  metaArray.io.w.req.bits.setIdx      := io.dirWrite.bits.set
+  metaArray.io.w.req.bits.waymask.get := io.dirWrite.bits.wayOH
+  metaArray.io.w.req.bits.data.foreach(_ := io.dirWrite.bits.toCDirMetaEntry())
+
+
+// ------------------------------ S2: Wait SRAM Resp -----------------------------------//
+  /*
+   * Receive SRAM resp
+   */
+  metaResp_s2 := metaArray.io.r.resp.data
+
+  /*
+   * Receive pipe deq
+   */
+  valid_s2    := readPipe.io.deq.valid
+  dirRead_s2  := readPipe.io.deq.bits
+
+  /*
+   * Receive sRepl resp
+   */
+  if (useRepl) {
+    replPipeOpt.get.io.enq.valid  := RegNext(replArrayOpt.get.io.r.req.fire)
+    replPipeOpt.get.io.enq.bits   := replArrayOpt.get.io.r.resp.data(0)
   }
-  io.resetFinish       := resetFinish
+
+  /*
+   * Receive sRepl pipe deq
+   */
+  if (useRepl) {
+    replResp_s2 := replPipeOpt.get.io.deq.bits
+  }
+
+
+// ------------------------------ S3: Output DirResp -----------------------------------//
+  /*
+   * Receive S2
+   */
+  valid_s3_g      := valid_s2
+  metaResp_s3_g   := Mux(valid_s2, metaResp_s2, metaResp_s3_g)
+  dirRead_s3_g    := Mux(valid_s2, dirRead_s2, dirRead_s3_g)
+  replResp_s3_g   := Mux(valid_s2, replResp_s2, replResp_s3_g)
+
+
+  /*
+   * Get Hit Vec and Hit State
+   */
+  val tagHitVec   = metaResp_s3_g.map(_.tag === dirRead_s3_g.tag)
+  val bankHitVec  = metaResp_s3_g.map(_.bank === dirRead_s3_g.bank)
+  val stateHitVec = metaResp_s3_g.map(_.metas.map(!_.isInvalid).reduce(_ | _))
+  val hitMetas    = metaResp_s3_g(OHToUInt(hitWayVec)).metas
+  val hit         = hitWayVec.asUInt.orR
+  val hitVec      = hitMetas.map(!_.isInvalid)
+  hitWayVec       := tagHitVec.zip(bankHitVec.zip(stateHitVec)).map{ case(t, (b, s)) => t & b & s }
+
+
+  /*
+   * Selet one invalid way
+   */
+  val invWayVec   = stateHitVec.map(!_)
+  val hasInvWay   = invWayVec.reduce(_ | _)
+  invMetas.foreach(_.state := ChiState.I)
+  selInvWayVec    := PriorityEncoderOH(invWayVec)
+
+
+  /*
+   * Select one replace way
+   */
+  if (!useRepl) {
+    replWay := LFSR(sWayBits) // random
+  } else {
+    replWay := repl.get_replace_way(replResp_s3_g) // replace
+  }
+
+
+  /*
+   * repl way is conflict with unuse way
+   */
+  val replConflict  = dirRead_s3_g.mes.alreayUseWayOH(replWay) & dirRead_s3_g.mes.alreayUseWayOH.orR
+  val selUnuseWay   = PriorityEncoder(dirRead_s3_g.mes.alreayUseWayOH.asBools.map(!_))
+
+
+  /*
+   * Output Resp
+   */
+  io.dirResp.valid        := valid_s3_g
+  io.dirResp.bits.hitVec  := hitVec
+  // [Resp Mes]                       [Hit Way Mes]                      [Invalid Way Mes]                      [Unuse Way Mes]                     [Replace Way Mes]
+  io.dirResp.bits.wayOH   := Mux(hit, hitWayVec.asUInt,   Mux(hasInvWay, selInvWayVec.asUInt, Mux(replConflict, UIntToOH(selUnuseWay),              UIntToOH(replWay))))
+  io.dirResp.bits.tag     := Mux(hit, dirRead_s3_g.tag,   Mux(hasInvWay, 0.U,                 Mux(replConflict, metaResp_s3_g(selUnuseWay).tag,     metaResp_s3_g(replWay).tag)))
+  io.dirResp.bits.set     := Mux(hit, dirRead_s3_g.set,   Mux(hasInvWay, 0.U,                 Mux(replConflict, dirRead_s3_g.set,                   dirRead_s3_g.set)))
+  io.dirResp.bits.bank    := Mux(hit, dirRead_s3_g.bank,  Mux(hasInvWay, 0.U,                 Mux(replConflict, metaResp_s3_g(selUnuseWay).bank,    metaResp_s3_g(replWay).bank)))
+  io.dirResp.bits.metas   := Mux(hit, hitMetas,           Mux(hasInvWay, invMetas,            Mux(replConflict, metaResp_s3_g(selUnuseWay).metas,   metaResp_s3_g(replWay).metas)))
+  if(useRepl) { io.dirResp.bits.replMesOpt.get := replResp_s3_g }
+
+
+// ------------------------------ Update Replace SRAM Mes -----------------------------------//
+  /*
+   * PLRU: update replacer only when read hit or write Dir
+   */
+  if (dsuparam.replacementPolicy == "plru") {
+    replArrayOpt.get.io.w.req.valid               := io.dirWrite.fire | (io.dirResp.fire & hit)
+    replArrayOpt.get.io.w.req.bits.setIdx         := Mux(io.dirWrite.fire, io.dirWrite.bits.set, dirRead_s3_g.set)
+    replArrayOpt.get.io.w.req.bits.data.foreach(_ := Mux(io.dirWrite.fire,
+                                                        repl.get_next_state(io.dirWrite.bits.replMesOpt.get, OHToUInt(io.dirWrite.bits.wayOH)),
+                                                        repl.get_next_state(replResp_s3_g,                   OHToUInt(io.dirResp.bits.wayOH))))
+  } else {
+    assert(false.B, "Dont support replacementPolicy except plru")
+  }
+
+
+// ------------------------------ Assertion -----------------------------------//
+  // s1
+  if(useRepl) {
+    assert(!(metaArray.io.r.req.fire ^ replArrayOpt.get.io.r.req.fire), "Must read meta and repl at the same time in S1")
+  }
+  assert(Mux(io.dirRead.valid, !io.dirRead.bits.mes.alreayUseWayOH.andR, true.B))
+  // s2
+  if (useRepl) {
+    assert(!(readPipe.io.deq.valid ^ replPipeOpt.get.io.deq.valid), "Must get meta and repl at the same time in S2")
+  }
+  // s3
+  assert(PopCount(hitVec) <= 1.U)
+  assert(Mux(io.dirResp.valid, io.dirResp.ready, true.B))
+
+
 }

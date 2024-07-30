@@ -93,5 +93,5 @@ class CpuChiTxRsp()(implicit p: Parameters) extends DSUModule {
   assert(lcrdFreeNum <= dsuparam.nrRnTxLcrdMax.U, "lcrd free num cant over than nrRnTxLcrdMax")
   assert(io.flit.ready, "io flit ready should always be true")
   assert(queue.io.enq.ready, "io enq ready should always be true")
-  assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.RSP.CompAck, true.B), "Dont support opcode except CompAck")
+  assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.RSP.CompAck | io.flit.bits.opcode === CHIOp.RSP.SnpResp, true.B), "DSU dont support TXRSP[0x%x]", io.flit.bits.opcode)
 }
