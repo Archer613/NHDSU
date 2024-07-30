@@ -62,7 +62,7 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   dbFreeNum := PopCount(dbFreeVec(0).asUInt)
   canAllocVec.zipWithIndex.foreach { case (v, i) => v := dbFreeNum > i.U }
   dbFreeVec(0) := dataBuffer.map(_.state === DBState.FREE)
-  dbAllocId.zipWithIndex.foreach{ case(id, i) =>
+  dbAllocId.zipWithIndex.foreach { case(id, i) =>
     if(i > 0) {
       dbFreeVec(i) := dbFreeVec(i-1)
 //      dbFreeVec(i)(dbAllocId(i - 1)) := false.B
@@ -71,16 +71,16 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
     id := PriorityEncoder(dbFreeVec(i))
   }
   // set wReq ready
-  wReqVec.map(_.ready).zip(canAllocVec).foreach{ case(r, v) => r := v }
+  wReqVec.map(_.ready).zip(canAllocVec).foreach { case(r, v) => r := v }
   if(bankOver1) io.cpu2db.wReq.ready := cpuWRespQ.get.io.enq.ready
 
   /*
    * write response
-   * dontCare ready, when resp valid ready should be true
+   * dontCare resp ready, when resp valid ready should be true
    * ms2db.wResp.ready and ds2db.wResp.ready should be true forever
    */
-  wRespVec.zip(wReqVec).foreach { case(resp, req) => resp.valid := req.valid }
-  wRespVec.zip(dbAllocId).foreach { case(resp, id) => resp.bits.dbid := id}
+  wRespVec.zip(wReqVec).foreach { case(resp, req) => resp.valid := req.fire }
+  wRespVec.zip(dbAllocId).foreach { case(resp, id) => resp.bits.dbid := id }
   if(bankOver1) io.cpu2db.wResp <> cpuWRespQ.get.io.deq
   cpuWRespQ.get.io.enq.bits.to   := io.cpu2db.wReq.bits.from
   cpuWRespQ.get.io.enq.bits.from := io.cpu2db.wReq.bits.to

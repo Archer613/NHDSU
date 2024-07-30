@@ -131,6 +131,8 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
             wReqRemap(i).bits.to.idL1 :=  m.io.outBank
     }
 
+    // TODO: Add Queue
+
     /*
     * connect cpuSalves <--[ctrl signals]--> slices
     */
@@ -163,7 +165,7 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
 
     // wResp ---[fastArb]---[idSel]---> cpuSlaves
     io.dbSigs.out.map(_.wResp).zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.wResp(i), level = 1) }
-    io.dbSigs.in.map(_.wResp).zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(dbSigsRedir.wResp.map(_(i)), m, Some("dbWRespArb")) }
+    io.dbSigs.in.map(_.wResp).zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(dbSigsRedir.wResp.map{ case a => Queue(a(i), entries = 1) }, m, Some("dbWRespArb")) }
 
     // dataFDB ---[fastArb]---[idSel]---> cpuSlaves
     io.dbSigs.out.map(_.dataFDB).zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.dataFromDB(i), level = 1) }

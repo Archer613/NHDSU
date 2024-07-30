@@ -99,6 +99,8 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
   /*
    * fsm state: GET_ID deal logic
    */
+  // TODO: When some one wait DBID, it can send wReq
+  // io.dbWReq.valid := stateVec(RCState.GET_ID).asUInt.orR & !stateVec(RCState.WAIT_ID).asUInt.orR TODO: Seems like there's no need to do that?
   io.dbWReq.valid := stateVec(RCState.GET_ID).asUInt.orR
 
   /*

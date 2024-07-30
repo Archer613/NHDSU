@@ -202,6 +202,6 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
     case(vec, set) =>
       val cntVecReg = RegInit(VecInit(Seq.fill(nrBlockWays) { 0.U(64.W) }))
       cntVecReg.zip(vec.map(_.valid)).foreach { case (cnt, v) => cnt := Mux(!v, 0.U, cnt + 1.U) }
-      cntVecReg.zipWithIndex.foreach { case (cnt, way) => assert(cnt < TIMEOUT_BT.U, "ReqArb blockTable[%d][%d] TIMEOUT", set.U, way.U) }
+      cntVecReg.zipWithIndex.foreach { case (cnt, way) => assert(cnt < TIMEOUT_BT.U, "ReqArb blockTable[0x%x][0x%x] TIMEOUT", set.U, way.U) }
   }
 }
