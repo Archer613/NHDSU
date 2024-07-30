@@ -92,15 +92,16 @@ class TestTop_NHL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(impl
 
   l1d_nodes.zip(l2_nodes).zipWithIndex.foreach { case ((l1d, l2), i) =>
     val l1xbar = TLXbar()
-    l1xbar := 
-      TLBuffer() :=
-      l1d
 
     l1i_nodes(i).zipWithIndex.foreach { case (l1i, j) =>
       l1xbar :=
         TLBuffer() :=
         l1i
     }
+
+    l1xbar :=
+      TLBuffer() :=
+      l1d
 
     l2.sinkNodes.foreach { node =>
       node := bankBinders(i)
