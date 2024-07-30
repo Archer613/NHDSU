@@ -152,10 +152,10 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
    * Snp With Data:     txnid = Cat(1.U, dbid)
    * snp Without Data:  txnid = reqBufId
    */
-  io.txDatId.valid := fsmReg.w_rnData
-  io.txDatId.bits := dbidReg // for cpuTxDat determine destination
-  io.txRspId.valid := fsmReg.w_snpResp | fsmReg.w_compAck
-  io.txRspId.bits := Mux(fsmReg.w_compAck, io.reqBufId, snpTxnid)
+  io.txDatId.valid  := fsmReg.w_rnData & !fsmReg.w_dbid
+  io.txDatId.bits   := dbidReg // for cpuTxDat determine destination
+  io.txRspId.valid  := fsmReg.w_snpResp | fsmReg.w_compAck
+  io.txRspId.bits   := Mux(fsmReg.w_compAck, io.reqBufId, snpTxnid)
 
 
   /*
