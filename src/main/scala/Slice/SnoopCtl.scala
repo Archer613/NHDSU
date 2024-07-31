@@ -34,6 +34,7 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
   val respVecReg  = Reg(Vec(dsuparam.nrCore, Bool()))
   val respReg     = RegInit(0.U.asTypeOf(new SnpRespBundle()))
   val release     = WireInit(false.B)
+  val respCoreId  = Wire(UInt(coreIdBits.W))
 
 // --------------------- Logic ------------------------//
   /*
@@ -79,7 +80,7 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
   /*
    * Receive snpResp
    */
-  val respCoreId = io.snpResp.bits.from.idL1
+  respCoreId := io.snpResp.bits.from.idL1
   when(!validReg) {
     respVecReg.foreach(_ := false.B)
     respReg := 0.U.asTypeOf(respReg)
