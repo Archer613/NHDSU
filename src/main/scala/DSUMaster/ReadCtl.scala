@@ -22,7 +22,7 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
 
 // --------------------- Reg/Wire declaration ----------------------- //
   val fsmReg    = RegInit(VecInit(Seq.fill(nrReadCtlEntry) { 0.U.asTypeOf(new ReadCtlTableEntry()) }))
-  val stateVec  = Wire(Vec(nrReadCtlEntry, Vec(RCState.nrState, Bool())))
+  val stateVec  = Wire(Vec(RCState.nrState, Vec(nrReadCtlEntry, Bool())))
   val selIdVec  = Wire(Vec(RCState.nrState, UInt(rcEntryBits.W)))
 
   dontTouch(fsmReg)
