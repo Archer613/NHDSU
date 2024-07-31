@@ -49,8 +49,10 @@ val io = IO(new Bundle {
   })
 
 
-  val ways = dsuparam.ways
-  val sets = dsuparam.sets / dsuparam.nrSelfDirBank
+  val ways    = dsuparam.ways
+  val sets    = dsuparam.sets / dsuparam.nrSelfDirBank
+  val wayBits = log2Ceil(ways)
+  val setBits = log2Ceil(sets)
 
 // --------------------- Modules declaration ------------------------//
   val repl          = ReplacementPolicy.fromString(dsuparam.replacementPolicy, ways)
@@ -79,7 +81,7 @@ val io = IO(new Bundle {
   val replResp_s3_g   = RegInit(0.U(repl.nBits.W))
   val hitVec          = Wire(Vec(ways, Bool()))
   val selInvWayVec    = Wire(Vec(ways, Bool()))
-  val replWay         = WireInit(0.U(ways.W))
+  val replWay         = WireInit(0.U(wayBits.W))
 
 
 // ------------------------------ S1: Read / Write SRAM -----------------------------------//

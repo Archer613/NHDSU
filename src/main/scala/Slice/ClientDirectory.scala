@@ -53,8 +53,10 @@ val io = IO(new Bundle {
 })
 
 
-  val ways = dsuparam.clientWays
-  val sets = dsuparam.clientSets / dsuparam.nrClientDirBank
+  val ways    = dsuparam.clientWays
+  val sets    = dsuparam.clientSets / dsuparam.nrClientDirBank
+  val wayBits = log2Ceil(ways)
+  val setBits = log2Ceil(sets)
 
 // --------------------- Modules declaration ------------------------//
   val repl          = ReplacementPolicy.fromString(dsuparam.replacementPolicy, ways)
@@ -83,7 +85,7 @@ val io = IO(new Bundle {
   val replResp_s3_g   = RegInit(0.U(repl.nBits.W))
   val hitWayVec       = Wire(Vec(ways, Bool()))
   val selInvWayVec    = Wire(Vec(ways, Bool()))
-  val replWay         = WireInit(0.U(ways.W))
+  val replWay         = WireInit(0.U(wayBits.W))
   val invMetas        = Wire(Vec(dsuparam.nrCore, new CHIStateBundle()))
 
 
