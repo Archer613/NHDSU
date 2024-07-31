@@ -15,6 +15,7 @@ import Utils.FastArb._
 abstract class DSUModule(implicit val p: Parameters) extends Module with HasDSUParam
 abstract class DSUBundle(implicit val p: Parameters) extends Bundle with HasDSUParam
 
+
 class NHDSU()(implicit p: Parameters) extends DSUModule {
 // ------------------------------------------ IO declaration ----------------------------------------------//
     val io = IO(new Bundle {
@@ -50,73 +51,17 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
     val cpuSalves = Seq.fill(dsuparam.nrCore) { Module(new CpuSlave()) }
     val slices = Seq.fill(dsuparam.nrBank) { Module(new Slice()) }
     val dsuMasters = Seq.fill(dsuparam.nrBank) { Module(new DSUMaster()) }
+    val xbar = Module(new Xbar())
 
-    cpuSalves.foreach(_.io <> DontCare)
-    slices.foreach(_.io <> DontCare)
-
-    // --------------------- Wire declaration ------------------------//
-    val slv = new Bundle {
-        val mpTask = Wire(Decoupled(new TaskBundle()))
-        val mpResp = Wire(Valid(new TaskRespBundle()))
-        val snpTask = Wire(Decoupled(new TaskBundle()))
-        val snpResp = Wire(Valid(new TaskRespBundle()))
-        val dbSigs = Wire(new Bundle {
-            val req = Valid(new DBReq())
-            val wResp = Valid(new DBResp())
-            val dataFromDB = Valid(new DBOutData())
-            val dataToDB = Valid(new DBInData())
-        })
-    }
-
-
-    // --------------------- Connection ------------------------//
-    /*
-    * connect cpuSalves <--[ctrl signals]--> slices
-    */
-    // mpTask ---[fastArb]---[idSel]---> mainPipe
-    fastArbDec2Dec(cpuSalves.map(_.io.mpTask), slv.mpTask, Some("mpTaskArb"))
-    idSelDec2DecVec(slv.mpTask, slices.map(_.io.cpuTask), level = 2)
-
-    // mainPipe ---[fastArb]---[idSel]---> cpuSlaves
-    fastArbDec2Val(slices.map(_.io.cpuResp), slv.mpResp, Some("mpRespArb"))
-    idSelVal2ValVec(slv.mpResp, cpuSalves.map(_.io.mpResp), level = 2)
-
-    // snpTask ---[fastArb]---[idSel]---> cpuSlaves
-    fastArbDec2Dec(slices.map(_.io.snpTask), slv.snpTask, Some("snpTaskArb"))
-    idSelDec2DecVec(slv.snpTask, cpuSalves.map(_.io.snpTask), level = 2)
-
-    // snpResp ---[fastArb]---[idSel]---> snpCtrls
-    fastArbDec2Val(cpuSalves.map(_.io.snpResp), slv.snpResp, Some("snpRespArb"))
-    idSelVal2ValVec(slv.snpResp, slices.map(_.io.snpResp), level = 2)
+    cpuSalves.foreach(m => dontTouch(m.io))
+    slices.foreach(m => dontTouch(m.io))
+    dsuMasters.foreach(m => dontTouch(m.io))
+    dontTouch(xbar.io)
 
     /*
-    * connect cpuSalves <--[db signals]--> slices
+    * Set cpuSalves.io.cpuSlvId value
     */
-    // req ---[fastArb]---[idSel]---> dataBuffer
-    fastArbDec2Val(cpuSalves.map(_.io.dbSigs.req), slv.dbSigs.req, Some("dbReqArb"))
-    idSelVal2ValVec(slv.dbSigs.req, slices.map(_.io.dbSigs2Cpu.req), level = 2)
-
-    // resp ---[fastArb]---[idSel]---> cpuSlaves
-    fastArbDec2Val(slices.map(_.io.dbSigs2Cpu.wResp), slv.dbSigs.wResp, Some("dbRespArb"))
-    idSelVal2ValVec(slv.dbSigs.wResp, cpuSalves.map(_.io.dbSigs.wResp), level = 2)
-
-    // dataFDB ---[fastArb]---[idSel]---> cpuSlaves
-    fastArbDec2Val(slices.map(_.io.dbSigs2Cpu.dataFromDB), slv.dbSigs.dataFromDB, Some("dataFDBArb"))
-    idSelVal2ValVec(slv.dbSigs.dataFromDB, cpuSalves.map(_.io.dbSigs.dataFromDB), level = 2)
-
-    // dataTDB ---[fastArb]---[idSel]---> dataBuffer
-    fastArbDec2Val(cpuSalves.map(_.io.dbSigs.dataToDB), slv.dbSigs.dataToDB, Some("dataTDBArb"))
-    idSelVal2ValVec(slv.dbSigs.dataToDB, slices.map(_.io.dbSigs2Cpu.dataToDB), level = 2)
-
-    /*
-    * connect slices <--[ctrl/db signals]--> dsuMasters
-    */
-    slices.zip(dsuMasters).foreach {
-        case (s, m) =>
-            s.io.msTask <> m.io.mpTask
-            s.io.msResp <> m.io.mpResp
-            s.io.dbSigs2Ms <> m.io.dbSigs
-    }
+    cpuSalves.map(_.io.cpuSlvId).zipWithIndex.foreach { case(id, i) => id := i.U }
 
     /*
     * connect RN <--[CHI signals]--> cpuSlaves
@@ -127,6 +72,41 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
 
     io.snChi.zip(dsuMasters.map(_.io.chi)).foreach { case (s, d) => s <> d }
     io.snChiLinkCtrl.zip(dsuMasters.map(_.io.chiLinkCtrl)).foreach { case (s, d) => s <> d }
+
+    /*
+    * connect cpuslaves <-----> xbar <------> slices
+    */
+    xbar.io.bankVal := slices.map(_.io.valid)
+
+    xbar.io.snpTask.in <> slices.map(_.io.snpTask)
+    xbar.io.snpTask.out <> cpuSalves.map(_.io.snpTask)
+
+    xbar.io.snpResp.in <> cpuSalves.map(_.io.snpResp)
+    xbar.io.snpResp.out <> slices.map(_.io.snpResp)
+
+    xbar.io.mpTask.in <> cpuSalves.map(_.io.mpTask)
+    xbar.io.mpTask.out <> slices.map(_.io.cpuTask)
+
+    xbar.io.clTask.in <> cpuSalves.map(_.io.clTask)
+    xbar.io.clTask.out <> slices.map(_.io.cpuClTask)
+
+    xbar.io.mpResp.in <> slices.map(_.io.cpuResp)
+    xbar.io.mpResp.out <> cpuSalves.map(_.io.mpResp)
+
+    xbar.io.dbSigs.in <> cpuSalves.map(_.io.dbSigs)
+    xbar.io.dbSigs.out <> slices.map(_.io.dbSigs2Cpu)
+
+    /*
+    * connect slices <--[ctrl/db signals]--> dsuMasters
+    */
+    slices.zipWithIndex.foreach{ case(s, i) => s.io.sliceId := i.U}
+    slices.zip(dsuMasters).foreach {
+        case (s, m) =>
+            s.io.msTask <> m.io.mpTask
+            s.io.msResp <> m.io.mpResp
+            s.io.dbSigs2Ms <> m.io.dbSigs
+            s.io.msClTask <> m.io.clTask
+    }
 
 }
 

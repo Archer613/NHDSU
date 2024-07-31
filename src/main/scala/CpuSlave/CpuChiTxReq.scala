@@ -14,19 +14,21 @@ class CpuChiTxReq()(implicit p: Parameters) extends DSUModule {
     val flit = Decoupled(new CHIBundleREQ(chiBundleParams))
   })
 
-// --------------------- Modules declaration ---------------------//
+// --------------------- Modules declaration --------------------- //
   val queue = Module(new Queue(new CHIBundleREQ(chiBundleParams), entries = dsuparam.nrRnTxLcrdMax, pipe = true, flow = false, hasFlush = false))
 
-// --------------------- Wire declaration ------------------------//
+// ------------------- Reg/Wire declaration ---------------------- //
   val lcrdSendNumReg = RegInit(0.U(rnTxlcrdBits.W))
-  val lcrdFree = WireInit(false.B)
+  val lcrdFreeNum = Wire(UInt(rnTxlcrdBits.W))
   val lcrdv = WireInit(false.B)
   val enq = WireInit(0.U.asTypeOf(io.flit))
+  dontTouch(lcrdFreeNum)
 
-// --------------------- Logic -----------------------------------//
-  // count lcrd
-  lcrdSendNumReg := lcrdSendNumReg + lcrdv.asUInt
-  lcrdFree := dsuparam.nrRnTxLcrdMax.U - queue.io.count - lcrdSendNumReg
+// --------------------- Logic ----------------------------------- //
+  // Count lcrd
+  lcrdSendNumReg := lcrdSendNumReg + io.chi.lcrdv.asUInt - io.chi.flitv.asUInt
+  lcrdFreeNum := dsuparam.nrRnTxLcrdMax.U - queue.io.count - lcrdSendNumReg
+
 
   /*
    * FSM
@@ -40,14 +42,13 @@ class CpuChiTxReq()(implicit p: Parameters) extends DSUModule {
     }
     is(LinkStates.RUN) {
       // Send lcrd
-      lcrdv := lcrdFree
+      lcrdv := lcrdFreeNum > 0.U
       // Receive txReq
       enq.valid := RegNext(io.chi.flitpend) & io.chi.flitv
       enq.bits := io.chi.flit
     }
     is(LinkStates.DEACTIVATE) {
       // TODO: should consider io.chi.flit.bits.opcode
-      lcrdSendNumReg := lcrdSendNumReg - io.chi.flitv
     }
   }
 
@@ -61,12 +62,11 @@ class CpuChiTxReq()(implicit p: Parameters) extends DSUModule {
   io.chi.lcrdv := lcrdv
   // enq
   queue.io.enq <> enq
-
   // deq
   io.flit <> queue.io.deq
 
 
-// --------------------- Assertion -------------------------------//
+// --------------------- Assertion ------------------------------- //
   switch(io.txState) {
     is(LinkStates.STOP) {
       assert(!io.chi.flitv, "When STOP, RN cant send flit")
@@ -82,4 +82,13 @@ class CpuChiTxReq()(implicit p: Parameters) extends DSUModule {
     }
   }
 
+  assert(lcrdSendNumReg <= dsuparam.nrRnTxLcrdMax.U, "Lcrd be send cant over than nrRnTxLcrdMax")
+  assert(queue.io.count <= dsuparam.nrRnTxLcrdMax.U, "queue.io.count cant over than nrRnTxLcrdMax")
+  assert(lcrdFreeNum <= dsuparam.nrRnTxLcrdMax.U, "lcrd free num cant over than nrRnTxLcrdMax")
+  assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.REQ.ReadNotSharedDirty |
+                            io.flit.bits.opcode === CHIOp.REQ.ReadUnique |
+                            io.flit.bits.opcode === CHIOp.REQ.MakeUnique |
+                            io.flit.bits.opcode === CHIOp.REQ.Evict |
+                            io.flit.bits.opcode === CHIOp.REQ.WriteBackFull,
+                            true.B), "DSU dont support TXREQ[0x%x]", io.flit.bits.opcode)
 }

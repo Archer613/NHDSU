@@ -17,30 +17,33 @@ class ProtocolLayerCtrl()(implicit p: Parameters) extends DSUModule {
   // DontCare txsactive and rxsactive
   io.chiLinkCtrl.rxsactive := true.B
 
+  val txState = LinkStates.getLinkState(io.chiLinkCtrl.txactivereq, io.chiLinkCtrl.txactiveack)
+  val rxState = LinkStates.getLinkState(io.chiLinkCtrl.rxactivereq, io.chiLinkCtrl.rxactiveack)
+
   val txStateReg = RegInit(LinkStates.STOP)
   val rxStateReg = RegInit(LinkStates.STOP)
 
-  val txactiveack = WireInit(false.B)
-  val rxactivereq = WireInit(false.B)
+  val txactiveackReg = RegInit(false.B)
+  val rxactivereqReg = RegInit(false.B)
 
-  txStateReg := LinkStates.getLinkState(io.chiLinkCtrl.txactivereq, io.chiLinkCtrl.txactiveack)
-  rxStateReg := LinkStates.getLinkState(io.chiLinkCtrl.rxactivereq, io.chiLinkCtrl.rxactiveack)
+  txStateReg := txState
+  rxStateReg := rxState
 
   /*
    * txState FSM ctrl by io.chiLinkCtrl.txactiveack
    */
   switch(txStateReg) {
     is(LinkStates.STOP) {
-      txactiveack := false.B
+      txactiveackReg := false.B
     }
     is(LinkStates.ACTIVATE) {
-      txactiveack := true.B
+      txactiveackReg := true.B
     }
     is(LinkStates.RUN) {
-      txactiveack := true.B
+      txactiveackReg := true.B
     }
     is(LinkStates.DEACTIVATE) {
-      txactiveack := !io.txAllLcrdRetrun
+      txactiveackReg := !io.txAllLcrdRetrun
     }
   }
 
@@ -50,23 +53,23 @@ class ProtocolLayerCtrl()(implicit p: Parameters) extends DSUModule {
    */
   switch(rxStateReg) {
     is(LinkStates.STOP) {
-      rxactivereq := io.reqBufsVal
+      rxactivereqReg := io.reqBufsVal
     }
     is(LinkStates.ACTIVATE) {
-      rxactivereq := true.B
+      rxactivereqReg := true.B
     }
     is(LinkStates.RUN) {
-      rxactivereq := Mux(io.reqBufsVal, true.B, !(txStateReg === LinkStates.DEACTIVATE | txStateReg === LinkStates.STOP))
+      rxactivereqReg := Mux(io.reqBufsVal, true.B, !(txStateReg === LinkStates.DEACTIVATE | txStateReg === LinkStates.STOP))
     }
     is(LinkStates.DEACTIVATE) {
-      rxactivereq := false.B
+      rxactivereqReg := false.B
     }
   }
 
-  io.txState := txStateReg
-  io.rxState := rxStateReg
+  io.txState := txState
+  io.rxState := rxState
 
-  io.chiLinkCtrl.txactiveack := txactiveack
-  io.chiLinkCtrl.rxactivereq := rxactivereq
+  io.chiLinkCtrl.txactiveack := txactiveackReg
+  io.chiLinkCtrl.rxactivereq := rxactivereqReg
 
 }

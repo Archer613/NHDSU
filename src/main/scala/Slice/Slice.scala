@@ -9,26 +9,20 @@ import xs.utils._
 class Slice()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
+    val valid         = Output(Bool())
+    val sliceId       = Input(UInt(bankBits.W))
     // snpCtrl <-> cpuslave
-    val snpTask       = Decoupled(new TaskBundle())
-    val snpResp       = Flipped(ValidIO(new TaskRespBundle()))
+    val snpTask       = Decoupled(new SnpTaskBundle())
+    val snpResp       = Flipped(ValidIO(new SnpRespBundle()))
     // mainpipe <-> cpuslave
+    val cpuClTask     = Flipped(Decoupled(new WCBTBundle()))
     val cpuTask       = Flipped(Decoupled(new TaskBundle()))
-    val cpuResp       = Decoupled(new TaskRespBundle())
+    val cpuResp       = Decoupled(new RespBundle())
     // dataBuffer <-> CPUSLAVE
-    val dbSigs2Cpu    = new Bundle {
-      val req           = Flipped(ValidIO(new DBReq()))
-      val wResp         = Decoupled(new DBResp())
-      val dataFromDB    = Decoupled(new DBOutData())
-      val dataToDB       = Flipped(ValidIO(new DBInData()))
-    }
+    val dbSigs2Cpu    = Flipped(new CpuDBBundle())
     // dataBuffer <-> DSUMASTER
-    val dbSigs2Ms     = new Bundle {
-      val req           = Flipped(ValidIO(new DBReq()))
-      val wResp         = ValidIO(new DBResp())
-      val dataFromDB    = Decoupled(new DBOutData())
-      val dataToDB      = Flipped(ValidIO(new DBInData()))
-    }
+    val msClTask      = Flipped( Decoupled(new WCBTBundle()))
+    val dbSigs2Ms     = Flipped(new MsDBBundle())
     val msTask        = Decoupled(new TaskBundle())
     val msResp        = Flipped(Decoupled(new TaskBundle()))
   })
@@ -45,38 +39,51 @@ class Slice()(implicit p: Parameters) extends DSUModule {
   val reqArb = Module(new RequestArbiter())
   val snpCtl = Module(new SnoopCtlWrapper())
   val mpReqQueue = Module(new Queue(gen = new TaskBundle(), entries = mpReqQDepth, pipe = true, flow = true))
-  val mpRespQueue = Module(new Queue(gen = new TaskRespBundle(),entries = mpRespQDepth, pipe = true, flow = true))
+  val mpRespQueue = Module(new Queue(gen = new RespBundle(),entries = mpRespQDepth, pipe = true, flow = true))
 
+  dontTouch(dataBuffer.io)
+  dontTouch(dataStorage.io)
+  dontTouch(directory.io)
+  dontTouch(mainPipe.io)
+  dontTouch(reqArb.io)
+  dontTouch(snpCtl.io)
 
 // --------------------- Connection ------------------------//
-  dataBuffer.io.dbSigs2Cpu <> io.dbSigs2Cpu
-  dataBuffer.io.dbSigs2Ms <> io.dbSigs2Ms
-  dataBuffer.io.mpReq <> mainPipe.io.dbReq
-  dataBuffer.io.dbSigs2DS <> dataStorage.io.dbSigs2DB
+  dataBuffer.io.cpu2db <> io.dbSigs2Cpu
+  dataBuffer.io.ms2db <> io.dbSigs2Ms
+  dataBuffer.io.mpRCReq <> mainPipe.io.dbRCReq
+  dataBuffer.io.dsRCReq <> dataStorage.io.dbRCReq
+  dataBuffer.io.ds2db <> dataStorage.io.dbSigs2DB
 
   dataStorage.io.mpReq <> mainPipe.io.dsReq
 
   directory.io.dirRead <> reqArb.io.dirRead
   directory.io.dirResp <> mainPipe.io.dirResp
-  directory.io.dirWrite <> mainPipe.io.dirWrite
+  directory.io.sDirWrite <> mainPipe.io.sDirWrite
+  directory.io.cDirWrite <> mainPipe.io.cDirWrite
 
   reqArb.io.taskSnp <> snpCtl.io.mpResp
   reqArb.io.taskCpu <> io.cpuTask
   reqArb.io.taskMs <> io.msResp
   reqArb.io.mpTask <> mainPipe.io.arbTask
-  reqArb.io.lockAddr <> mainPipe.io.lockAddr
-  reqArb.io.lockWay <> mainPipe.io.lockWay
   reqArb.io.dirRstFinish :=  directory.io.resetFinish
   reqArb.io.txReqQFull := (mpReqQueue.entries.asUInt - mpReqQueue.io.count <= pipeDepth.asUInt)
+  reqArb.io.wcBTReqVec(2) <> io.cpuClTask
+  reqArb.io.wcBTReqVec(1) <> io.msClTask
+  reqArb.io.wcBTReqVec(0) <> mainPipe.io.wcBTReq
+  reqArb.io.snpFreeNum := snpCtl.io.freeNum
+  reqArb.io.mpReleaseSnp := mainPipe.io.releaseSnp
 
   snpCtl.io.snpTask <> io.snpTask
   snpCtl.io.snpResp <> io.snpResp
   snpCtl.io.mpTask <> mainPipe.io.snpTask
 
+  mainPipe.io.sliceId := io.sliceId
   mainPipe.io.cpuResp <> mpRespQueue.io.enq
   mainPipe.io.msTask <> mpReqQueue.io.enq
 
   mpRespQueue.io.deq <> io.cpuResp
   mpReqQueue.io.deq <> io.msTask
 
+  io.valid := true.B
 }

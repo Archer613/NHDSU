@@ -109,6 +109,45 @@ object xsutils extends SbtModule with ScalafmtModule with CommonModule {
 }
 
 // 
+// utility
+// 
+object utility extends SbtModule with CommonModule {
+  override def millSourcePath = os.pwd / "CoupledL2" / "utility"
+
+  override def moduleDeps = super.moduleDeps ++ Seq(rocketchip)
+}
+
+// 
+// huancun
+// 
+object huancun extends SbtModule with CommonModule {
+  override def millSourcePath = os.pwd / "CoupledL2" / "HuanCun"
+  override def moduleDeps = super.moduleDeps ++ Seq(
+    rocketchip, utility
+  )
+}
+
+// 
+// CoupledL2
+// 
+object CoupledL2 extends SbtModule with CommonModule {
+  override def millSourcePath = os.pwd / "CoupledL2"
+  override def moduleDeps = super.moduleDeps ++ Seq(
+    rocketchip, utility, huancun
+  )
+}
+
+// 
+// NHL2
+// 
+object NHL2 extends SbtModule with CommonModule {
+  override def millSourcePath = os.pwd / "NHL2"
+  override def moduleDeps = super.moduleDeps ++ Seq(
+    rocketchip, xsutils
+  )
+}
+
+// 
 // NHDSU
 // 
 object NHDSU extends SbtModule with ScalafmtModule with CommonModule {
@@ -117,7 +156,7 @@ object NHDSU extends SbtModule with ScalafmtModule with CommonModule {
 		getVersion("chisel"),
 		getVersion("chiseltest", "edu.berkeley.cs"),
 	)
-	override def moduleDeps = super.moduleDeps ++ Seq(rocketchip, xsutils)
+	override def moduleDeps = super.moduleDeps ++ Seq(rocketchip, xsutils, utility, huancun, CoupledL2, NHL2)
 
 	object test extends SbtModuleTests with ScalafmtModule with TestModule.ScalaTest {
 		override def ivyDeps = super.ivyDeps() ++ Agg(
