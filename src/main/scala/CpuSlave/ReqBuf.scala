@@ -6,9 +6,6 @@ import chisel3._
 import org.chipsalliance.cde.config._
 import chisel3.util.{Decoupled, PopCount, RegEnable, ValidIO, log2Ceil, Cat}
 
-// TODO: Stall writeBack when has some reqBuf Snoop RN(already get dbid) is same addr with it
-// TODO: Stall snoop when has some reqBuf writeBack HN(already get dbid) is same addr with it
-
 class ReqBuf()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val free        = Output(Bool())
@@ -29,16 +26,18 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     val wReq        = Decoupled(new CpuDBWReq())
     val wResp       = Flipped(Decoupled(new CpuDBWResp()))
     val dbDataValid = Input(Bool())
+    // Nest Signals
+    val nestOutMes  = ValidIO(new NestOutMes())
+    val nestInMes   = Flipped(ValidIO(new NestInMes()))
   })
 
   // TODO: Delete the following code when the coding is complete
   io.chi := DontCare
   io.snpTask := DontCare
   io.snpResp := DontCare
+  io.nestOutMes <> DontCare
+  io.nestInMes <> DontCare
   dontTouch(io)
-
-// --------------------- Modules declaration ---------------------//
-
 
 // --------------------- Reg and Wire declaration ------------------------//
   val freeReg         = RegInit(true.B)
@@ -330,6 +329,13 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     fsmReg.w_dbid     := Mux(io.wResp.fire, false.B, fsmReg.w_dbid)
     fsmReg.w_rnData   := Mux(getAllDat | (io.chi.txrsp.fire & fsmReg.w_snpResp), false.B, fsmReg.w_rnData) // when need wait snp resp data but only get resp, cancel w_rnData
   }
+
+
+
+// ---------------------------  Deal Nest Logic --------------------------------//
+  io.nestOutMes.valid := !io.free
+  io.nestOutMes.bits.nestAddr := taskReg.addr(addressBits - 1, offsetBits)
+
 
 
 // --------------------- Assertion ------------------------------- //

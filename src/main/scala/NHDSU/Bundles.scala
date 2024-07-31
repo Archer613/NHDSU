@@ -256,4 +256,13 @@ class DSReqEntry(implicit p: Parameters) extends DSUBundle with HasToIDBits {
     val sBeatNum = UInt(log2Ceil(nrBeat).W) // send to DB beat num
 }
 
+// ------------------- Nest Mes -------------------- //
+class NestOutMes(implicit p: Parameters) extends DSUBundle {
+    val nestAddr = UInt((addressBits - offsetBits).W)
+}
+
+class NestInMes(implicit p: Parameters) extends DSUBundle {
+    val block = Bool()
+}
+
 

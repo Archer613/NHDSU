@@ -56,6 +56,8 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
 
   val reqBufs = Seq.fill(dsuparam.nrReqBuf) { Module(new ReqBuf()) }
 
+  val nestCtl = Module(new NestCtl())
+
 // --------------------- Wire declaration ------------------------//
   val snpSelId = Wire(UInt(reqBufIdBits.W))
   val txReqSelId = Wire(UInt(reqBufIdBits.W))
@@ -141,6 +143,13 @@ class CpuSlave()(implicit p: Parameters) extends DSUModule {
   idSelVal2ValVec(io.mpResp, reqBufs.map(_.io.mpResp), level = 2)
   // dbResp --(sel by mpResp.id.l2)--> reqBuf
   idSelDec2DecVec(io.dbSigs.wResp, reqBufs.map(_.io.wResp), level = 2)
+
+  // NestCtl:
+  reqBufs.zipWithIndex.foreach {
+    case (reqbuf, i) =>
+      reqbuf.io.nestOutMes <> nestCtl.io.reqBufOutVec(i)
+      reqbuf.io.nestInMes <> nestCtl.io.reqBufInVec(i)
+  }
 
 
   // ReqBuf output:
