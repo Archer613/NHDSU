@@ -10,9 +10,6 @@ reformat:
 compile:
 	mill -i DONGJIANG.compile
 
-verilog:
-	mill -i DONGJIANG.test.runMain DONGJIANG.DSU -td build
-
 test-top-chil2-onecore-1ul:
 	mill -i DONGJIANG.test.runMain DONGJIANG.TestTop_CHIL2_OneCore_1UL -td build
 

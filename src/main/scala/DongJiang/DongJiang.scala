@@ -173,13 +173,3 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
     }
 
 }
-
-
-object DongJiang extends App {
-    val config = new Config((_, _, _) => {
-        case DJParamKey     => DJParam()
-        case DebugOptionsKey => DebugOptions()
-    })
-
-    GenerateVerilog(args, () => new DongJiang()(config), name = "DongJiang", split = false)
-}
