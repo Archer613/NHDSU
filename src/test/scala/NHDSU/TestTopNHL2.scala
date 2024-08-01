@@ -15,6 +15,7 @@ import NHL2._
 import SimpleL2.Configs.L2ParamKey
 import SimpleL2.SimpleL2Cache
 import SimpleL2.Configs.L2Param
+import SimpleL2.Configs.AliasField
 import xs.utils.perf.{DebugOptions, DebugOptionsKey}
 
 class TestTop_NHL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(implicit p: Parameters) extends LazyModule {
@@ -45,7 +46,7 @@ class TestTop_NHL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(impl
           channelBytes = TLChannelBeatBytes(cacheParams.blockBytes),
           minLatency = 1,
           echoFields = Nil,
-          requestFields = Nil,
+          requestFields = Seq(AliasField(2)),
           responseKeys = Nil
         )
       )
