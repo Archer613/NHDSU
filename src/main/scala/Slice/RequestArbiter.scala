@@ -145,7 +145,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
             table.valid := !wcBTReq_s0.bits.isClean
             when(!wcBTReq_s0.bits.isClean) { table.tag := btTag; table.bank := btBank }
           }
-          val cleanFromMs = io.wcBTReqVec(1).fire // Master(DsuChiTxDat) only has bt set, so it not need check tag and bank
+          val cleanFromMs = io.wcBTReqVec(1).fire // Master(SnChiTxDat) only has bt set, so it not need check tag and bank
           assert(Mux(hit & wcBTReq_s0.bits.isClean, table.valid, true.B), "Clean block table[0x%x][0x%x] must be valid", set.U, way.U)
           assert(Mux(hit & wcBTReq_s0.bits.isClean, table.tag === btTag | cleanFromMs, true.B) ,"Clean block table[0x%x][0x%x] tag[0x%x] must match cleanTask.tag[0x%x]", set.U, way.U, table.tag, btTag)
           assert(Mux(hit & wcBTReq_s0.bits.isClean, table.bank === btBank | cleanFromMs, true.B) ,"Clean block table[0x%x][0x%x] bank[0x%x] must match cleanTask.bank[0x%x]", set.U, way.U, table.bank, btBank)

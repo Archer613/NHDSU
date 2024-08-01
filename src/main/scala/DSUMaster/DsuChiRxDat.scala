@@ -6,7 +6,7 @@ import chisel3._
 import chisel3.util.{Decoupled, ValidIO, is, switch}
 import org.chipsalliance.cde.config._
 
-class DsuChiRxDat()(implicit p: Parameters) extends DSUModule {
+class SnChiRxDat()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val chi             = Flipped(CHIChannelIO(new CHIBundleDAT(chiBundleParams)))
     val rxState         = Input(UInt(LinkStates.width.W))

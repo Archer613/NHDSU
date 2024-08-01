@@ -6,18 +6,18 @@ import chisel3._
 import chisel3.util.{Cat, Decoupled, is, log2Ceil, switch}
 import org.chipsalliance.cde.config._
 
-class DsuChiTxReqBundle(implicit p: Parameters) extends DSUBundle {
+class SnChiTxReqBundle(implicit p: Parameters) extends DSUBundle {
   // TODO: RespBundle
   val opcode      = UInt(5.W)
   val addr        = UInt(addressBits.W)
   val txnid       = UInt(8.W)
 }
 
-class DsuChiTxReq()(implicit p: Parameters) extends DSUModule {
+class SnChiTxReq()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val chi = CHIChannelIO(new CHIBundleREQ(chiBundleParams))
     val txState = Input(UInt(LinkStates.width.W))
-    val task = Flipped(Decoupled(new DsuChiTxReqBundle()))
+    val task = Flipped(Decoupled(new SnChiTxReqBundle()))
   })
 
 // ------------------- Reg/Wire declaration ---------------------- //

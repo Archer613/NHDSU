@@ -123,7 +123,7 @@ trait HasDSUParam {
     val TIMEOUT_SNP     = 8000  // SnoopCtl
     val TIMEOUT_DS      = 6000  // DataStorage
     val TIMEOUT_RC      = 6000  // ReadCtl
-    val TIMEOUT_TXD     = 1000  // DsuChiTxDat
+    val TIMEOUT_TXD     = 1000  // SnChiTxDat
 
 
 

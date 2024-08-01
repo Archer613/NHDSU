@@ -6,7 +6,7 @@ import chisel3._
 import chisel3.util.{Decoupled, PopCount, PriorityEncoder, Fill, is, switch, Cat}
 import org.chipsalliance.cde.config._
 
-class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
+class SnChiTxDat()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val chi       = CHIChannelIO(new CHIBundleDAT(chiBundleParams))
     val rspResp   = Input(new RxRespBundle())

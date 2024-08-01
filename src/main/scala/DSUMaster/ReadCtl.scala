@@ -11,7 +11,7 @@ class ReadCtl()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val mpTask    = Flipped(Decoupled(new TaskBundle()))
     val mpResp    = Decoupled(new TaskBundle())
-    val txReqRead = Decoupled(new DsuChiTxReqBundle())
+    val txReqRead = Decoupled(new SnChiTxReqBundle())
     val rxRspResp = Flipped(ValidIO(new CHIBundleRSP(chiBundleParams)))
     val rxDatResp = Flipped(ValidIO(new CHIBundleDAT(chiBundleParams)))
     val dbWReq    = Decoupled(new MsDBWReq())

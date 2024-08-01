@@ -25,10 +25,10 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
 
 // --------------------- Modules declaration ------------------------//
   val chiCtrl = Module(new ProtocolLayerCtrl())
-  val rxDat = Module(new DsuChiRxDat())
-  val rxRsp = Module(new DsuChiRxRsp())
-  val txDat = Module(new DsuChiTxDat())
-  val txReq = Module(new DsuChiTxReq())
+  val rxDat = Module(new SnChiRxDat())
+  val rxRsp = Module(new SnChiRxRsp())
+  val txDat = Module(new SnChiTxDat())
+  val txReq = Module(new SnChiTxReq())
   val readCtl = Module(new ReadCtl())
 
 
@@ -36,7 +36,7 @@ class DSUMaster()(implicit p: Parameters) extends DSUModule {
   val wbReq = WireInit(0.U.asTypeOf(Decoupled(new TaskBundle())))
   val rReq = WireInit(0.U.asTypeOf(Decoupled(new TaskBundle())))
 
-  val txReqWb = WireInit(0.U.asTypeOf(Decoupled(new DsuChiTxReqBundle())))
+  val txReqWb = WireInit(0.U.asTypeOf(Decoupled(new SnChiTxReqBundle())))
 
   dontTouch(wbReq)
   dontTouch(rReq)

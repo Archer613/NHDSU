@@ -12,7 +12,7 @@ class RxRespBundle(implicit p: Parameters) extends DSUBundle {
   val dbid    = UInt(chiDbidBits.W)
 }
 
-class DsuChiRxRsp()(implicit p: Parameters) extends DSUModule {
+class SnChiRxRsp()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val chi           = Flipped(CHIChannelIO(new CHIBundleRSP(chiBundleParams)))
     val rxState       = Input(UInt(LinkStates.width.W))
@@ -81,7 +81,7 @@ class DsuChiRxRsp()(implicit p: Parameters) extends DSUModule {
 
 // ------------------------ assertion ------------------------ //
   assert(Mux(queue.io.deq.valid, queue.io.deq.bits.opcode === CHIOp.RSP.CompDBIDResp, true.B), "DSU dont support RXRSP[0x%x]", queue.io.deq.bits.opcode)
-  assert(Mux(!queue.io.enq.ready, !io.chi.flitv, true.B), "DsuRxRsp overflow")
+  assert(Mux(!queue.io.enq.ready, !io.chi.flitv, true.B), "SnRxRsp overflow")
 
 
 }
