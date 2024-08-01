@@ -78,6 +78,6 @@ class RnChiRxDat()(implicit p: Parameters) extends DJModule {
   assert(Mux(io.flit.valid, io.dataFDB.valid, true.B), "In cpuRxDat, data will valid before flit valid or at the same time ")
   assert(Mux(flitv, io.flit.bits.dbID === io.dataFDB.bits.to.idL2, true.B), "RnRxDat flit and data dont match")
 
-  assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.DAT.CompData | io.flit.bits.opcode === CHIOp.DAT.SnpRespData, true.B), "DSU dont support RXDAT[0x%x]", io.flit.bits.opcode)
+  assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.DAT.CompData | io.flit.bits.opcode === CHIOp.DAT.SnpRespData, true.B), "DongJiang dont support RXDAT[0x%x]", io.flit.bits.opcode)
   assert(Mux(lcrdFreeNumReg.andR, !io.chi.lcrdv | flitv, true.B), "RXDAT Lcrd overflow")
 }

@@ -286,7 +286,7 @@ object CHIChannel {
     /*
      *  TXREQ   TXRSP   TXDAT
      * -----------------------
-     * |        DSU          |
+     * |     DongJiang       |
      * -----------------------
      *  RXSNP   RXRSP   RXDAR
      */

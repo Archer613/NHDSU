@@ -26,7 +26,7 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
    *       L2        L2   ...  L2
    *         \       |        /
    *          \      |       /
-   *                DSU
+   *             DongJiang
    */
 
   override lazy val desiredName: String = "TestTop"

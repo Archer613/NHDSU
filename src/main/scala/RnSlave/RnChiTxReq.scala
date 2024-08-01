@@ -90,5 +90,5 @@ class RnChiTxReq()(implicit p: Parameters) extends DJModule {
                             io.flit.bits.opcode === CHIOp.REQ.MakeUnique |
                             io.flit.bits.opcode === CHIOp.REQ.Evict |
                             io.flit.bits.opcode === CHIOp.REQ.WriteBackFull,
-                            true.B), "DSU dont support TXREQ[0x%x]", io.flit.bits.opcode)
+                            true.B), "DongJiang dont support TXREQ[0x%x]", io.flit.bits.opcode)
 }

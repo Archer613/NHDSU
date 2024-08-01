@@ -88,7 +88,7 @@ import org.chipsalliance.cde.config._
 
 /*
  * Write transactions:
- * *** DSU dont support write transactions
+ * *** DongJiang dont support write transactions
  *
  * ---[None]
  *
@@ -122,7 +122,7 @@ import org.chipsalliance.cde.config._
  * Snoop transactions:
  * *** TODO: RN_1 return SnpResp when SnpNotSharedDirty set RetToSrc, so it require RN must return Data when RetToSrc has been set
  * *** TODO: If snoop RN is I (HN receive Comp(I)), snoop transaction transfer to Read transaction(it will be happening in this coherence system because of Evict)
- * *** All snoop in DSU set DoNotGoToSD, RN cant be SD in DSU coherence system
+ * *** All snoop in DongJiang set DoNotGoToSD, RN cant be SD in DongJiang coherence system
  *
  *
  *

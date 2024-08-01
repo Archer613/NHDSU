@@ -82,6 +82,6 @@ class SnChiTxReq()(implicit p: Parameters) extends DJModule {
   io.chi.flit := flitReg
 
 // --------------------- Assertion ------------------------------- //
-  assert(Mux(io.task.valid, io.task.bits.opcode === CHIOp.REQ.ReadNoSnp | io.task.bits.opcode === CHIOp.REQ.WriteNoSnpFull, true.B), "DSU dont support TXREQ[0x%x]", io.task.bits.opcode)
+  assert(Mux(io.task.valid, io.task.bits.opcode === CHIOp.REQ.ReadNoSnp | io.task.bits.opcode === CHIOp.REQ.WriteNoSnpFull, true.B), "DongJiang dont support TXREQ[0x%x]", io.task.bits.opcode)
 
 }

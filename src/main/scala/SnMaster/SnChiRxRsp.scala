@@ -80,7 +80,7 @@ class SnChiRxRsp()(implicit p: Parameters) extends DJModule {
 
 
 // ------------------------ assertion ------------------------ //
-  assert(Mux(queue.io.deq.valid, queue.io.deq.bits.opcode === CHIOp.RSP.CompDBIDResp, true.B), "DSU dont support RXRSP[0x%x]", queue.io.deq.bits.opcode)
+  assert(Mux(queue.io.deq.valid, queue.io.deq.bits.opcode === CHIOp.RSP.CompDBIDResp, true.B), "DongJiang dont support RXRSP[0x%x]", queue.io.deq.bits.opcode)
   assert(Mux(!queue.io.enq.ready, !io.chi.flitv, true.B), "SnRxRsp overflow")
 
 

@@ -24,7 +24,7 @@ class TestTop_NHL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(impl
    *       L2        L2   ...  L2
    *         \       |        /
    *          \      |       /
-   *                DSU
+   *             DongJiang
    */
 
   override lazy val desiredName: String = "TestTop"

@@ -70,7 +70,7 @@ class RnChiRxRsp()(implicit p: Parameters) extends DJModule {
   io.chi.flit     := flitReg
 
 // ------------------------- Assert ------------------------------- //
-  assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.RSP.CompDBIDResp | io.flit.bits.opcode === CHIOp.RSP.Comp, true.B), "DSU dont support RXRSP[0x%x]", io.flit.bits.opcode)
+  assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.RSP.CompDBIDResp | io.flit.bits.opcode === CHIOp.RSP.Comp, true.B), "DongJiang dont support RXRSP[0x%x]", io.flit.bits.opcode)
   assert(Mux(lcrdFreeNumReg.andR, !io.chi.lcrdv | flitv, true.B), "RXRSP Lcrd overflow")
 
 }
