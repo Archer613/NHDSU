@@ -3,7 +3,7 @@ package NHDSU
 import NHDSU.CHI._
 import NHDSU.RNSLAVE._
 import NHDSU.SLICE._
-import NHDSU.DSUMASTER._
+import NHDSU.SNMASTER._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
@@ -58,8 +58,8 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
  *
  * RnSlave <-> Slice Ctrl Signals:
  * [rnTask]  |  [hasAddr]                |  from: [RN]    [coreId]  [reqBufId]    | to: [SLICE]    [sliceId] [DontCare]
- * [mpResp]   |  [hasAddr]   [hasWay]    |  from: None                            | to: [RN]       [coreId]  [reqBufId]
- * [snpTask]  |  [hasAddr]               |  from: [SLICE]  [sliceId] [SnpCtlId]   | to: [RN]       [coreId]  [DontCare]
+ * [mpResp]  |  [hasAddr]   [hasWay]     |  from: None                            | to: [RN]       [coreId]  [reqBufId]
+ * [snpTask] |  [hasAddr]                |  from: [SLICE]  [sliceId] [SnpCtlId]   | to: [RN]       [coreId]  [DontCare]
  * [rnResp]  |  [hasSet]    [hasWay]     |  from: None                            | to: [SLICE]    [sliceId] [SnpCtlId / DontCare]
  *
  *
@@ -114,7 +114,7 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
     // Modules declaration
     val rnSlaves = Seq.fill(dsuparam.nrCore) { Module(new RnSlave()) }
     val slices = Seq.fill(dsuparam.nrBank) { Module(new Slice()) }
-    val dsuMasters = Seq.fill(dsuparam.nrBank) { Module(new DSUMaster()) }
+    val dsuMasters = Seq.fill(dsuparam.nrBank) { Module(new SnMaster()) }
     val xbar = Module(new Xbar())
 
     rnSlaves.foreach(m => dontTouch(m.io))

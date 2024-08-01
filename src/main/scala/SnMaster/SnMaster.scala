@@ -1,4 +1,4 @@
-package NHDSU.DSUMASTER
+package NHDSU.SNMASTER
 
 import NHDSU._
 import NHDSU.CHI.{CHIBundleDownstream, CHILinkCtrlIO}
@@ -6,7 +6,7 @@ import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
 
-class DSUMaster()(implicit p: Parameters) extends DSUModule {
+class SnMaster()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     // CHI

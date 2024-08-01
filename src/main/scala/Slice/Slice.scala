@@ -20,7 +20,7 @@ class Slice()(implicit p: Parameters) extends DSUModule {
     val rnResp        = Decoupled(new RespBundle())
     // dataBuffer <-> rnSlave
     val dbSigs2Rn     = Flipped(new RnDBBundle())
-    // dataBuffer <-> DSUMASTER
+    // dataBuffer <-> SNMASTER
     val msClTask      = Flipped( Decoupled(new WCBTBundle()))
     val dbSigs2Ms     = Flipped(new MsDBBundle())
     val msTask        = Decoupled(new TaskBundle())

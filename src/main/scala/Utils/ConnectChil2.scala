@@ -5,7 +5,7 @@ import NHDSU._
 import NHDSU.CHI._
 import NHDSU.RNSLAVE._
 import NHDSU.SLICE._
-import NHDSU.DSUMASTER._
+import NHDSU.SNMASTER._
 import chisel3._
 import chisel3.util._
 import coupledL2.tl2chi.PortIO

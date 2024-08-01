@@ -3,7 +3,7 @@ package NHDSU
 import NHDSU.CHI._
 import NHDSU.RNSLAVE._
 import NHDSU.SLICE._
-import NHDSU.DSUMASTER._
+import NHDSU.SNMASTER._
 import chisel3.{Flipped, _}
 import chisel3.util.{ValidIO, _}
 import org.chipsalliance.cde.config._

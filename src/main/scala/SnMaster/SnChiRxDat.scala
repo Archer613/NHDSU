@@ -1,4 +1,4 @@
-package NHDSU.DSUMASTER
+package NHDSU.SNMASTER
 
 import NHDSU._
 import NHDSU.CHI._

@@ -11,7 +11,7 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     // RNSLAVE <-> dataBuffer
     val rn2db     = Flipped(new RnDBBundle())
-    // DSUMASTER <-> dataBuffer
+    // SNMASTER <-> dataBuffer
     val ms2db     = Flipped(new MsDBBundle())
     // DataStorage <-> dataBuffer
     val ds2db     = Flipped(new DsDBBundle())
@@ -56,7 +56,7 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
 // ----------------------------- Logic ------------------------------ //
   /*
    * TODO: Consider the legitimacy of request priority
-   * select free db for alloc, Priority: [DSUMASTER] > [DS] > [RNSLAVE]
+   * select free db for alloc, Priority: [SNMASTER] > [DS] > [RNSLAVE]
    */
   // get free dbid
   dbFreeNum := PopCount(dbFreeVec(0).asUInt)
