@@ -1,7 +1,7 @@
 package NHDSU
 
 import NHDSU.CHI._
-import NHDSU.CPUSALVE._
+import NHDSU.RNSLAVE._
 import NHDSU.SLICE._
 import NHDSU.DSUMASTER._
 import chisel3.{Flipped, _}
@@ -134,7 +134,7 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
     // TODO: Add Queue
 
     /*
-    * connect cpuSalves <--[ctrl signals]--> slices
+    * connect rnSlaves <--[ctrl signals]--> slices
     */
     // mpTask ---[idSel]---[arb]---> mainPipe
     mpTaskRemap.zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, mpTaskRedir(i), level = 1) }
@@ -144,11 +144,11 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
     clTaskRemap.zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, clTaskRedir(i), level = 1) }
     io.clTask.out.zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(clTaskRedir.map(_(i)), m, Some("cleanTaskArb")) }
 
-    // mainPipe ---[fastArb]---[idSel]---> cpuSlaves
+    // mainPipe ---[fastArb]---[idSel]---> rnSlaves
     io.mpResp.in.zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, mpRespRedir(i), level = 1) }
     io.mpResp.out.zipWithIndex.foreach { case (m, i) => fastArbDec2Val(mpRespRedir.map(_(i)), m, Some("mpRespArb")) }
 
-    // snpTask ---[fastArb]---[idSel]---> cpuSlaves
+    // snpTask ---[fastArb]---[idSel]---> rnSlaves
     io.snpTask.in.zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, snpTaskRedir(i), level = 1) }
     io.snpTask.out.zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(snpTaskRedir.map(_(i)), m, Some("snpTaskArb")) }
 
@@ -157,17 +157,17 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
     io.snpResp.out.zipWithIndex.foreach { case (m, i) => fastArbDec2Val(snpRespRedir.map(_(i)), m, Some("snpRespArb")) }
 
     /*
-    * connect cpuSalves <--[db signals]--> slices
+    * connect rnSlaves <--[db signals]--> slices
     */
     // wReq ---[fastArb]---[idSel]---> dataBuffer
     wReqRemap.zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.wReq(i), level = 1) }
     io.dbSigs.out.map(_.wReq).zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(dbSigsRedir.wReq.map(_(i)), m, Some("dbWReqArb")) }
 
-    // wResp ---[fastArb]---[idSel]---> cpuSlaves
+    // wResp ---[fastArb]---[idSel]---> rnSlaves
     io.dbSigs.out.map(_.wResp).zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.wResp(i), level = 1) }
     io.dbSigs.in.map(_.wResp).zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(dbSigsRedir.wResp.map{ case a => Queue(a(i), entries = 1) }, m, Some("dbWRespArb")) }
 
-    // dataFDB ---[fastArb]---[idSel]---> cpuSlaves
+    // dataFDB ---[fastArb]---[idSel]---> rnSlaves
     io.dbSigs.out.map(_.dataFDB).zipWithIndex.foreach { case (m, i) => idSelDec2DecVec(m, dbSigsRedir.dataFromDB(i), level = 1) }
     io.dbSigs.in.map(_.dataFDB).zipWithIndex.foreach { case (m, i) => fastArbDec2Dec(dbSigsRedir.dataFromDB.map(_(i)), m, Some("dataFDBArb")) }
 

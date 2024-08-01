@@ -11,7 +11,7 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val snpId         = Input(UInt(snoopCtlIdBits.W))
     val sliceId       = Input(UInt(bankBits.W))
-    // snpCtrl <-> cpuslave
+    // snpCtrl <-> rnSlave
     val snpTask       = Decoupled(new SnpTaskBundle())
     val snpResp       = Flipped(ValidIO(new SnpRespBundle()))
     // mainpipe <-> snpCtrl
@@ -54,7 +54,7 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
   needSnpVec.zipWithIndex.foreach { case(need, i) => need := Mux(sourceId === i.U, isSnpHlp & hitVec(i), hitVec(i)) }
 
   /*
-   * send task to cpuSlaves
+   * send task to rnSlaves
    */
   val retToSrcId = PriorityEncoder(needSnpVec.asUInt)
   val snpCoreId = PriorityEncoder(needSnpVec.asUInt ^ doneVecReg.asUInt)

@@ -9,7 +9,7 @@ import Utils.Encoder.RREncoder
 class DataBuffer()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
-    // CPUSLAVE <-> dataBuffer
+    // RNSLAVE <-> dataBuffer
     val cpu2db    = Flipped(new CpuDBBundle())
     // DSUMASTER <-> dataBuffer
     val ms2db     = Flipped(new MsDBBundle())
@@ -56,7 +56,7 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
 // ----------------------------- Logic ------------------------------ //
   /*
    * TODO: Consider the legitimacy of request priority
-   * select free db for alloc, Priority: [DSUMASTER] > [DS] > [CPUSLAVE]
+   * select free db for alloc, Priority: [DSUMASTER] > [DS] > [RNSLAVE]
    */
   // get free dbid
   dbFreeNum := PopCount(dbFreeVec(0).asUInt)

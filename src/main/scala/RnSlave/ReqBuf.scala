@@ -1,4 +1,4 @@
-package NHDSU.CPUSALVE
+package NHDSU.RNSLAVE
 
 import NHDSU._
 import NHDSU.CHI._

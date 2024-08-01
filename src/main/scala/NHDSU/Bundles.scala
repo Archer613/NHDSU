@@ -18,7 +18,7 @@ object IdL0 {
 
 class IDBundle(implicit p: Parameters) extends DSUBundle {
     val idL0 = UInt(IdL0.width.W) // Module: IDL0 [3.W]
-    val idL1 = UInt(max(coreIdBits, bankBits).W) // SubModule: CpuSlaves, Slices [max:2.W]
+    val idL1 = UInt(max(coreIdBits, bankBits).W) // SubModule: RnSlaves, Slices [max:2.W]
     val idL2 = UInt(max(reqBufIdBits, max(snoopCtlIdBits, replTxnidBits)).W) // SubSubModule: ReqBufs, SnpCtls, blockSets + blockWays [max:7.W]
 
     def isSLICE  = idL0 === IdL0.SLICE

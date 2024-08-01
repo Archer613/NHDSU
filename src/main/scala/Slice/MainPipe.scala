@@ -22,7 +22,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
     val dsReq       = Decoupled(new DSRequest())
     // Task to snpCtrl
     val snpTask     = Decoupled(new MpSnpTaskBundle())
-    // Resp to CpuSlave
+    // Resp to RnSlave
     val cpuResp     = Decoupled(new RespBundle())
     // Task to Master
     val msTask      = Decoupled(new TaskBundle()) // TODO: simplified it
@@ -160,20 +160,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   dirCanGo_s3 := canGo_s3 & task_s3_g.valid & taskNext_s3.readDir
 
 
-  /*
-   * Determine task_s3 is [ CPU_REQ / CPU_WRITE / MS_RESP / SNP_RESP ]
-   * io.arbTask:
-   * [CPU_REQ]    |  from: [CPU]    [coreId]    [reqBufId]   | to: [SLICE]  [sliceId] [DontCare]
-   * [CPU_WRITE]  |  from: [CPU]    [coreId]    [reqBufId]   | to: [SLICE]  [sliceId] [DontCare]
-   * [MS_RESP]    |  from: [MASTER] [DontCare]  [DontCare]   | to: [CPU]    [coreId]  [reqBufId]
-   * [SNP_RESP]   |  from: [SLICE]  [DontCare]  [DontCare]   | to: [CPU]    [coreId]  [reqBufId]
-   * other:
-   * [io.dsReq]   |  from: None                              | to: [CPU / SLICE / MASTER] [coreId]  [reqBufId] // TODO
-   * [io.snpTask] |  from: [CPU]    [coreId]  [reqBufId]     | to: None                          // TODO
-   * [io.cpuResp] |  from: None                              | to: [CPU]    [coreId]  [reqBufId]
-   * [io.msTask]  |  from: [CPU]    [coreId]  [reqBufId]     | to: None                          // TODO
-   * [io.dbRCReq] |  from: None                              | to: [CPU]    [coreId]  [reqBufId]
-   */
+
    // TODO: Consider add SNPHLP_RESP
   taskTypeVec(CPU_REQ)    := task_s3_g.valid & dirRes_s3.valid & !task_s3_g.bits.isWB & task_s3_g.bits.from.idL0 === IdL0.CPU
   taskTypeVec(CPU_WRITE)  := task_s3_g.valid & dirRes_s3.valid & task_s3_g.bits.isWB & task_s3_g.bits.from.idL0 === IdL0.CPU
@@ -359,7 +346,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   taskResp_s3.resp      := respResp
   taskResp_s3.btWay     := task_s3_g.bits.btWay
   taskResp_s3.to        := Mux(taskTypeVec(CPU_REQ), task_s3_g.bits.from, task_s3_g.bits.to)
-  taskResp_s3.cleanBt   := !(needWCBT_s3 & !io.wcBTReq.bits.isClean) // when it write bt, cpuSlave dont need to clean bt
+  taskResp_s3.cleanBt   := !(needWCBT_s3 & !io.wcBTReq.bits.isClean) // when it write bt, rnSlave dont need to clean bt
   // io
   io.cpuResp.valid      := needResp_s3 & !doneResp_s3
   io.cpuResp.bits       := taskResp_s3

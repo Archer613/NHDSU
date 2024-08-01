@@ -3,7 +3,7 @@ package Utils
 import coupledL2._
 import NHDSU._
 import NHDSU.CHI._
-import NHDSU.CPUSALVE._
+import NHDSU.RNSLAVE._
 import NHDSU.SLICE._
 import NHDSU.DSUMASTER._
 import chisel3._

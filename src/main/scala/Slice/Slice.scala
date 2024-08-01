@@ -11,14 +11,14 @@ class Slice()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val valid         = Output(Bool())
     val sliceId       = Input(UInt(bankBits.W))
-    // snpCtrl <-> cpuslave
+    // snpCtrl <-> rnSlave
     val snpTask       = Decoupled(new SnpTaskBundle())
     val snpResp       = Flipped(ValidIO(new SnpRespBundle()))
-    // mainpipe <-> cpuslave
+    // mainpipe <-> rnSlave
     val cpuClTask     = Flipped(Decoupled(new WCBTBundle()))
     val cpuTask       = Flipped(Decoupled(new TaskBundle()))
     val cpuResp       = Decoupled(new RespBundle())
-    // dataBuffer <-> CPUSLAVE
+    // dataBuffer <-> rnSlave
     val dbSigs2Cpu    = Flipped(new CpuDBBundle())
     // dataBuffer <-> DSUMASTER
     val msClTask      = Flipped( Decoupled(new WCBTBundle()))

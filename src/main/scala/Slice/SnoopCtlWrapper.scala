@@ -9,7 +9,7 @@ import Utils.FastArb._
 class SnoopCtlWrapper()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
-    // snpCtrl <-> cpuslave
+    // snpCtrl <-> rnSlave
     val snpTask       = Decoupled(new SnpTaskBundle())
     val snpResp       = Flipped(ValidIO(new SnpRespBundle()))
     // mainpipe <-> snpCtrl

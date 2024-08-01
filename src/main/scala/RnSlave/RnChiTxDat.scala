@@ -1,4 +1,4 @@
-package NHDSU.CPUSALVE
+package NHDSU.RNSLAVE
 
 import NHDSU._
 import NHDSU.CHI._
@@ -6,35 +6,41 @@ import chisel3._
 import chisel3.util.{Decoupled, Queue, is, switch}
 import org.chipsalliance.cde.config._
 
-class CpuChiTxRsp()(implicit p: Parameters) extends DSUModule {
+class CpuChiTxDat()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
-    val chi = Flipped(CHIChannelIO(new CHIBundleRSP(chiBundleParams)))
+    val chi = Flipped(CHIChannelIO(new CHIBundleDAT(chiBundleParams)))
     val txState = Input(UInt(LinkStates.width.W))
     val allLcrdRetrun = Output(Bool()) // Deactive Done
-    val flit = Decoupled(new CHIBundleRSP(chiBundleParams))
+    val flit = Decoupled(new CHIBundleDAT(chiBundleParams))
+    val dataTDB = Decoupled(new CpuDBInData())
   })
 
   // TODO: Delete the following code when the coding is complete
-  io.chi := DontCare
-  io.allLcrdRetrun := DontCare
-  io.flit := DontCare
-  dontTouch(io)
+//  io.chi := DontCare
+//  io.allLcrdRetrun := DontCare
+//  io.flit := DontCare
+//  io.dataTDB := DontCare
+//  dontTouch(io)
 
 // --------------------- Modules declaration --------------------- //
-  val queue = Module(new Queue(new CHIBundleRSP(chiBundleParams), entries = 1, pipe = true, flow = false, hasFlush = false))
+  val queue = Module(new Queue(new CHIBundleDAT(chiBundleParams), entries = nrBeat, pipe = true, flow = false, hasFlush = false))
 
 // ------------------- Reg/Wire declaration ---------------------- //
-  val lcrdSendNumReg = RegInit(0.U(rnTxlcrdBits.W))
-  val lcrdFreeNum = Wire(UInt(rnTxlcrdBits.W))
-  val lcrdv = WireInit(false.B)
-  val enq = WireInit(0.U.asTypeOf(io.flit))
+  val lcrdSendNumReg  = RegInit(0.U(rnTxlcrdBits.W))
+  val lcrdFreeNum     = Wire(UInt(rnTxlcrdBits.W))
+  val lcrdv           = WireInit(false.B)
+  val enq             = WireInit(0.U.asTypeOf(io.flit))
+  val dbid            = WireInit(0.U(dbIdBits.W))
+  val bankId          = WireInit(0.U(bankBits.W))
+
   dontTouch(lcrdFreeNum)
+  dontTouch(dbid)
+  dontTouch(bankId)
 
 // --------------------- Logic ----------------------------------- //
   // Count lcrd
   lcrdSendNumReg := lcrdSendNumReg + io.chi.lcrdv.asUInt - io.chi.flitv.asUInt
-  lcrdFreeNum := dsuparam.nrRnTxLcrdMax.U - lcrdSendNumReg
-
+  lcrdFreeNum := nrBeat.U - queue.io.count - lcrdSendNumReg // max num = nrBeat
 
   /*
    * FSM
@@ -69,7 +75,20 @@ class CpuChiTxRsp()(implicit p: Parameters) extends DSUModule {
   // enq
   queue.io.enq <> enq
   // deq
-  io.flit <> queue.io.deq
+  io.flit.valid       := io.dataTDB.fire
+  io.flit.bits        := queue.io.deq.bits
+  queue.io.deq.ready  := io.dataTDB.ready
+
+  // data to dataBuffre
+  dbid                    := queue.io.deq.bits.txnID(dbIdBits - 1 ,0)
+  bankId                  := (queue.io.deq.bits.txnID >> dbIdBits)(bankBits - 1, 0)
+  io.dataTDB.valid        := queue.io.deq.valid
+  io.dataTDB.bits.to.idL0 := IdL0.SLICE
+  io.dataTDB.bits.to.idL1 := bankId
+  io.dataTDB.bits.to.idL2 := DontCare
+  io.dataTDB.bits.dbid    := dbid
+  io.dataTDB.bits.dataID  := queue.io.deq.bits.dataID
+  io.dataTDB.bits.data    := queue.io.deq.bits.data
 
 
 // --------------------- Assertion ------------------------------- //
@@ -92,6 +111,7 @@ class CpuChiTxRsp()(implicit p: Parameters) extends DSUModule {
   assert(queue.io.count <= dsuparam.nrRnTxLcrdMax.U, "queue.io.count cant over than nrRnTxLcrdMax")
   assert(lcrdFreeNum <= dsuparam.nrRnTxLcrdMax.U, "lcrd free num cant over than nrRnTxLcrdMax")
   assert(io.flit.ready, "io flit ready should always be true")
-  assert(queue.io.enq.ready, "io enq ready should always be true")
-  assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.RSP.CompAck | io.flit.bits.opcode === CHIOp.RSP.SnpResp, true.B), "DSU dont support TXRSP[0x%x]", io.flit.bits.opcode)
+  assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.DAT.CopyBackWrData | io.flit.bits.opcode === CHIOp.DAT.SnpRespData, true.B), "DSU dont support TXDAT[0x%x]", io.flit.bits.opcode)
+
+
 }

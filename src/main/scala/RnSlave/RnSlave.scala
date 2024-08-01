@@ -1,4 +1,4 @@
-package NHDSU.CPUSALVE
+package NHDSU.RNSLAVE
 
 import NHDSU._
 import NHDSU.CHI._
@@ -26,7 +26,7 @@ class ReqBufSelector(implicit p: Parameters) extends DSUModule {
 
 
 
-class CpuSlave()(implicit p: Parameters) extends DSUModule {
+class RnSlave()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     val cpuSlvId      = Input(UInt(coreIdBits.W))

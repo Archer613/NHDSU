@@ -1,7 +1,7 @@
 package NHDSU
 
 import NHDSU.CHI._
-import NHDSU.CPUSALVE._
+import NHDSU.RNSLAVE._
 import NHDSU.SLICE._
 import NHDSU.DSUMASTER._
 import chisel3._
@@ -25,75 +25,139 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
         val snChiLinkCtrl = Vec(dsuparam.nrBank, new CHILinkCtrlIO())
     })
 
-//
-//    ------------               ----------------------------------------------------------
-//    | CPUSLAVE | <---> | <---> |      |   Dir   |      |  SnpCtl  |                     |
-//    ------------       |       |      -----------      ------------      ---------      |        ----------
-//                       |       | ---> | Arbiter | ---> | MainPipe | ---> | Queue | ---> |  <---> | Master |
-//    ------------       |       |      -----------      ------------      ---------      |        ----------
-//    | CPUSLAVE | <---> | <---> |      |   DB    | <--> |    DS    |                     |
-//    ------------       |       ----------------------------------------------------------
-//                       |                              Slice
-//                      XBar
-//                       |
-//    ------------       |       ----------------------------------------------------------
-//    | CPUSLAVE | <---> | <---> |      |   Dir   |      |  SnpCtl  |                     |
-//    ------------       |       |      -----------      ------------      ---------      |        ----------
-//                       |       | ---> | Arbiter | ---> | MainPipe | ---> | Queue | ---> |  <---> | Master |
-//    ------------       |       |      -----------      ------------      ---------      |        ----------
-//    | CPUSLAVE | <---> | <---> |      |   DB    | <--> |    DS    |                     |
-//    ------------              -----------------------------------------------------------
-//                                                      Slice
+/*
+ * System Architecture: (4 CORE and 2 bank)
+ *
+ *    ------------               ----------------------------------------------------------
+ *    | RNSLAVE  | <---> | <---> |      |   Dir   |      |  SnpCtl  |                     |
+ *    ------------       |       |      -----------      ------------      ---------      |        ----------
+ *                       |       | ---> | Arbiter | ---> | MainPipe | ---> | Queue | ---> |  <---> | Master |
+ *    ------------       |       |      -----------      ------------      ---------      |        ----------
+ *    | RNSLAVE  | <---> | <---> |      |   DB    | <--> |    DS    |                     |
+ *    ------------       |       ----------------------------------------------------------
+ *                       |                              Slice
+ *                      XBar
+ *                       |
+ *    ------------       |       ----------------------------------------------------------
+ *    | RNSLAVE  | <---> | <---> |      |   Dir   |      |  SnpCtl  |                     |
+ *    ------------       |       |      -----------      ------------      ---------      |        ----------
+ *                       |       | ---> | Arbiter | ---> | MainPipe | ---> | Queue | ---> |  <---> | Master |
+ *    ------------       |       |      -----------      ------------      ---------      |        ----------
+ *    | RNSLAVE  | <---> | <---> |      |   DB    | <--> |    DS    |                     |
+ *    ------------              -----------------------------------------------------------
+ *                                                      Slice
+ */
+
+
+
+
+/*
+ * System ID Map Table:
+ * [Module]   |  [private ID]            |  [XBar ID]
+ *
+ *
+ * RnSlave <-> Slice Ctrl Signals:
+ * [cpuTask]  |  [hasAddr]               |  from: [CPU]    [coreId]  [reqBufId]   | to: [SLICE]    [sliceId] [DontCare]
+ * [mpResp]   |  [hasAddr]   [hasWay]    |  from: None                            | to: [CPU]      [coreId]  [reqBufId]
+ * [snpTask]  |  [hasAddr]               |  from: [SLICE]  [sliceId] [SnpCtlId]   | to: [CPU]      [coreId]  [DontCare]
+ * [cpuResp]  |  [hasSet]    [hasWay]    |  from: None                            | to: [SLICE]    [sliceId] [SnpCtlId / DontCare]
+ *
+ *
+ * RnSlave <-> Slice DB Signals:
+ * [wReq]     |  [None]                  |  from: [CPU]    [coreId]  [reqBufId]   | to: [SLICE]    [sliceId] [DontCare]
+ * [wResp]    |  [hasDBID]               |  from: None                            | to: [CPU]      [coreId]  [reqBufId]
+ * [dataFDB]  |  [None]                  |  from: None                            | to: [CPU]      [coreId]  [reqBufId]
+ * [dataTDB]  |  [hasDBID]               |  from: None                            | to: [SLICE]    [sliceId] [DontCare]
+ *
+ *
+ * Slice <-> Master Ctrl Signals:
+ * [mpTask]   |  [hasAddr]   [hasWay]    |  from: None                            | to: None
+ * [msResp]   |  [hasSet]    [hasWay]    |  from: None                            | to: None
+ *
+ *
+ * Slice <-> Master DB Signals:
+ * [wReq]     |  [hasRCID]               |  from: None                            | to: None
+ * [wResp]    |  [hasDBID]   [hasRCID]   |  from: None                            | to: None
+ * [dataFDB]  |  [hasSet]    [hasWay]    |  from: None                            | to: None
+ * [dataTDB]  |  [hasDBID]               |  from: None                            | to: None
+ *
+ *
+ * MainPipe S4 Commit <-> DB Signals:
+ * [dbRCReq]  |  [hasSet]    [hasWay]    |  from: None                            | to: [CPU]      [coreId]  [reqBufId]
+ *
+ *
+ * DS <-> DB Signals:
+ * [dbRCReq]  |  [hasSet]    [hasWay]   [hasDSID]   |  from: None                 | to: [CPU]      [coreId]  [reqBufId] // Go to Master use Set and Way; Go to CPU use to; Go to DS use DSID
+ * [wReq]     |  [None]      [hasDSID]              |  from: None                 | to: None
+ * [wResp]    |  [hasDBID]   [hasDSID]              |  from: None                 | to: None
+ * [dataFDB]  |  [hasDSID]                          |  from: None                 | to: [CPU]      [coreId]  [reqBufId]
+ * [dataTDB]  |  [hasDBID]                          |  from: None                 | to: None
+ *
+ */
+
+
+/*
+ * CHI From Master:
+ * TxReq: Txnid store in ReqBuf
+ * TXDat:
+ * TXRsp:
+ *
+ *
+ * CHI To Slave:
+ *
+ *
+ */
+
 
 
     // ------------------------------------------ Modules declaration And Connection ----------------------------------------------//
     // Modules declaration
-    val cpuSalves = Seq.fill(dsuparam.nrCore) { Module(new CpuSlave()) }
+    val rnSlaves = Seq.fill(dsuparam.nrCore) { Module(new RnSlave()) }
     val slices = Seq.fill(dsuparam.nrBank) { Module(new Slice()) }
     val dsuMasters = Seq.fill(dsuparam.nrBank) { Module(new DSUMaster()) }
     val xbar = Module(new Xbar())
 
-    cpuSalves.foreach(m => dontTouch(m.io))
+    rnSlaves.foreach(m => dontTouch(m.io))
     slices.foreach(m => dontTouch(m.io))
     dsuMasters.foreach(m => dontTouch(m.io))
     dontTouch(xbar.io)
 
     /*
-    * Set cpuSalves.io.cpuSlvId value
+    * Set rnSlaves.io.cpuSlvId value
     */
-    cpuSalves.map(_.io.cpuSlvId).zipWithIndex.foreach { case(id, i) => id := i.U }
+    rnSlaves.map(_.io.cpuSlvId).zipWithIndex.foreach { case(id, i) => id := i.U }
 
     /*
-    * connect RN <--[CHI signals]--> cpuSlaves
+    * connect RN <--[CHI signals]--> rnSlaves
     * connect dsuMasters <--[CHI signals]--> SN
     */
-    io.rnChi.zip(cpuSalves.map(_.io.chi)).foreach { case (r, c) => r <> c }
-    io.rnChiLinkCtrl.zip(cpuSalves.map(_.io.chiLinkCtrl)).foreach { case (r, c) => r <> c }
+    io.rnChi.zip(rnSlaves.map(_.io.chi)).foreach { case (r, c) => r <> c }
+    io.rnChiLinkCtrl.zip(rnSlaves.map(_.io.chiLinkCtrl)).foreach { case (r, c) => r <> c }
 
     io.snChi.zip(dsuMasters.map(_.io.chi)).foreach { case (s, d) => s <> d }
     io.snChiLinkCtrl.zip(dsuMasters.map(_.io.chiLinkCtrl)).foreach { case (s, d) => s <> d }
 
     /*
-    * connect cpuslaves <-----> xbar <------> slices
+    * connect rnSlaves <-----> xbar <------> slices
     */
     xbar.io.bankVal := slices.map(_.io.valid)
 
     xbar.io.snpTask.in <> slices.map(_.io.snpTask)
-    xbar.io.snpTask.out <> cpuSalves.map(_.io.snpTask)
+    xbar.io.snpTask.out <> rnSlaves.map(_.io.snpTask)
 
-    xbar.io.snpResp.in <> cpuSalves.map(_.io.snpResp)
+    xbar.io.snpResp.in <> rnSlaves.map(_.io.snpResp)
     xbar.io.snpResp.out <> slices.map(_.io.snpResp)
 
-    xbar.io.mpTask.in <> cpuSalves.map(_.io.mpTask)
+    xbar.io.mpTask.in <> rnSlaves.map(_.io.mpTask)
     xbar.io.mpTask.out <> slices.map(_.io.cpuTask)
 
-    xbar.io.clTask.in <> cpuSalves.map(_.io.clTask)
+    xbar.io.clTask.in <> rnSlaves.map(_.io.clTask)
     xbar.io.clTask.out <> slices.map(_.io.cpuClTask)
 
     xbar.io.mpResp.in <> slices.map(_.io.cpuResp)
-    xbar.io.mpResp.out <> cpuSalves.map(_.io.mpResp)
+    xbar.io.mpResp.out <> rnSlaves.map(_.io.mpResp)
 
-    xbar.io.dbSigs.in <> cpuSalves.map(_.io.dbSigs)
+    xbar.io.dbSigs.in <> rnSlaves.map(_.io.dbSigs)
     xbar.io.dbSigs.out <> slices.map(_.io.dbSigs2Cpu)
 
     /*
