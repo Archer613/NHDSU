@@ -63,7 +63,7 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
   io.snpTask.bits.from.idL0       := IdL0.SLICE
   io.snpTask.bits.from.idL1       := io.sliceId
   io.snpTask.bits.from.idL2       := io.snpId
-  io.snpTask.bits.to.idL0         := IdL0.CPU
+  io.snpTask.bits.to.idL0         := IdL0.RN
   io.snpTask.bits.to.idL1         := snpCoreId
   io.snpTask.bits.to.idL2         := DontCare
   io.snpTask.bits.opcode          := mpTaskReg.opcode

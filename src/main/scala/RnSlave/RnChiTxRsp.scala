@@ -6,7 +6,7 @@ import chisel3._
 import chisel3.util.{Decoupled, Queue, is, switch}
 import org.chipsalliance.cde.config._
 
-class CpuChiTxRsp()(implicit p: Parameters) extends DSUModule {
+class RnChiTxRsp()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val chi = Flipped(CHIChannelIO(new CHIBundleRSP(chiBundleParams)))
     val txState = Input(UInt(LinkStates.width.W))

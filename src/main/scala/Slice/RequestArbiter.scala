@@ -15,7 +15,7 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
     val taskSnp       = Flipped(Decoupled(new TaskBundle)) // Hard wire to MSHRs
 
     // CHI Channel task
-    val taskCpu       = Flipped(Decoupled(new TaskBundle))
+    val taskRn        = Flipped(Decoupled(new TaskBundle))
     val taskMs        = Flipped(Decoupled(new TaskBundle))
 
     // Send task to MainPipe
@@ -29,13 +29,13 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
     // Lock Signal from TxReqQueue
     val txReqQFull    = Input(Bool())
 
-    // Cpu / Master / MainPipe S3 clean or lock BlockTable
+    // Rn / Master / MainPipe S3 clean or lock BlockTable
     val wcBTReqVec    = Vec(3, Flipped(Decoupled(new WCBTBundle())))
   })
 
   // TODO: Delete the following code when the coding is complete
   io.taskSnp <> DontCare
-  io.taskCpu <> DontCare
+  io.taskRn <> DontCare
   io.taskMs <> DontCare
   io.dirRead <> DontCare
   io.mpTask <> DontCare
@@ -53,9 +53,9 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   // select a way to store block mes
   val invWayVec         = Wire(Vec(nrBlockWays, Bool()))
   val blockWayNext      = Wire(UInt(blockWayBits.W))
-  // need to block cpu task
-  val blockCpuTaskVec   = Wire(Vec(nrBlockWays, Bool()))
-  val blockCpuTask      = WireInit(false.B)
+  // need to block rn task
+  val blockRnTaskVec    = Wire(Vec(nrBlockWays, Bool()))
+  val blockRnTask       = WireInit(false.B)
   // s0
   val task_s0           = WireInit(0.U.asTypeOf(Valid(new TaskBundle())))
   val canGo_s0          = WireInit(false.B)
@@ -71,8 +71,8 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   dontTouch(invWayVec)
   dontTouch(task_s0)
   dontTouch(taskSelVec)
-  dontTouch(blockCpuTask)
-  dontTouch(blockCpuTaskVec)
+  dontTouch(blockRnTask)
+  dontTouch(blockRnTaskVec)
   dontTouch(wcBTReq_s0)
 
 // ------------------------ S0: Decide which task can enter mainpipe --------------------------//
@@ -80,8 +80,8 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
    * MainPipe S3 snpTask cant be block
    * So it need block task in arbiter which may require snoop
    *
-   * is(CPU_REQ_OH)    { needSnoop_s3 := needSnp | needSnpHlp }
-   * is(CPU_WRITE_OH)  { needSnoop_s3 := false.B }
+   * is(RN_REQ_OH)    { needSnoop_s3 := needSnp | needSnpHlp }
+   * is(RN_WRITE_OH)  { needSnoop_s3 := false.B }
    * is(MS_RESP_OH)    { needSnoop_s3 := needSnpHlp }
    * is(SNP_RESP_OH)   { needSnoop_s3 := false.B }
    */
@@ -89,29 +89,29 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   blockBySnp      := (io.snpFreeNum - mpSnpUseNumReg) === 0.U
 
   /*
-   * Determine whether it need to block cputask
+   * Determine whether it need to block rntask
    * TODO: Add retry queue to
    */
-  val(btRTag, btRSet, btRBank) = parseBTAddress(io.taskCpu.bits.addr); dontTouch(btRTag); dontTouch(btRSet); dontTouch(btRBank)
-  blockCpuTaskVec := blockTableReg(btRSet).map { case b => b.valid & b.tag === btRTag & b.bank === btRBank }
+  val(btRTag, btRSet, btRBank) = parseBTAddress(io.taskRn.bits.addr); dontTouch(btRTag); dontTouch(btRSet); dontTouch(btRBank)
+  blockRnTaskVec := blockTableReg(btRSet).map { case b => b.valid & b.tag === btRTag & b.bank === btRBank }
   invWayVec := blockTableReg(btRSet).map { case b => !b.valid }
   blockWayNext := PriorityEncoder(invWayVec)
-  blockCpuTask := blockCpuTaskVec.asUInt.orR | !invWayVec.asUInt.orR
+  blockRnTask := blockRnTaskVec.asUInt.orR | !invWayVec.asUInt.orR
 
   /*
-   * Priority(!task.isClean): taskSnp > taskMs > taskCpu
-   * Priority(task.isClean): taskSnp > taskMs > taskCpu
+   * Priority(!task.isClean): taskSnp > taskMs > taskRn
+   * Priority(task.isClean): taskSnp > taskMs > taskRn
    */
   taskSelVec(0) := io.taskSnp.valid
   taskSelVec(1) := io.taskMs.valid  & !blockBySnp
-  taskSelVec(2) := io.taskCpu.valid & !blockCpuTask & !blockBySnp
+  taskSelVec(2) := io.taskRn.valid  & !blockRnTask & !blockBySnp
 
 
   /*
    * select task
    */
   task_s0.valid := taskSelVec.asUInt.orR
-  task_s0.bits := ParallelPriorityMux(taskSelVec.asUInt, Seq(io.taskSnp.bits, io.taskMs.bits, io.taskCpu.bits))
+  task_s0.bits := ParallelPriorityMux(taskSelVec.asUInt, Seq(io.taskSnp.bits, io.taskMs.bits, io.taskRn.bits))
   canGo_s0 := canGo_s1 | !task_s1_g.valid
 
   // set task block table value
@@ -120,9 +120,9 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   /*
    * task ready
    */
-  io.taskSnp.ready := canGo_s0  & task_s0.bits.from.isSLICE
-  io.taskMs.ready  := canGo_s0 & !blockBySnp & task_s0.bits.from.isMASTER
-  io.taskCpu.ready := canGo_s0 & !blockCpuTask & !blockBySnp & task_s0.bits.from.isCPU
+  io.taskSnp.ready := canGo_s0 & task_s0.bits.from.isSLICE
+  io.taskMs.ready  := canGo_s0 & !blockBySnp  & task_s0.bits.from.isMASTER
+  io.taskRn.ready  := canGo_s0 & !blockRnTask & !blockBySnp & task_s0.bits.from.isRN
 
   /*
    * Write/Clean block table when task_s0.valid and canGo_s0
@@ -181,16 +181,16 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
 
 // ------------------------ Assertion --------------------------//
   // io.taskXXX
-  assert(Mux(io.taskCpu.valid, io.taskCpu.bits.from.idL0 === IdL0.CPU, true.B), "taskCpu should from CPU")
+  assert(Mux(io.taskRn.valid, io.taskRn.bits.from.idL0 === IdL0.RN, true.B), "taskRn should from RN")
   assert(Mux(io.taskMs.valid, io.taskMs.bits.from.idL0 === IdL0.MASTER, true.B), "taskMs should from MASTER")
   assert(Mux(io.taskSnp.valid, io.taskSnp.bits.from.idL0 === IdL0.SLICE, true.B), "taskSnp should from SLICE")
 
   // block table
   assert(Mux(wBTReq_s0.valid, wBTReq_s0.ready, true.B))
   if(mpBlockBySet) {
-    assert(PopCount(blockCpuTaskVec) <= dsuparam.nrBank.U | !io.taskCpu.valid)
+    assert(PopCount(blockRnTaskVec) <= dsuparam.nrBank.U | !io.taskRn.valid)
   } else {
-    assert(PopCount(blockCpuTaskVec) <= 1.U | !io.taskCpu.valid)
+    assert(PopCount(blockRnTaskVec) <= 1.U | !io.taskRn.valid)
   }
 
 

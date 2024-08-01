@@ -57,16 +57,16 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
  *
  *
  * RnSlave <-> Slice Ctrl Signals:
- * [cpuTask]  |  [hasAddr]               |  from: [CPU]    [coreId]  [reqBufId]   | to: [SLICE]    [sliceId] [DontCare]
- * [mpResp]   |  [hasAddr]   [hasWay]    |  from: None                            | to: [CPU]      [coreId]  [reqBufId]
- * [snpTask]  |  [hasAddr]               |  from: [SLICE]  [sliceId] [SnpCtlId]   | to: [CPU]      [coreId]  [DontCare]
- * [cpuResp]  |  [hasSet]    [hasWay]    |  from: None                            | to: [SLICE]    [sliceId] [SnpCtlId / DontCare]
+ * [rnTask]  |  [hasAddr]                |  from: [RN]    [coreId]  [reqBufId]    | to: [SLICE]    [sliceId] [DontCare]
+ * [mpResp]   |  [hasAddr]   [hasWay]    |  from: None                            | to: [RN]       [coreId]  [reqBufId]
+ * [snpTask]  |  [hasAddr]               |  from: [SLICE]  [sliceId] [SnpCtlId]   | to: [RN]       [coreId]  [DontCare]
+ * [rnResp]  |  [hasSet]    [hasWay]     |  from: None                            | to: [SLICE]    [sliceId] [SnpCtlId / DontCare]
  *
  *
  * RnSlave <-> Slice DB Signals:
- * [wReq]     |  [None]                  |  from: [CPU]    [coreId]  [reqBufId]   | to: [SLICE]    [sliceId] [DontCare]
- * [wResp]    |  [hasDBID]               |  from: None                            | to: [CPU]      [coreId]  [reqBufId]
- * [dataFDB]  |  [None]                  |  from: None                            | to: [CPU]      [coreId]  [reqBufId]
+ * [wReq]     |  [None]                  |  from: [RN]    [coreId]  [reqBufId]    | to: [SLICE]    [sliceId] [DontCare]
+ * [wResp]    |  [hasDBID]               |  from: None                            | to: [RN]       [coreId]  [reqBufId]
+ * [dataFDB]  |  [None]                  |  from: None                            | to: [RN]       [coreId]  [reqBufId]
  * [dataTDB]  |  [hasDBID]               |  from: None                            | to: [SLICE]    [sliceId] [DontCare]
  *
  *
@@ -83,14 +83,14 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
  *
  *
  * MainPipe S4 Commit <-> DB Signals:
- * [dbRCReq]  |  [hasSet]    [hasWay]    |  from: None                            | to: [CPU]      [coreId]  [reqBufId]
+ * [dbRCReq]  |  [hasSet]    [hasWay]    |  from: None                            | to: [RN]       [coreId]  [reqBufId]
  *
  *
  * DS <-> DB Signals:
- * [dbRCReq]  |  [hasSet]    [hasWay]   [hasDSID]   |  from: None                 | to: [CPU]      [coreId]  [reqBufId] // Go to Master use Set and Way; Go to CPU use to; Go to DS use DSID
+ * [dbRCReq]  |  [hasSet]    [hasWay]   [hasDSID]   |  from: None                 | to: [RN]       [coreId]  [reqBufId] // Go to Master use Set and Way; Go to RN use to; Go to DS use DSID
  * [wReq]     |  [None]      [hasDSID]              |  from: None                 | to: None
  * [wResp]    |  [hasDBID]   [hasDSID]              |  from: None                 | to: None
- * [dataFDB]  |  [hasDSID]                          |  from: None                 | to: [CPU]      [coreId]  [reqBufId]
+ * [dataFDB]  |  [hasDSID]                          |  from: None                 | to: [RN]       [coreId]  [reqBufId]
  * [dataTDB]  |  [hasDBID]                          |  from: None                 | to: None
  *
  */
@@ -123,9 +123,9 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
     dontTouch(xbar.io)
 
     /*
-    * Set rnSlaves.io.cpuSlvId value
+    * Set rnSlaves.io.rnSlvId value
     */
-    rnSlaves.map(_.io.cpuSlvId).zipWithIndex.foreach { case(id, i) => id := i.U }
+    rnSlaves.map(_.io.rnSlvId).zipWithIndex.foreach { case(id, i) => id := i.U }
 
     /*
     * connect RN <--[CHI signals]--> rnSlaves
@@ -149,16 +149,16 @@ class NHDSU()(implicit p: Parameters) extends DSUModule {
     xbar.io.snpResp.out <> slices.map(_.io.snpResp)
 
     xbar.io.mpTask.in <> rnSlaves.map(_.io.mpTask)
-    xbar.io.mpTask.out <> slices.map(_.io.cpuTask)
+    xbar.io.mpTask.out <> slices.map(_.io.rnTask)
 
     xbar.io.clTask.in <> rnSlaves.map(_.io.clTask)
-    xbar.io.clTask.out <> slices.map(_.io.cpuClTask)
+    xbar.io.clTask.out <> slices.map(_.io.rnClTask)
 
-    xbar.io.mpResp.in <> slices.map(_.io.cpuResp)
+    xbar.io.mpResp.in <> slices.map(_.io.rnResp)
     xbar.io.mpResp.out <> rnSlaves.map(_.io.mpResp)
 
     xbar.io.dbSigs.in <> rnSlaves.map(_.io.dbSigs)
-    xbar.io.dbSigs.out <> slices.map(_.io.dbSigs2Cpu)
+    xbar.io.dbSigs.out <> slices.map(_.io.dbSigs2Rn)
 
     /*
     * connect slices <--[ctrl/db signals]--> dsuMasters

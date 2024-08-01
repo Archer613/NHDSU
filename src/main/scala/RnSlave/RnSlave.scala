@@ -29,7 +29,7 @@ class ReqBufSelector(implicit p: Parameters) extends DSUModule {
 class RnSlave()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
-    val cpuSlvId      = Input(UInt(coreIdBits.W))
+    val rnSlvId       = Input(UInt(coreIdBits.W))
     // CHI
     val chi           = CHIBundleUpstream(chiBundleParams)
     val chiLinkCtrl   = Flipped(new CHILinkCtrlIO())
@@ -41,18 +41,18 @@ class RnSlave()(implicit p: Parameters) extends DSUModule {
     val mpResp        = Flipped(ValidIO(new RespBundle()))
     val clTask        = Decoupled(new WCBTBundle())
     // dataBuffer
-    val dbSigs        = new CpuDBBundle()
+    val dbSigs        = new RnDBBundle()
   })
 
 
 // --------------------- Modules declaration ------------------------//
   val chiCtrl = Module(new ProtocolLayerCtrl())
-  val txReq = Module(new CpuChiTxReq())
-  val txRsp = Module(new CpuChiTxRsp())
-  val txDat = Module(new CpuChiTxDat())
-  val rxSnp = Module(new CpuChiRxSnp())
-  val rxRsp = Module(new CpuChiRxRsp())
-  val rxDat = Module(new CpuChiRxDat())
+  val txReq = Module(new RnChiTxReq())
+  val txRsp = Module(new RnChiTxRsp())
+  val txDat = Module(new RnChiTxDat())
+  val rxSnp = Module(new RnChiRxSnp())
+  val rxRsp = Module(new RnChiRxRsp())
+  val rxDat = Module(new RnChiRxDat())
 
   val reqBufs = Seq.fill(dsuparam.nrReqBuf) { Module(new ReqBuf()) }
 
@@ -130,7 +130,7 @@ class RnSlave()(implicit p: Parameters) extends DSUModule {
   // ReqBuf input:
   reqBufs.zipWithIndex.foreach {
     case (reqbuf, i) =>
-      reqbuf.io.cpuSlvId := io.cpuSlvId
+      reqbuf.io.rnSlvId := io.rnSlvId
       reqbuf.io.reqBufId := i.U
       // snpTask  ---snpSelId---> reqBuf(N)
       reqbuf.io.snpTask.valid := io.snpTask.fire & snpSelId === i.U

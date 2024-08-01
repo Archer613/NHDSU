@@ -78,8 +78,8 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
         }
         // dataBuffer
         val dbSigs = new Bundle {
-            val in = Vec(dsuparam.nrCore, Flipped(new CpuDBBundle()))
-            val out = Vec(dsuparam.nrBank, new CpuDBBundle())
+            val in = Vec(dsuparam.nrCore, Flipped(new RnDBBundle()))
+            val out = Vec(dsuparam.nrBank, new RnDBBundle())
         }
     })
 
@@ -96,12 +96,12 @@ class Xbar()(implicit p: Parameters) extends DSUModule {
     val mpRespRedir     = Wire(Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new RespBundle()))))
     val snpTaskRedir    = Wire(Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new SnpTaskBundle()))))
     val snpRespRedir    = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new SnpRespBundle()))))
-    val wReqRemap       = Wire(Vec(dsuparam.nrCore, Decoupled(new CpuDBWReq())))
+    val wReqRemap       = Wire(Vec(dsuparam.nrCore, Decoupled(new RnDBWReq())))
     val dbSigsRedir     = Wire(new Bundle {
-            val wReq        = Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new CpuDBWReq())))
-            val wResp       = Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new CpuDBWResp())))
-            val dataFromDB  = Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new CpuDBOutData())))
-            val dataToDB    = Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new CpuDBInData())))
+            val wReq        = Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new RnDBWReq())))
+            val wResp       = Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new RnDBWResp())))
+            val dataFromDB  = Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new RnDBOutData())))
+            val dataToDB    = Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new RnDBInData())))
     })
 
 

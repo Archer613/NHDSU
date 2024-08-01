@@ -18,13 +18,13 @@ import chisel3.util.experimental.decode._
  *                                                                                 |----------------------------------- MSHRCtl ----------------------------------|    |-- S1 --|   |---------- S2 ---------|   |-------------------- S3 ----------------|
  *                                                                              -> Commit([ReadDB] / [WSDir] / [WCDir] / [ReadDS] / [WriteDS] / [Atomic]) -> MpUpdateMSHR
  *                                                                                 |----------------------------------------- S4 ---------------------------------------|
- *                                                                              -> UpdateReqBuf -> SendChiRxRsp/Dat -> [GetAck] -> CpuUpdateMSHR -> MSHRRelease
+ *                                                                              -> UpdateReqBuf -> SendChiRxRsp/Dat -> [GetAck] -> RnUpdateMSHR -> MSHRRelease
  *                                                                                 |---------------------------- RnSlave ---------------------|   |- MSHRCtl -|
  *
  *
  * {Read / Dataless / Atomic / CMO} Request Processing Flow 1 (shortest path):
- *                                                                  GetChiTxReq -> RecordInReqBuf -> IssueReq -> AllocMSHR -> ReadDir -> WaitDirResp -> Decode -> MpUpdateMSHR -> Commit([WSDir] / [WCDir] / [ReadDS] / [Atomic]) -> UpdateReqBuf -> SendChiRxRsp/Dat -> CpuUpdateMSHR -> MSHRRelease
- *                                                                  |-------------- RnSlave -----------------|   |-- S0 --|  |-- S1 --|  |--- S2 ---|   |------- S3 ---------|    |-------------------- S4 ---------------------|    |------------------------- RnSlave --------------|   |- MSHRCtl -|
+ *                                                                  GetChiTxReq -> RecordInReqBuf -> IssueReq -> AllocMSHR -> ReadDir -> WaitDirResp -> Decode -> MpUpdateMSHR -> Commit([WSDir] / [WCDir] / [ReadDS] / [Atomic]) -> UpdateReqBuf -> SendChiRxRsp/Dat -> RnUpdateMSHR -> MSHRRelease
+ *                                                                  |-------------- RnSlave -----------------|   |-- S0 --|  |-- S1 --|  |--- S2 ---|   |------- S3 ---------|    |-------------------- S4 ---------------------|    |------------------------- RnSlave -------------|   |- MSHRCtl -|
  *
  *
  * {Write} Request Processing Flow 0 (longest path):

@@ -10,7 +10,7 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     // RNSLAVE <-> dataBuffer
-    val cpu2db    = Flipped(new CpuDBBundle())
+    val rn2db     = Flipped(new RnDBBundle())
     // DSUMASTER <-> dataBuffer
     val ms2db     = Flipped(new MsDBBundle())
     // DataStorage <-> dataBuffer
@@ -21,16 +21,16 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   })
 
   // TODO: Delete the following code when the coding is complete
-  io.cpu2db <> DontCare
+  io.rn2db <> DontCare
   io.ms2db <> DontCare
   io.ds2db <> DontCare
   io.mpRCReq <> DontCare
   io.dsRCReq <> DontCare
 
 // ----------------------- Modules declaration ------------------------ //
-  // TODO: Consider remove cpuWRespQ because cpu wResp.ready is false rare occurrence
+  // TODO: Consider remove rnWRespQ because rn wResp.ready is false rare occurrence
   val bankOver1 = dsuparam.nrBank > 1
-  val cpuWRespQ = if(bankOver1) { Some(Module(new Queue(gen = new CpuDBWResp(), entries = dsuparam.nrBank-1, flow = true, pipe = true))) } else { None }
+  val rnWRespQ = if(bankOver1) { Some(Module(new Queue(gen = new RnDBWResp(), entries = dsuparam.nrBank-1, flow = true, pipe = true))) } else { None }
 
 // --------------------- Reg/Wire declaration ------------------------ //
   // base
@@ -40,14 +40,14 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   val dbAllocId   = Wire(Vec(3, UInt(dbIdBits.W)))
   val canAllocVec = Wire(Vec(3, Bool()))
   // wReq
-  val wReqVec     = Seq(io.ms2db.wReq, io.ds2db.wReq, io.cpu2db.wReq)
-  val wRespVec    = Seq(io.ms2db.wResp, io.ds2db.wResp, if(bankOver1) cpuWRespQ.get.io.enq else io.cpu2db.wResp)
+  val wReqVec     = Seq(io.ms2db.wReq, io.ds2db.wReq, io.rn2db.wReq)
+  val wRespVec    = Seq(io.ms2db.wResp, io.ds2db.wResp, if(bankOver1) rnWRespQ.get.io.enq else io.rn2db.wResp)
   // dataTDB
-  val dataTDBVec  = Seq(io.ms2db.dataTDB, io.ds2db.dataTDB, io.cpu2db.dataTDB)
+  val dataTDBVec  = Seq(io.ms2db.dataTDB, io.ds2db.dataTDB, io.rn2db.dataTDB)
   // dataFDB
-  val outDsID       = Wire(UInt(dbIdBits.W))
-  val outMsID       = Wire(UInt(dbIdBits.W))
-  val outCpuID      = Wire(UInt(dbIdBits.W))
+  val outDsID     = Wire(UInt(dbIdBits.W))
+  val outMsID     = Wire(UInt(dbIdBits.W))
+  val outRnID     = Wire(UInt(dbIdBits.W))
 
   dontTouch(dataBuffer)
   dontTouch(dbFreeVec)
@@ -72,7 +72,7 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   }
   // set wReq ready
   wReqVec.map(_.ready).zip(canAllocVec).foreach { case(r, v) => r := v }
-  if(bankOver1) io.cpu2db.wReq.ready := cpuWRespQ.get.io.enq.ready
+  if(bankOver1) io.rn2db.wReq.ready := rnWRespQ.get.io.enq.ready
 
   /*
    * write response
@@ -81,9 +81,9 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
    */
   wRespVec.zip(wReqVec).foreach { case(resp, req) => resp.valid := req.fire }
   wRespVec.zip(dbAllocId).foreach { case(resp, id) => resp.bits.dbid := id }
-  if(bankOver1) io.cpu2db.wResp <> cpuWRespQ.get.io.deq
-  cpuWRespQ.get.io.enq.bits.to   := io.cpu2db.wReq.bits.from
-  cpuWRespQ.get.io.enq.bits.from := io.cpu2db.wReq.bits.to
+  if(bankOver1) io.rn2db.wResp <> rnWRespQ.get.io.deq
+  rnWRespQ.get.io.enq.bits.to   := io.rn2db.wReq.bits.from
+  rnWRespQ.get.io.enq.bits.from := io.rn2db.wReq.bits.to
 
 
   /*
@@ -110,36 +110,36 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
                       dataBuffer(io.dsRCReq.bits.dbid).state === DBState.READ_DONE
 
   /*
-   * send data to DS / MS / CPU
+   * send data to DS / MS / RN
    * send Data to Ms must be RR
    */
   val dsReadValVec  = dataBuffer.map( d => d.state === DBState.READ & d.to.idL0 === IdL0.SLICE )
   val msReadValVec  = dataBuffer.map( d => d.state === DBState.READ & d.to.idL0 === IdL0.MASTER )
-  val cpuReadValVec = dataBuffer.map( d => d.state === DBState.READ & d.to.idL0 === IdL0.CPU )
+  val rnReadValVec  = dataBuffer.map( d => d.state === DBState.READ & d.to.idL0 === IdL0.RN )
 
   val dsReadingValVec   = dataBuffer.map(d => d.state === DBState.READING & d.to.idL0 === IdL0.SLICE)
   val msReadingValVec   = dataBuffer.map(d => d.state === DBState.READING & d.to.idL0 === IdL0.MASTER)
-  val cpuReadingValVec  = dataBuffer.map(d => d.state === DBState.READING & d.to.idL0 === IdL0.CPU)
+  val rnReadingValVec   = dataBuffer.map(d => d.state === DBState.READING & d.to.idL0 === IdL0.RN)
 
   outDsID   := Mux(dsReadingValVec.reduce(_ | _),   PriorityEncoder(dsReadingValVec),   PriorityEncoder(dsReadValVec))
   outMsID   := Mux(msReadingValVec.reduce(_ | _),   PriorityEncoder(msReadingValVec),   RREncoder(msReadValVec))
-  outCpuID  := Mux(cpuReadingValVec.reduce(_ | _),  PriorityEncoder(cpuReadingValVec),  PriorityEncoder(cpuReadValVec))
+  outRnID   := Mux(rnReadingValVec.reduce(_ | _),  PriorityEncoder(rnReadingValVec),  PriorityEncoder(rnReadValVec))
 
   io.ds2db.dataFDB.valid  := dsReadValVec.reduce(_ | _) | dsReadingValVec.reduce(_ | _)
   io.ms2db.dataFDB.valid  := msReadValVec.reduce(_ | _) | msReadingValVec.reduce(_ | _)
-  io.cpu2db.dataFDB.valid := cpuReadValVec.reduce(_ | _) | cpuReadingValVec.reduce(_ | _)
+  io.rn2db.dataFDB.valid  := rnReadValVec.reduce(_ | _) | rnReadingValVec.reduce(_ | _)
 
   io.ds2db.dataFDB.bits.data  := dataBuffer(outDsID).getBeat
   io.ms2db.dataFDB.bits.data  := dataBuffer(outMsID).getBeat
-  io.cpu2db.dataFDB.bits.data := dataBuffer(outCpuID).getBeat
+  io.rn2db.dataFDB.bits.data  := dataBuffer(outRnID).getBeat
 
   io.ds2db.dataFDB.bits.dataID  := dataBuffer(outDsID).toDataID
   io.ms2db.dataFDB.bits.dataID  := dataBuffer(outMsID).toDataID
-  io.cpu2db.dataFDB.bits.dataID := dataBuffer(outCpuID).toDataID
+  io.rn2db.dataFDB.bits.dataID  := dataBuffer(outRnID).toDataID
 
   io.ds2db.dataFDB.bits.dbid  := outDsID
   io.ms2db.dataFDB.bits.to    := dataBuffer(outMsID).to
-  io.cpu2db.dataFDB.bits.to   := dataBuffer(outCpuID).to
+  io.rn2db.dataFDB.bits.to    := dataBuffer(outRnID).to
 
 
   /*
@@ -182,8 +182,8 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
         is(DBState.READ) {
           val dsHit     = io.ds2db.dataFDB.fire & outDsID === i.U
           val msHit     = io.ms2db.dataFDB.fire & outMsID === i.U
-          val cpuHit    = io.cpu2db.dataFDB.fire & outCpuID === i.U
-          val hit       = dsHit | msHit | cpuHit
+          val rnHit     = io.rn2db.dataFDB.fire & outRnID === i.U
+          val hit       = dsHit | msHit | rnHit
           val readDone  = db.beatRNum === (nrBeat - 1).U
           db.state      := Mux(hit, Mux(readDone, Mux(db.needClean, DBState.FREE, DBState.READ_DONE), DBState.READING), DBState.READ)
           db.beatRNum   := db.beatRNum + hit.asUInt
@@ -191,8 +191,8 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
         is(DBState.READING) {
           val dsHit     = io.ds2db.dataFDB.fire & outDsID === i.U
           val msHit     = io.ms2db.dataFDB.fire & outMsID === i.U
-          val cpuHit    = io.cpu2db.dataFDB.fire & outCpuID === i.U
-          val hit       = dsHit | msHit | cpuHit
+          val rnHit     = io.rn2db.dataFDB.fire & outRnID === i.U
+          val hit       = dsHit | msHit | rnHit
           val readDone  = db.beatRNum === (nrBeat - 1).U
           db.state      := Mux(hit & readDone, Mux(db.needClean, DBState.FREE, DBState.READ_DONE), DBState.READING)
           db.beatRNum   := db.beatRNum + hit.asUInt
@@ -210,7 +210,7 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
 
   assert(PopCount(dsReadingValVec) <= 1.U)
   assert(PopCount(msReadingValVec) <= 1.U)
-  assert(PopCount(cpuReadingValVec) <= 1.U)
+  assert(PopCount(rnReadingValVec) <= 1.U)
 
   val cntVecReg  = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U(64.W) }))
   cntVecReg.zip(dataBuffer.map(_.state)).foreach{ case(cnt, s) => cnt := Mux(s === DBState.FREE, 0.U, cnt + 1.U) }

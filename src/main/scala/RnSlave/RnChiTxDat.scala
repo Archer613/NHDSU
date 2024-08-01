@@ -6,13 +6,13 @@ import chisel3._
 import chisel3.util.{Decoupled, Queue, is, switch}
 import org.chipsalliance.cde.config._
 
-class CpuChiTxDat()(implicit p: Parameters) extends DSUModule {
+class RnChiTxDat()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val chi = Flipped(CHIChannelIO(new CHIBundleDAT(chiBundleParams)))
     val txState = Input(UInt(LinkStates.width.W))
     val allLcrdRetrun = Output(Bool()) // Deactive Done
     val flit = Decoupled(new CHIBundleDAT(chiBundleParams))
-    val dataTDB = Decoupled(new CpuDBInData())
+    val dataTDB = Decoupled(new RnDBInData())
   })
 
   // TODO: Delete the following code when the coding is complete

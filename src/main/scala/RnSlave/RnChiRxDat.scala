@@ -6,12 +6,12 @@ import chisel3._
 import chisel3.util.{Decoupled, ValidIO, is, switch}
 import org.chipsalliance.cde.config._
 
-class CpuChiRxDat()(implicit p: Parameters) extends DSUModule {
+class RnChiRxDat()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val chi = CHIChannelIO(new CHIBundleDAT(chiBundleParams))
     val rxState = Input(UInt(LinkStates.width.W))
     val flit = Flipped(Decoupled(new CHIBundleDAT(chiBundleParams)))
-    val dataFDB = Flipped(Decoupled(new CpuDBOutData()))
+    val dataFDB = Flipped(Decoupled(new RnDBOutData()))
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -76,7 +76,7 @@ class CpuChiRxDat()(implicit p: Parameters) extends DSUModule {
 
 // ------------------------- Assert ------------------------------- //
   assert(Mux(io.flit.valid, io.dataFDB.valid, true.B), "In cpuRxDat, data will valid before flit valid or at the same time ")
-  assert(Mux(flitv, io.flit.bits.dbID === io.dataFDB.bits.to.idL2, true.B), "CpuRxDat flit and data dont match")
+  assert(Mux(flitv, io.flit.bits.dbID === io.dataFDB.bits.to.idL2, true.B), "RnRxDat flit and data dont match")
 
   assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.DAT.CompData | io.flit.bits.opcode === CHIOp.DAT.SnpRespData, true.B), "DSU dont support RXDAT[0x%x]", io.flit.bits.opcode)
   assert(Mux(lcrdFreeNumReg.andR, !io.chi.lcrdv | flitv, true.B), "RXDAT Lcrd overflow")

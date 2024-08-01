@@ -9,7 +9,7 @@ import chisel3.util.{Decoupled, PopCount, RegEnable, ValidIO, log2Ceil, Cat}
 class ReqBuf()(implicit p: Parameters) extends DSUModule {
   val io = IO(new Bundle {
     val free        = Output(Bool())
-    val cpuSlvId    = Input(UInt(coreIdBits.W))
+    val rnSlvId     = Input(UInt(coreIdBits.W))
     val reqBufId    = Input(UInt(reqBufIdBits.W))
     // CHI
     val chi         = Flipped(CHIBundleDecoupled(chiBundleParams))
@@ -23,8 +23,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     val snpTask     = Flipped(Decoupled(new SnpTaskBundle()))
     val snpResp     = Decoupled(new SnpRespBundle())
     // dataBuffer
-    val wReq        = Decoupled(new CpuDBWReq())
-    val wResp       = Flipped(Decoupled(new CpuDBWResp()))
+    val wReq        = Decoupled(new RnDBWReq())
+    val wResp       = Flipped(Decoupled(new RnDBWResp()))
     val dbDataValid = Input(Bool())
     // Nest Signals
     val nestOutMes  = ValidIO(new NestOutMes())
@@ -71,7 +71,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
 
 // ---------------------------  Receive Req/Resp Logic --------------------------------//
   /*
-   * Receive Cpu/Snp Req
+   * Receive Rn/Snp Req
    */
   reqValid := io.chi.txreq.valid | io.snpTask.valid
   when(io.chi.txreq.valid) {
@@ -83,8 +83,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
     // task addr
     task.addr       := txreq.addr
     // task id
-    task.from.idL0  := IdL0.CPU
-    task.from.idL1  := io.cpuSlvId
+    task.from.idL0  := IdL0.RN
+    task.from.idL1  := io.rnSlvId
     task.from.idL2  := io.reqBufId
     task.to.idL0    := IdL0.SLICE
     task.to.idL1    := parseAddress(txreq.addr)._2
@@ -107,7 +107,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
 
 
   /*
-   * Receive Cpu Resp
+   * Receive Rn Resp
    */
   respReg := Mux(io.mpResp.fire, io.mpResp.bits, respReg)
 
@@ -125,7 +125,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   taskReg.dbid      := dbidReg
 
   /*
-   * Receive CputxDat.resp and Count txDat Data Valid
+   * Receive RntxDat.resp and Count txDat Data Valid
    */
   getDatNumReg  := Mux(release, 0.U, getDatNumReg + io.chi.txdat.fire.asUInt)
   getAllDat     := getDatNumReg === nrBeat.U | (getDatNumReg === (nrBeat - 1).U &  io.chi.txdat.fire)
@@ -152,7 +152,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
    * snp Without Data:  txnid = reqBufId
    */
   io.txDatId.valid  := fsmReg.w_rnData & !fsmReg.w_dbid
-  io.txDatId.bits   := dbidReg // for cpuTxDat determine destination
+  io.txDatId.bits   := dbidReg // for rnTxDat determine destination
   io.txRspId.valid  := fsmReg.w_snpResp | fsmReg.w_compAck
   io.txRspId.bits   := Mux(fsmReg.w_compAck, io.reqBufId, snpTxnid)
 
@@ -191,8 +191,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   /*
    * wReq output to dataBuffer
    */
-  io.wReq.bits.from.idL0  := IdL0.CPU
-  io.wReq.bits.from.idL1  := io.cpuSlvId
+  io.wReq.bits.from.idL0  := IdL0.RN
+  io.wReq.bits.from.idL1  := io.rnSlvId
   io.wReq.bits.from.idL2  := io.reqBufId
   io.wReq.bits.to.idL0    := IdL0.SLICE
   io.wReq.bits.to.idL1    := taskReg.to.idL1
