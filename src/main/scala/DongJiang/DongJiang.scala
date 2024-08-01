@@ -114,12 +114,12 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
     // Modules declaration
     val rnSlaves = Seq.fill(djparam.nrCore) { Module(new RnSlave()) }
     val slices = Seq.fill(djparam.nrBank) { Module(new Slice()) }
-    val dsuMasters = Seq.fill(djparam.nrBank) { Module(new SnMaster()) }
+    val snMasters = Seq.fill(djparam.nrBank) { Module(new SnMaster()) }
     val xbar = Module(new Xbar())
 
     rnSlaves.foreach(m => dontTouch(m.io))
     slices.foreach(m => dontTouch(m.io))
-    dsuMasters.foreach(m => dontTouch(m.io))
+    snMasters.foreach(m => dontTouch(m.io))
     dontTouch(xbar.io)
 
     /*
@@ -129,13 +129,13 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
 
     /*
     * connect RN <--[CHI signals]--> rnSlaves
-    * connect dsuMasters <--[CHI signals]--> SN
+    * connect snMasters <--[CHI signals]--> SN
     */
     io.rnChi.zip(rnSlaves.map(_.io.chi)).foreach { case (r, c) => r <> c }
     io.rnChiLinkCtrl.zip(rnSlaves.map(_.io.chiLinkCtrl)).foreach { case (r, c) => r <> c }
 
-    io.snChi.zip(dsuMasters.map(_.io.chi)).foreach { case (s, d) => s <> d }
-    io.snChiLinkCtrl.zip(dsuMasters.map(_.io.chiLinkCtrl)).foreach { case (s, d) => s <> d }
+    io.snChi.zip(snMasters.map(_.io.chi)).foreach { case (s, d) => s <> d }
+    io.snChiLinkCtrl.zip(snMasters.map(_.io.chiLinkCtrl)).foreach { case (s, d) => s <> d }
 
     /*
     * connect rnSlaves <-----> xbar <------> slices
@@ -161,10 +161,10 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
     xbar.io.dbSigs.out <> slices.map(_.io.dbSigs2Rn)
 
     /*
-    * connect slices <--[ctrl/db signals]--> dsuMasters
+    * connect slices <--[ctrl/db signals]--> snMasters
     */
     slices.zipWithIndex.foreach{ case(s, i) => s.io.sliceId := i.U}
-    slices.zip(dsuMasters).foreach {
+    slices.zip(snMasters).foreach {
         case (s, m) =>
             s.io.msTask <> m.io.mpTask
             s.io.msResp <> m.io.mpResp

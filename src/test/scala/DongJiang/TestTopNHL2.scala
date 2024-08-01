@@ -128,17 +128,17 @@ class TestTop_NHL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(impl
     l2_nodes.foreach(_.module.io.nodeID := l2NodeID.U)
 
 // ----------------------------- Connect IO_SN <-> ARM_SN -------------------------- //
-    val dsu = Module(new DongJiang())
+    val dongjiang = Module(new DongJiang())
     val io = IO(new Bundle {
-      val snChi = Vec(dsu.djparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
-      val snChiLinkCtrl = Vec(dsu.djparam.nrBank, new CHILinkCtrlIO())
+      val snChi = Vec(dongjiang.djparam.nrBank, CHIBundleDownstream(dongjiang.chiBundleParams))
+      val snChiLinkCtrl = Vec(dongjiang.djparam.nrBank, new CHILinkCtrlIO())
     })
 
-    dsu.io.snChi <> io.snChi
-    dsu.io.snChiLinkCtrl <> io.snChiLinkCtrl
+    dongjiang.io.snChi <> io.snChi
+    dongjiang.io.snChiLinkCtrl <> io.snChiLinkCtrl
 
-    dsu.io.rnChi.zipWithIndex.foreach { case(chi, i) => chi <> l2_nodes(i).module.io.chi }
-    dsu.io.rnChiLinkCtrl.zipWithIndex.foreach { case(ctrl, i) => ctrl <> l2_nodes(i).module.io.chiLinkCtrl }
+    dongjiang.io.rnChi.zipWithIndex.foreach { case(chi, i) => chi <> l2_nodes(i).module.io.chi }
+    dongjiang.io.rnChiLinkCtrl.zipWithIndex.foreach { case(ctrl, i) => ctrl <> l2_nodes(i).module.io.chiLinkCtrl }
   }
 
 }

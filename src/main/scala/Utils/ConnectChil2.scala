@@ -15,27 +15,27 @@ import org.chipsalliance.cde.config._
 class ConnectChil2()(implicit p: Parameters) extends DJModule {
     val io = IO(new Bundle {
         val l2Chi           = Flipped(new PortIO())
-        val dsuChiLinkCtrl  = new CHILinkCtrlIO()
-        val dsuChi          = new CHIBundleDownstream(chiBundleParams)
+        val djChiLinkCtrl  = new CHILinkCtrlIO()
+        val djChi          = new CHIBundleDownstream(chiBundleParams)
     })
 
     // linkCtrl
-    io.dsuChiLinkCtrl.txsactive                := io.l2Chi.txsactive
-    io.l2Chi.rxsactive                         := io.dsuChiLinkCtrl.rxsactive
+    io.djChiLinkCtrl.txsactive                 := io.l2Chi.txsactive
+    io.l2Chi.rxsactive                         := io.djChiLinkCtrl.rxsactive
     // tx linkCtrl
-    io.dsuChiLinkCtrl.txactivereq              := io.l2Chi.tx.linkactivereq
-    io.l2Chi.tx.linkactiveack                  := io.dsuChiLinkCtrl.txactiveack
+    io.djChiLinkCtrl.txactivereq               := io.l2Chi.tx.linkactivereq
+    io.l2Chi.tx.linkactiveack                  := io.djChiLinkCtrl.txactiveack
     // rx linkCtrl
-    io.l2Chi.rx.linkactivereq                  := io.dsuChiLinkCtrl.rxactivereq
-    io.dsuChiLinkCtrl.rxactiveack              := io.l2Chi.rx.linkactiveack
+    io.l2Chi.rx.linkactivereq                  := io.djChiLinkCtrl.rxactivereq
+    io.djChiLinkCtrl.rxactiveack               := io.l2Chi.rx.linkactiveack
 
     // txreq ctrl
-    io.dsuChi.txreq.flitpend                   := io.l2Chi.tx.req.flitpend
-    io.dsuChi.txreq.flitv                      := io.l2Chi.tx.req.flitv
-    io.l2Chi.tx.req.lcrdv                      := io.dsuChi.txreq.lcrdv
+    io.djChi.txreq.flitpend                    := io.l2Chi.tx.req.flitpend
+    io.djChi.txreq.flitv                       := io.l2Chi.tx.req.flitv
+    io.l2Chi.tx.req.lcrdv                      := io.djChi.txreq.lcrdv
     // txreqflit
     val txreq                               = Wire(new CHIBundleREQ(chiBundleParams))
-    io.dsuChi.txreq.flit                    := txreq
+    io.djChi.txreq.flit                    := txreq
     txreq.qos                               := io.l2Chi.tx.req.flit.qos
     txreq.tgtID                             := io.l2Chi.tx.req.flit.tgtID
     txreq.srcID                             := io.l2Chi.tx.req.flit.srcID
@@ -62,12 +62,12 @@ class ConnectChil2()(implicit p: Parameters) extends DJModule {
     txreq.expCompAck                        := io.l2Chi.tx.req.flit.expCompAck
 
     //txdat ctrl
-    io.dsuChi.txdat.flitpend          := io.l2Chi.tx.dat.flitpend
-    io.dsuChi.txdat.flitv             := io.l2Chi.tx.dat.flitv
-    io.l2Chi.tx.dat.lcrdv             := io.dsuChi.txdat.lcrdv
+    io.djChi.txdat.flitpend          := io.l2Chi.tx.dat.flitpend
+    io.djChi.txdat.flitv             := io.l2Chi.tx.dat.flitv
+    io.l2Chi.tx.dat.lcrdv             := io.djChi.txdat.lcrdv
     //txdatflit
     val txdat = Wire(new CHIBundleDAT(chiBundleParams))
-    io.dsuChi.txdat.flit           := txdat
+    io.djChi.txdat.flit           := txdat
     txdat.qos                      := io.l2Chi.tx.dat.flit.qos
     txdat.tgtID                    := io.l2Chi.tx.dat.flit.tgtID
     txdat.srcID                    := io.l2Chi.tx.dat.flit.srcID
@@ -86,12 +86,12 @@ class ConnectChil2()(implicit p: Parameters) extends DJModule {
     txdat.data                     := io.l2Chi.tx.dat.flit.data
 
     //txrsp ctrl
-    io.dsuChi.txrsp.flitpend          := io.l2Chi.tx.rsp.flitpend
-    io.dsuChi.txrsp.flitv             := io.l2Chi.tx.rsp.flitv
-    io.l2Chi.tx.rsp.lcrdv             := io.dsuChi.txrsp.lcrdv
+    io.djChi.txrsp.flitpend           := io.l2Chi.tx.rsp.flitpend
+    io.djChi.txrsp.flitv              := io.l2Chi.tx.rsp.flitv
+    io.l2Chi.tx.rsp.lcrdv             := io.djChi.txrsp.lcrdv
     //txrspflit
     val txrsp = Wire(new CHIBundleRSP(chiBundleParams))
-    io.dsuChi.txrsp.flit           := txrsp
+    io.djChi.txrsp.flit           := txrsp
     txrsp.qos                      := io.l2Chi.tx.rsp.flit.qos
     txrsp.tgtID                    := io.l2Chi.tx.rsp.flit.tgtID
     txrsp.srcID                    := io.l2Chi.tx.rsp.flit.srcID
@@ -105,12 +105,12 @@ class ConnectChil2()(implicit p: Parameters) extends DJModule {
     txrsp.traceTag                 := io.l2Chi.tx.rsp.flit.traceTag
 
     //rxrsp ctrl
-    io.l2Chi.rx.rsp.flitpend          := io.dsuChi.rxrsp.flitpend
-    io.l2Chi.rx.rsp.flitv             := io.dsuChi.rxrsp.flitv
-    io.dsuChi.rxrsp.lcrdv             := io.l2Chi.rx.rsp.lcrdv
+    io.l2Chi.rx.rsp.flitpend          := io.djChi.rxrsp.flitpend
+    io.l2Chi.rx.rsp.flitv             := io.djChi.rxrsp.flitv
+    io.djChi.rxrsp.lcrdv              := io.l2Chi.rx.rsp.lcrdv
     //rxrspflit
     val rxrsp = Wire(new CHIBundleRSP(chiBundleParams))
-    rxrsp                             := io.dsuChi.rxrsp.flit
+    rxrsp                             := io.djChi.rxrsp.flit
     io.l2Chi.rx.rsp.flit.qos          := rxrsp.qos
     io.l2Chi.rx.rsp.flit.tgtID        := rxrsp.tgtID
     io.l2Chi.rx.rsp.flit.srcID        := rxrsp.srcID
@@ -124,12 +124,12 @@ class ConnectChil2()(implicit p: Parameters) extends DJModule {
     io.l2Chi.rx.rsp.flit.traceTag     := rxrsp.traceTag
 
     //rxdat ctrl
-    io.l2Chi.rx.dat.flitpend          := io.dsuChi.rxdat.flitpend
-    io.l2Chi.rx.dat.flitv             := io.dsuChi.rxdat.flitv
-    io.dsuChi.rxdat.lcrdv             := io.l2Chi.rx.dat.lcrdv
+    io.l2Chi.rx.dat.flitpend          := io.djChi.rxdat.flitpend
+    io.l2Chi.rx.dat.flitv             := io.djChi.rxdat.flitv
+    io.djChi.rxdat.lcrdv              := io.l2Chi.rx.dat.lcrdv
     //rxdatflit
     val rxdat = Wire(new CHIBundleDAT(chiBundleParams))
-    rxdat                             := io.dsuChi.rxdat.flit
+    rxdat                             := io.djChi.rxdat.flit
     io.l2Chi.rx.dat.flit.qos          := rxdat.qos
     io.l2Chi.rx.dat.flit.tgtID        := rxdat.tgtID
     io.l2Chi.rx.dat.flit.srcID        := rxdat.srcID
@@ -148,12 +148,12 @@ class ConnectChil2()(implicit p: Parameters) extends DJModule {
     io.l2Chi.rx.dat.flit.data         := rxdat.data
 
     //rxsnp ctrl
-    io.l2Chi.rx.snp.flitpend          := io.dsuChi.rxsnp.flitpend
-    io.l2Chi.rx.snp.flitv             := io.dsuChi.rxsnp.flitv
-    io.dsuChi.rxsnp.lcrdv             := io.l2Chi.rx.snp.lcrdv
+    io.l2Chi.rx.snp.flitpend          := io.djChi.rxsnp.flitpend
+    io.l2Chi.rx.snp.flitv             := io.djChi.rxsnp.flitv
+    io.djChi.rxsnp.lcrdv              := io.l2Chi.rx.snp.lcrdv
     //rxsnpflit
     val rxsnp = Wire(new CHIBundleSNP(chiBundleParams))
-    rxsnp                             := io.dsuChi.rxsnp.flit
+    rxsnp                             := io.djChi.rxsnp.flit
     io.l2Chi.rx.snp.flit.qos          := rxsnp.qos
     io.l2Chi.rx.snp.flit.srcID        := rxsnp.srcID
     io.l2Chi.rx.snp.flit.txnID        := rxsnp.txnID

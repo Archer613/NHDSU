@@ -150,23 +150,23 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     }
 
 // ----------------------------- Connect IO_SN <-> ARM_SN -------------------------- //
-    val dsu = Module(new DongJiang())
+    val dongjiang = Module(new DongJiang())
     val connecter = Seq.fill(numCores) { Module(new ConnectChil2()) }
     val io = IO(new Bundle {
-      val snChi = Vec(dsu.djparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
-      val snChiLinkCtrl = Vec(dsu.djparam.nrBank, new CHILinkCtrlIO())
+      val snChi = Vec(dongjiang.djparam.nrBank, CHIBundleDownstream(dongjiang.chiBundleParams))
+      val snChiLinkCtrl = Vec(dongjiang.djparam.nrBank, new CHILinkCtrlIO())
     })
-    dsu.io.snChi <> io.snChi
-    dsu.io.snChiLinkCtrl <> io.snChiLinkCtrl
+    dongjiang.io.snChi <> io.snChi
+    dongjiang.io.snChiLinkCtrl <> io.snChiLinkCtrl
 
-    dontTouch(dsu.io)
+    dontTouch(dongjiang.io)
     dontTouch(l2_nodes(0).module.io_chi)
 
     connecter.zipWithIndex.foreach {
       case(c, i) =>
         c.io.l2Chi <> l2_nodes(i).module.io_chi
-        c.io.dsuChiLinkCtrl <> dsu.io.rnChiLinkCtrl(i)
-        c.io.dsuChi <> dsu.io.rnChi(i)
+        c.io.djChiLinkCtrl <> dongjiang.io.rnChiLinkCtrl(i)
+        c.io.djChi <> dongjiang.io.rnChi(i)
     }
   }
 
