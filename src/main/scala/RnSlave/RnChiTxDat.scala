@@ -1,7 +1,7 @@
-package NHDSU.RNSLAVE
+package DONGJIANG.RNSLAVE
 
-import NHDSU._
-import NHDSU.CHI._
+import DONGJIANG._
+import DONGJIANG.CHI._
 import chisel3._
 import chisel3.util.{Decoupled, Queue, is, switch}
 import org.chipsalliance.cde.config._

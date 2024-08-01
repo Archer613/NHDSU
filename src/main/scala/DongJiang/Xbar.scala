@@ -1,9 +1,9 @@
-package NHDSU
+package DONGJIANG
 
-import NHDSU.CHI._
-import NHDSU.RNSLAVE._
-import NHDSU.SLICE._
-import NHDSU.SNMASTER._
+import DONGJIANG.CHI._
+import DONGJIANG.RNSLAVE._
+import DONGJIANG.SLICE._
+import DONGJIANG.SNMASTER._
 import chisel3.{Flipped, _}
 import chisel3.util.{ValidIO, _}
 import org.chipsalliance.cde.config._

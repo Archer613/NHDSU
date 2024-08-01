@@ -1,9 +1,9 @@
-package NHDSU
+package DONGJIANG
 
-import NHDSU.CHI._
-import NHDSU.RNSLAVE._
-import NHDSU.SLICE._
-import NHDSU.SNMASTER._
+import DONGJIANG.CHI._
+import DONGJIANG.RNSLAVE._
+import DONGJIANG.SLICE._
+import DONGJIANG.SNMASTER._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
@@ -16,7 +16,7 @@ abstract class DSUModule(implicit val p: Parameters) extends Module with HasDSUP
 abstract class DSUBundle(implicit val p: Parameters) extends Bundle with HasDSUParam
 
 
-class NHDSU()(implicit p: Parameters) extends DSUModule {
+class DongJiang()(implicit p: Parameters) extends DSUModule {
 // ------------------------------------------ IO declaration ----------------------------------------------//
     val io = IO(new Bundle {
         val rnChi = Vec(dsuparam.nrCore, CHIBundleUpstream(chiBundleParams))
@@ -181,5 +181,5 @@ object DSU extends App {
         case DebugOptionsKey => DebugOptions()
     })
 
-    GenerateVerilog(args, () => new NHDSU()(config), name = "DSU", split = false)
+    GenerateVerilog(args, () => new DongJiang()(config), name = "DSU", split = false)
 }

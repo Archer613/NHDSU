@@ -1,7 +1,7 @@
-package NHDSU.SNMASTER
+package DONGJIANG.SNMASTER
 
-import NHDSU._
-import NHDSU.CHI.{CHILinkCtrlIO, LinkState, LinkStates}
+import DONGJIANG._
+import DONGJIANG.CHI.{CHILinkCtrlIO, LinkState, LinkStates}
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._

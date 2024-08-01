@@ -1,6 +1,6 @@
-package NHDSU
+package DONGJIANG
 
-import NHDSU.CHI._
+import DONGJIANG.CHI._
 import Utils._
 import chisel3._
 import circt.stage.{ChiselStage, FirtoolOption}
@@ -150,7 +150,7 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     }
 
 // ----------------------------- Connect IO_SN <-> ARM_SN -------------------------- //
-    val dsu = Module(new NHDSU())
+    val dsu = Module(new DongJiang())
     val connecter = Seq.fill(numCores) { Module(new ConnectChil2()) }
     val io = IO(new Bundle {
       val snChi = Vec(dsu.dsuparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))

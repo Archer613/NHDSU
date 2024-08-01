@@ -1,11 +1,11 @@
 package Utils
 
 import coupledL2._
-import NHDSU._
-import NHDSU.CHI._
-import NHDSU.RNSLAVE._
-import NHDSU.SLICE._
-import NHDSU.SNMASTER._
+import DONGJIANG._
+import DONGJIANG.CHI._
+import DONGJIANG.RNSLAVE._
+import DONGJIANG.SLICE._
+import DONGJIANG.SNMASTER._
 import chisel3._
 import chisel3.util._
 import coupledL2.tl2chi.PortIO

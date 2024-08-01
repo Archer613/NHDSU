@@ -1,7 +1,7 @@
-package NHDSU.RNSLAVE
+package DONGJIANG.RNSLAVE
 
-import NHDSU._
-import NHDSU.CHI._
+import DONGJIANG._
+import DONGJIANG.CHI._
 import chisel3._
 import org.chipsalliance.cde.config._
 import chisel3.util.{Decoupled, PopCount, RegEnable, ValidIO, log2Ceil, Cat}

@@ -1,4 +1,4 @@
-package NHDSU.CHI
+package DONGJIANG.CHI
 
 import CHI.{RespErr, Order, MemAttr}
 import chisel3._

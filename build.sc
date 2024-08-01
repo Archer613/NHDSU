@@ -148,9 +148,9 @@ object NHL2 extends SbtModule with CommonModule {
 }
 
 // 
-// NHDSU
+// DONGJIANG
 // 
-object NHDSU extends SbtModule with ScalafmtModule with CommonModule {
+object DONGJIANG extends SbtModule with ScalafmtModule with CommonModule {
 	override def millSourcePath = os.pwd
 	override def ivyDeps = super.ivyDeps() ++ Agg(
 		getVersion("chisel"),

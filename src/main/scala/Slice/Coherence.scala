@@ -1,8 +1,8 @@
-package NHDSU.SLICE
+package DONGJIANG.SLICE
 
-import NHDSU._
-import NHDSU.CHI._
-import NHDSU.CHI.ChiState._
+import DONGJIANG._
+import DONGJIANG.CHI._
+import DONGJIANG.CHI.ChiState._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._

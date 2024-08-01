@@ -1,11 +1,11 @@
-package NHDSU.SLICE
+package DONGJIANG.SLICE
 
-import NHDSU._
+import DONGJIANG._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
 import xs.utils.sram.SRAMTemplate
-import NHDSU.DSState._
+import DONGJIANG.DSState._
 
 class DSRequest(implicit p: Parameters) extends DSUBundle with HasToIDBits {
   val addr = UInt(addressBits.W)
