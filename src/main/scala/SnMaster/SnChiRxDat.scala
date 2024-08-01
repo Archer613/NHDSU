@@ -6,7 +6,7 @@ import chisel3._
 import chisel3.util.{Decoupled, ValidIO, is, switch}
 import org.chipsalliance.cde.config._
 
-class SnChiRxDat()(implicit p: Parameters) extends DSUModule {
+class SnChiRxDat()(implicit p: Parameters) extends DJModule {
   val io = IO(new Bundle {
     val chi             = Flipped(CHIChannelIO(new CHIBundleDAT(chiBundleParams)))
     val rxState         = Input(UInt(LinkStates.width.W))
@@ -20,7 +20,7 @@ class SnChiRxDat()(implicit p: Parameters) extends DSUModule {
 
 
 // ------------------- Reg/Wire declaration ---------------------- //
-  val lcrdHasNumReg = RegInit(dsuparam.nrSnTxLcrdMax.U(rnTxlcrdBits.W))
+  val lcrdHasNumReg = RegInit(djparam.nrSnTxLcrdMax.U(rnTxlcrdBits.W))
   val lcrdv         = WireInit(false.B)
   val flitReg       = RegInit(0.U.asTypeOf(new CHIBundleDAT(chiBundleParams)))
   val flitvReg      = RegInit(false.B)

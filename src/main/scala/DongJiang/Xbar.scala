@@ -14,16 +14,16 @@ import Utils.FastArb._
 
 // TODO: has some problem of XBar, req never enter slice_1
 
-class IdMap(implicit p: Parameters) extends DSUModule {
+class IdMap(implicit p: Parameters) extends DJModule {
     val io = IO(new Bundle {
-        val bankVal = Input(Vec(dsuparam.nrBank, Bool()))
+        val bankVal = Input(Vec(djparam.nrBank, Bool()))
         val inBank  = Input(UInt(bankBits.W))
         val outBank = Output(UInt(bankBits.W))
     })
     val outBank = WireInit(0.U(bankBits.W))
     val bankaValNum = WireInit(PopCount(io.bankVal).asUInt)
 
-    if (dsuparam.nrBank == 4) {
+    if (djparam.nrBank == 4) {
         switch(bankaValNum) {
             // Use Bank [0]
             is(1.U) { outBank :=  0.U }
@@ -32,7 +32,7 @@ class IdMap(implicit p: Parameters) extends DSUModule {
             // Use Bank [0 1 2 3]
             is(4.U) { outBank === io.inBank }
         }
-    } else if (dsuparam.nrBank == 2) {
+    } else if (djparam.nrBank == 2) {
         switch(bankaValNum) {
             // Use Bank [0]
             is(1.U) { outBank === 0.U }
@@ -50,58 +50,58 @@ class IdMap(implicit p: Parameters) extends DSUModule {
 
 
 
-class Xbar()(implicit p: Parameters) extends DSUModule {
+class Xbar()(implicit p: Parameters) extends DJModule {
 // ------------------------------------------ IO declaration ----------------------------------------------//
     val io = IO(new Bundle {
-        val bankVal = Input(Vec(dsuparam.nrBank, Bool()))
+        val bankVal = Input(Vec(djparam.nrBank, Bool()))
         // snpCtrl
         val snpTask = new Bundle {
-            val in = Vec(dsuparam.nrBank, Flipped(Decoupled(new SnpTaskBundle())))
-            val out = Vec(dsuparam.nrCore, Decoupled(new SnpTaskBundle()))
+            val in = Vec(djparam.nrBank, Flipped(Decoupled(new SnpTaskBundle())))
+            val out = Vec(djparam.nrCore, Decoupled(new SnpTaskBundle()))
         }
         val snpResp = new Bundle {
-            val in = Vec(dsuparam.nrCore, Flipped(Decoupled(new SnpRespBundle())))
-            val out = Vec(dsuparam.nrBank, ValidIO(new SnpRespBundle()))
+            val in = Vec(djparam.nrCore, Flipped(Decoupled(new SnpRespBundle())))
+            val out = Vec(djparam.nrBank, ValidIO(new SnpRespBundle()))
         }
         // mainpipe
         val mpTask = new Bundle {
-            val in = Vec(dsuparam.nrCore, Flipped(Decoupled(new TaskBundle())))
-            val out = Vec(dsuparam.nrBank, Decoupled(new TaskBundle()))
+            val in = Vec(djparam.nrCore, Flipped(Decoupled(new TaskBundle())))
+            val out = Vec(djparam.nrBank, Decoupled(new TaskBundle()))
         }
         val clTask = new Bundle {
-            val in = Vec(dsuparam.nrCore, Flipped(Decoupled(new WCBTBundle())))
-            val out = Vec(dsuparam.nrBank, Decoupled(new WCBTBundle()))
+            val in = Vec(djparam.nrCore, Flipped(Decoupled(new WCBTBundle())))
+            val out = Vec(djparam.nrBank, Decoupled(new WCBTBundle()))
         }
         val mpResp = new Bundle {
-            val in = Vec(dsuparam.nrBank, Flipped(Decoupled(new RespBundle())))
-            val out = Vec(dsuparam.nrCore, ValidIO(new RespBundle()))
+            val in = Vec(djparam.nrBank, Flipped(Decoupled(new RespBundle())))
+            val out = Vec(djparam.nrCore, ValidIO(new RespBundle()))
         }
         // dataBuffer
         val dbSigs = new Bundle {
-            val in = Vec(dsuparam.nrCore, Flipped(new RnDBBundle()))
-            val out = Vec(dsuparam.nrBank, new RnDBBundle())
+            val in = Vec(djparam.nrCore, Flipped(new RnDBBundle()))
+            val out = Vec(djparam.nrBank, new RnDBBundle())
         }
     })
 
     // ------------------------------------------ Modules declaration And Connection ----------------------------------------------//
-    val taskIdMaps      = Seq.fill(dsuparam.nrCore) { Module(new IdMap()) }
-    val clTaskIdMaps    = Seq.fill(dsuparam.nrCore) { Module(new IdMap()) }
-    val wReqIdMaps      = Seq.fill(dsuparam.nrCore) { Module(new IdMap()) }
+    val taskIdMaps      = Seq.fill(djparam.nrCore) { Module(new IdMap()) }
+    val clTaskIdMaps    = Seq.fill(djparam.nrCore) { Module(new IdMap()) }
+    val wReqIdMaps      = Seq.fill(djparam.nrCore) { Module(new IdMap()) }
 
     // --------------------- Wire declaration ------------------------//
-    val mpTaskRemap     = Wire(Vec(dsuparam.nrCore, Decoupled(new TaskBundle())))
-    val mpTaskRedir     = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new TaskBundle()))))
-    val clTaskRemap     = Wire(Vec(dsuparam.nrCore, Decoupled(new WCBTBundle())))
-    val clTaskRedir     = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new WCBTBundle()))))
-    val mpRespRedir     = Wire(Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new RespBundle()))))
-    val snpTaskRedir    = Wire(Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new SnpTaskBundle()))))
-    val snpRespRedir    = Wire(Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new SnpRespBundle()))))
-    val wReqRemap       = Wire(Vec(dsuparam.nrCore, Decoupled(new RnDBWReq())))
+    val mpTaskRemap     = Wire(Vec(djparam.nrCore, Decoupled(new TaskBundle())))
+    val mpTaskRedir     = Wire(Vec(djparam.nrCore, Vec(djparam.nrBank, Decoupled(new TaskBundle()))))
+    val clTaskRemap     = Wire(Vec(djparam.nrCore, Decoupled(new WCBTBundle())))
+    val clTaskRedir     = Wire(Vec(djparam.nrCore, Vec(djparam.nrBank, Decoupled(new WCBTBundle()))))
+    val mpRespRedir     = Wire(Vec(djparam.nrBank, Vec(djparam.nrCore, Decoupled(new RespBundle()))))
+    val snpTaskRedir    = Wire(Vec(djparam.nrBank, Vec(djparam.nrCore, Decoupled(new SnpTaskBundle()))))
+    val snpRespRedir    = Wire(Vec(djparam.nrCore, Vec(djparam.nrBank, Decoupled(new SnpRespBundle()))))
+    val wReqRemap       = Wire(Vec(djparam.nrCore, Decoupled(new RnDBWReq())))
     val dbSigsRedir     = Wire(new Bundle {
-            val wReq        = Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new RnDBWReq())))
-            val wResp       = Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new RnDBWResp())))
-            val dataFromDB  = Vec(dsuparam.nrBank, Vec(dsuparam.nrCore, Decoupled(new RnDBOutData())))
-            val dataToDB    = Vec(dsuparam.nrCore, Vec(dsuparam.nrBank, Decoupled(new RnDBInData())))
+            val wReq        = Vec(djparam.nrCore, Vec(djparam.nrBank, Decoupled(new RnDBWReq())))
+            val wResp       = Vec(djparam.nrBank, Vec(djparam.nrCore, Decoupled(new RnDBWResp())))
+            val dataFromDB  = Vec(djparam.nrBank, Vec(djparam.nrCore, Decoupled(new RnDBOutData())))
+            val dataToDB    = Vec(djparam.nrCore, Vec(djparam.nrBank, Decoupled(new RnDBInData())))
     })
 
 

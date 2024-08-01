@@ -6,13 +6,13 @@ import chisel3._
 import chisel3.util.{Decoupled, Queue, ValidIO, Valid, is, switch}
 import org.chipsalliance.cde.config._
 
-class RxRespBundle(implicit p: Parameters) extends DSUBundle {
+class RxRespBundle(implicit p: Parameters) extends DJBundle {
   val valid   = Bool()
   val txnid   = UInt(chiTxnidBits.W)
   val dbid    = UInt(chiDbidBits.W)
 }
 
-class SnChiRxRsp()(implicit p: Parameters) extends DSUModule {
+class SnChiRxRsp()(implicit p: Parameters) extends DJModule {
   val io = IO(new Bundle {
     val chi           = Flipped(CHIChannelIO(new CHIBundleRSP(chiBundleParams)))
     val rxState       = Input(UInt(LinkStates.width.W))
@@ -38,7 +38,7 @@ class SnChiRxRsp()(implicit p: Parameters) extends DSUModule {
 // ------------------------- Logic ------------------------------- //
   // Count lcrd
   lcrdSendNumReg := lcrdSendNumReg + io.chi.lcrdv.asUInt - io.chi.flitv.asUInt
-  lcrdFreeNum := dsuparam.nrSnRxLcrdMax.U - queue.io.count - lcrdSendNumReg
+  lcrdFreeNum := djparam.nrSnRxLcrdMax.U - queue.io.count - lcrdSendNumReg
 
 
   /*

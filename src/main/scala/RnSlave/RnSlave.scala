@@ -10,9 +10,9 @@ import Utils.FastArb._
 import Utils.IDConnector._
 
 
-class ReqBufSelector(implicit p: Parameters) extends DSUModule {
+class ReqBufSelector(implicit p: Parameters) extends DJModule {
   val io = IO(new Bundle() {
-    val idle = Input(Vec(dsuparam.nrReqBuf, Bool()))
+    val idle = Input(Vec(djparam.nrReqBuf, Bool()))
     val idleNum = Output(UInt((reqBufIdBits+1).W))
     val out0 = UInt(reqBufIdBits.W)
     val out1 = UInt(reqBufIdBits.W)
@@ -26,7 +26,7 @@ class ReqBufSelector(implicit p: Parameters) extends DSUModule {
 
 
 
-class RnSlave()(implicit p: Parameters) extends DSUModule {
+class RnSlave()(implicit p: Parameters) extends DJModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     val rnSlvId       = Input(UInt(coreIdBits.W))
@@ -54,7 +54,7 @@ class RnSlave()(implicit p: Parameters) extends DSUModule {
   val rxRsp = Module(new RnChiRxRsp())
   val rxDat = Module(new RnChiRxDat())
 
-  val reqBufs = Seq.fill(dsuparam.nrReqBuf) { Module(new ReqBuf()) }
+  val reqBufs = Seq.fill(djparam.nrReqBuf) { Module(new ReqBuf()) }
 
   val nestCtl = Module(new NestCtl())
 

@@ -9,19 +9,19 @@ import xs.utils.sram.SRAMTemplate
 import chisel3.util.random.LFSR
 import freechips.rocketchip.util.ReplacementPolicy
 
-class SDirMetaEntry(implicit p: Parameters) extends DSUBundle with HasChiStates {
+class SDirMetaEntry(implicit p: Parameters) extends DJBundle with HasChiStates {
   val tag          = UInt(sTagBits.W)
   val bank         = UInt(bankBits.W)
 }
 
-class SDirRead(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasSelfAddrBits {
+class SDirRead(useAddr: Boolean = false)(implicit p: Parameters) extends DJBundle with HasSelfAddrBits {
   override def useAddrVal: Boolean = useAddr
-  val mes = new DirReadBase(dsuparam.ways)
+  val mes = new DirReadBase(djparam.ways)
 }
 
-class SDirWrite(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasSelfAddrBits with HasChiStates {
+class SDirWrite(useAddr: Boolean = false)(implicit p: Parameters) extends DJBundle with HasSelfAddrBits with HasChiStates {
   override def useAddrVal: Boolean = useAddr
-  val wayOH = UInt(dsuparam.ways.W)
+  val wayOH = UInt(djparam.ways.W)
   val replMesOpt = if(!useRepl) None else Some(UInt(sReplWayBits.W))
 
   def toSDirMetaEntry() = {
@@ -33,14 +33,14 @@ class SDirWrite(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBun
   }
 }
 
-class SDirResp(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasSelfAddrBits with HasChiStates {
+class SDirResp(useAddr: Boolean = false)(implicit p: Parameters) extends DJBundle with HasSelfAddrBits with HasChiStates {
   override def useAddrVal: Boolean = useAddr
-  val wayOH       = UInt(dsuparam.ways.W)
+  val wayOH       = UInt(djparam.ways.W)
   val hit         = Bool()
   val replMesOpt  = if(!useRepl) None else Some(UInt(sReplWayBits.W))
 }
 
-class SelfDirectory()(implicit p: Parameters) extends DSUModule {
+class SelfDirectory()(implicit p: Parameters) extends DJModule {
 // --------------------- IO declaration ------------------------//
 val io = IO(new Bundle {
   val dirRead   = Flipped(Decoupled(new SDirRead))
@@ -49,21 +49,21 @@ val io = IO(new Bundle {
   })
 
 
-  val ways    = dsuparam.ways
-  val sets    = dsuparam.sets / dsuparam.nrSelfDirBank
+  val ways    = djparam.ways
+  val sets    = djparam.sets / djparam.nrSelfDirBank
   val wayBits = log2Ceil(ways)
   val setBits = log2Ceil(sets)
 
 // --------------------- Modules declaration ------------------------//
-  val repl          = ReplacementPolicy.fromString(dsuparam.replacementPolicy, ways)
+  val repl          = ReplacementPolicy.fromString(djparam.replacementPolicy, ways)
 
-  val metaArray     = Module(new SRAMTemplate(new SDirMetaEntry(), sets, ways, singlePort = true, multicycle = dsuparam.dirMulticycle, shouldReset = true))
+  val metaArray     = Module(new SRAMTemplate(new SDirMetaEntry(), sets, ways, singlePort = true, multicycle = djparam.dirMulticycle, shouldReset = true))
 
   val replArrayOpt  = if(!useRepl) None else Some(Module(new SRAMTemplate(UInt(repl.nBits.W), sets, way = 1, singlePort = true, shouldReset = true)))
 
-  val readPipe      = Module(new Pipe(new SDirRead(), latency = dsuparam.dirMulticycle))
+  val readPipe      = Module(new Pipe(new SDirRead(), latency = djparam.dirMulticycle))
 
-  val replPipeOpt   = if(!useRepl) None else Some(Module(new Pipe(UInt(repl.nBits.W), latency = dsuparam.dirMulticycle-1)))
+  val replPipeOpt   = if(!useRepl) None else Some(Module(new Pipe(UInt(repl.nBits.W), latency = djparam.dirMulticycle-1)))
 
 
 // ----------------------- Reg/Wire declaration --------------------------//
@@ -218,7 +218,7 @@ val io = IO(new Bundle {
   /*
    * PLRU: update replacer only when read hit or write dir
    */
-  if (dsuparam.replacementPolicy == "plru") {
+  if (djparam.replacementPolicy == "plru") {
     replArrayOpt.get.io.w.req.valid               := io.dirWrite.fire | (io.dirResp.fire & hit)
     replArrayOpt.get.io.w.req.bits.setIdx         := Mux(io.dirWrite.fire, io.dirWrite.bits.set, dirRead_s3_g.set)
     replArrayOpt.get.io.w.req.bits.data.foreach(_ := Mux(io.dirWrite.fire,

@@ -12,7 +12,7 @@ import coupledL2.tl2chi.PortIO
 import org.chipsalliance.cde.config._
 
 
-class ConnectChil2()(implicit p: Parameters) extends DSUModule {
+class ConnectChil2()(implicit p: Parameters) extends DJModule {
     val io = IO(new Bundle {
         val l2Chi           = Flipped(new PortIO())
         val dsuChiLinkCtrl  = new CHILinkCtrlIO()

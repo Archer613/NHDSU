@@ -130,8 +130,8 @@ class TestTop_NHL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(impl
 // ----------------------------- Connect IO_SN <-> ARM_SN -------------------------- //
     val dsu = Module(new DongJiang())
     val io = IO(new Bundle {
-      val snChi = Vec(dsu.dsuparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
-      val snChiLinkCtrl = Vec(dsu.dsuparam.nrBank, new CHILinkCtrlIO())
+      val snChi = Vec(dsu.djparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
+      val snChiLinkCtrl = Vec(dsu.djparam.nrBank, new CHILinkCtrlIO())
     })
 
     dsu.io.snChi <> io.snChi
@@ -155,7 +155,7 @@ object TestTopNHHelper {
         sets = 128
       )
       case DebugOptionsKey => DebugOptions()
-      case DSUParamKey => DSUParam(
+      case DJParamKey => DJParam(
         nrCore = nrCore
       )
     })

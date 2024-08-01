@@ -6,7 +6,7 @@ import chisel3._
 import chisel3.util.{Decoupled, Queue, is, switch}
 import org.chipsalliance.cde.config._
 
-class RnChiTxDat()(implicit p: Parameters) extends DSUModule {
+class RnChiTxDat()(implicit p: Parameters) extends DJModule {
   val io = IO(new Bundle {
     val chi = Flipped(CHIChannelIO(new CHIBundleDAT(chiBundleParams)))
     val txState = Input(UInt(LinkStates.width.W))
@@ -107,9 +107,9 @@ class RnChiTxDat()(implicit p: Parameters) extends DSUModule {
     }
   }
 
-  assert(lcrdSendNumReg <= dsuparam.nrRnTxLcrdMax.U, "Lcrd be send cant over than nrRnTxLcrdMax")
-  assert(queue.io.count <= dsuparam.nrRnTxLcrdMax.U, "queue.io.count cant over than nrRnTxLcrdMax")
-  assert(lcrdFreeNum <= dsuparam.nrRnTxLcrdMax.U, "lcrd free num cant over than nrRnTxLcrdMax")
+  assert(lcrdSendNumReg <= djparam.nrRnTxLcrdMax.U, "Lcrd be send cant over than nrRnTxLcrdMax")
+  assert(queue.io.count <= djparam.nrRnTxLcrdMax.U, "queue.io.count cant over than nrRnTxLcrdMax")
+  assert(lcrdFreeNum <= djparam.nrRnTxLcrdMax.U, "lcrd free num cant over than nrRnTxLcrdMax")
   assert(io.flit.ready, "io flit ready should always be true")
   assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.DAT.CopyBackWrData | io.flit.bits.opcode === CHIOp.DAT.SnpRespData, true.B), "DSU dont support TXDAT[0x%x]", io.flit.bits.opcode)
 

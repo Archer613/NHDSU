@@ -6,7 +6,7 @@ import chisel3._
 import chisel3.util.{Decoupled, Queue, is, switch}
 import org.chipsalliance.cde.config._
 
-class RnChiTxRsp()(implicit p: Parameters) extends DSUModule {
+class RnChiTxRsp()(implicit p: Parameters) extends DJModule {
   val io = IO(new Bundle {
     val chi = Flipped(CHIChannelIO(new CHIBundleRSP(chiBundleParams)))
     val txState = Input(UInt(LinkStates.width.W))
@@ -33,7 +33,7 @@ class RnChiTxRsp()(implicit p: Parameters) extends DSUModule {
 // --------------------- Logic ----------------------------------- //
   // Count lcrd
   lcrdSendNumReg := lcrdSendNumReg + io.chi.lcrdv.asUInt - io.chi.flitv.asUInt
-  lcrdFreeNum := dsuparam.nrRnTxLcrdMax.U - lcrdSendNumReg
+  lcrdFreeNum := djparam.nrRnTxLcrdMax.U - lcrdSendNumReg
 
 
   /*
@@ -88,9 +88,9 @@ class RnChiTxRsp()(implicit p: Parameters) extends DSUModule {
     }
   }
 
-  assert(lcrdSendNumReg <= dsuparam.nrRnTxLcrdMax.U, "Lcrd be send cant over than nrRnTxLcrdMax")
-  assert(queue.io.count <= dsuparam.nrRnTxLcrdMax.U, "queue.io.count cant over than nrRnTxLcrdMax")
-  assert(lcrdFreeNum <= dsuparam.nrRnTxLcrdMax.U, "lcrd free num cant over than nrRnTxLcrdMax")
+  assert(lcrdSendNumReg <= djparam.nrRnTxLcrdMax.U, "Lcrd be send cant over than nrRnTxLcrdMax")
+  assert(queue.io.count <= djparam.nrRnTxLcrdMax.U, "queue.io.count cant over than nrRnTxLcrdMax")
+  assert(lcrdFreeNum <= djparam.nrRnTxLcrdMax.U, "lcrd free num cant over than nrRnTxLcrdMax")
   assert(io.flit.ready, "io flit ready should always be true")
   assert(queue.io.enq.ready, "io enq ready should always be true")
   assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.RSP.CompAck | io.flit.bits.opcode === CHIOp.RSP.SnpResp, true.B), "DSU dont support TXRSP[0x%x]", io.flit.bits.opcode)

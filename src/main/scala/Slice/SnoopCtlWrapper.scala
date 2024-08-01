@@ -6,7 +6,7 @@ import chisel3.util._
 import org.chipsalliance.cde.config._
 import Utils.FastArb._
 
-class SnoopCtlWrapper()(implicit p: Parameters) extends DSUModule {
+class SnoopCtlWrapper()(implicit p: Parameters) extends DJModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     // snpCtrl <-> rnSlave
@@ -27,12 +27,12 @@ class SnoopCtlWrapper()(implicit p: Parameters) extends DSUModule {
 
 
 // --------------------- Modules declaration ------------------------//
-val snpCtls = Seq.fill(dsuparam.nrSnoopCtl) { Module(new SnoopCtl()) }
+val snpCtls = Seq.fill(djparam.nrSnoopCtl) { Module(new SnoopCtl()) }
   snpCtls.foreach(_.io <> DontCare)
 
 
 // --------------------- Reg / Wire declaration ------------------------//
-  val freeVec           = Wire(Vec(dsuparam.nrSnoopCtl, Bool()))
+  val freeVec           = Wire(Vec(djparam.nrSnoopCtl, Bool()))
   val reqSelId          = WireInit(0.U(snoopCtlIdBits.W)) // for mpTask
 
 // --------------------- Connection ------------------------//

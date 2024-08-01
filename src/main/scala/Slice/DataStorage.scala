@@ -7,16 +7,16 @@ import org.chipsalliance.cde.config._
 import xs.utils.sram.SRAMTemplate
 import DONGJIANG.DSState._
 
-class DSRequest(implicit p: Parameters) extends DSUBundle with HasToIDBits {
+class DSRequest(implicit p: Parameters) extends DJBundle with HasToIDBits {
   val addr = UInt(addressBits.W)
-  val wayOH = UInt(dsuparam.ways.W)
+  val wayOH = UInt(djparam.ways.W)
   val ren = Bool()
   val wen = Bool()
   val dbid = UInt(dbIdBits.W)
 }
 
 
-class DataStorage()(implicit p: Parameters) extends DSUModule {
+class DataStorage()(implicit p: Parameters) extends DJModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     // Req From MainPipe
@@ -44,9 +44,9 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
    *
    * TODO: multicycle not effect
    */
-  val dataArray = Seq.fill(dsuparam.nrDSBank) { Seq.fill(nrBeat) {
-                        Module(new SRAMTemplate(UInt(beatBits.W), dsuparam.sets / dsuparam.nrDSBank, dsuparam.ways,
-                          singlePort = true, multicycle = dsuparam.dataMulticycle)) } }
+  val dataArray = Seq.fill(djparam.nrDSBank) { Seq.fill(nrBeat) {
+                        Module(new SRAMTemplate(UInt(beatBits.W), djparam.sets / djparam.nrDSBank, djparam.ways,
+                          singlePort = true, multicycle = djparam.dataMulticycle)) } }
 
   val outIdQ = Module(new Queue(UInt(entryBits.W), entries = nrEntry * nrBeat, flow = false, pipe = true))
 
@@ -62,9 +62,9 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
   val dsReadId      = Wire(UInt(entryBits.W))
   val dsWDataVec    = Wire(Vec(nrEntry, Bool())) // wait data
   val dsRDataVec    = Wire(Vec(nrEntry, Bool())) // read data
-  val wReadyVec     = Wire(Vec(dsuparam.nrDSBank, Vec(nrBeat, Bool())))
-  val rReadyVec     = Wire(Vec(dsuparam.nrDSBank, Vec(nrBeat, Bool())))
-  val rFireVec      = Wire(Vec(dsuparam.nrDSBank, Vec(nrBeat, Bool())))
+  val wReadyVec     = Wire(Vec(djparam.nrDSBank, Vec(nrBeat, Bool())))
+  val rReadyVec     = Wire(Vec(djparam.nrDSBank, Vec(nrBeat, Bool())))
+  val rFireVec      = Wire(Vec(djparam.nrDSBank, Vec(nrBeat, Bool())))
 
   dontTouch(dsReqEntries)
   dontTouch(freeVec)
@@ -236,7 +236,7 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
   assert(PopCount(rFireVec.asUInt) <= 1.U)
   assert(outIdQ.io.enq.ready)
   assert(Mux(io.dbSigs2DB.wReq.fire, io.dbSigs2DB.wResp.fire, true.B), "wReq and wResp should be fire at the same time")
-  val sramRValVec = Wire(Vec(dsuparam.nrDSBank, Vec(nrBeat, Bool())))
+  val sramRValVec = Wire(Vec(djparam.nrDSBank, Vec(nrBeat, Bool())))
   dataArray.zipWithIndex.foreach { case(d, i) => d.zipWithIndex.foreach { case(d, j) => sramRValVec(i)(j) := d.io.r.req.valid } }
   assert(PopCount(sramRValVec.asUInt) <= 1.U, "Only one sram can be read per clock cycle")
 

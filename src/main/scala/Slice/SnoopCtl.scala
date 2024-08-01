@@ -6,7 +6,7 @@ import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
 
-class SnoopCtl()(implicit p: Parameters) extends DSUModule {
+class SnoopCtl()(implicit p: Parameters) extends DJModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     val snpId         = Input(UInt(snoopCtlIdBits.W))
@@ -29,9 +29,9 @@ class SnoopCtl()(implicit p: Parameters) extends DSUModule {
 // --------------------- Reg / Wire declaration ------------------------//
   val validReg    = RegInit(false.B)
   val mpTaskReg   = RegInit(0.U.asTypeOf(new MpSnpTaskBundle()))
-  val needSnpVec  = Wire(Vec(dsuparam.nrCore, Bool()))
-  val doneVecReg  = Reg(Vec(dsuparam.nrCore, Bool()))
-  val respVecReg  = Reg(Vec(dsuparam.nrCore, Bool()))
+  val needSnpVec  = Wire(Vec(djparam.nrCore, Bool()))
+  val doneVecReg  = Reg(Vec(djparam.nrCore, Bool()))
+  val respVecReg  = Reg(Vec(djparam.nrCore, Bool()))
   val respReg     = RegInit(0.U.asTypeOf(new SnpRespBundle()))
   val release     = WireInit(false.B)
   val respCoreId  = Wire(UInt(coreIdBits.W))

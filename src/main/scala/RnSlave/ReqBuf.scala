@@ -6,7 +6,7 @@ import chisel3._
 import org.chipsalliance.cde.config._
 import chisel3.util.{Decoupled, PopCount, RegEnable, ValidIO, log2Ceil, Cat}
 
-class ReqBuf()(implicit p: Parameters) extends DSUModule {
+class ReqBuf()(implicit p: Parameters) extends DJModule {
   val io = IO(new Bundle {
     val free        = Output(Bool())
     val rnSlvId     = Input(UInt(coreIdBits.W))
@@ -175,7 +175,7 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   temp := dbidReg
   snpTxnid := Mux(snpRetToSrcReg, Cat(1.U, temp), io.reqBufId)
   io.chi.rxsnp.valid            := fsmReg.s_snp & !fsmReg.w_dbid
-  io.chi.rxsnp.bits.srcID       := dsuparam.idmap.HNID.U
+  io.chi.rxsnp.bits.srcID       := djparam.idmap.HNID.U
   io.chi.rxsnp.bits.txnID       := snpTxnid
   io.chi.rxsnp.bits.addr        := taskReg.addr(addressBits-1, addressBits-io.chi.rxsnp.bits.addr.getWidth)
   io.chi.rxsnp.bits.opcode      := taskReg.opcode
@@ -225,10 +225,10 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   io.chi.rxdat.valid        := fsmReg.s_resp & fsmReg.w_dbData & io.dbDataValid & !fsmReg.w_mpResp
   io.chi.rxdat.bits.opcode  := respReg.opcode
   // IDs
-  io.chi.rxdat.bits.tgtID   := dsuparam.idmap.RNID(0).U
-  io.chi.rxdat.bits.srcID   := dsuparam.idmap.HNID.U
+  io.chi.rxdat.bits.tgtID   := djparam.idmap.RNID(0).U
+  io.chi.rxdat.bits.srcID   := djparam.idmap.HNID.U
   io.chi.rxdat.bits.txnID   := reqTxnIDReg
-  io.chi.rxdat.bits.homeNID := dsuparam.idmap.HNID.U
+  io.chi.rxdat.bits.homeNID := djparam.idmap.HNID.U
   io.chi.rxdat.bits.dbID    := io.reqBufId
   io.chi.rxdat.bits.resp    := respReg.resp
 
@@ -240,8 +240,8 @@ class ReqBuf()(implicit p: Parameters) extends DSUModule {
   io.chi.rxrsp.valid          := compVal | dbdidRespVal
   io.chi.rxrsp.bits.opcode    := Mux(compVal, respReg.opcode, CHIOp.RSP.CompDBIDResp)
   // IDs
-  io.chi.rxrsp.bits.tgtID     := dsuparam.idmap.RNID(0).U
-  io.chi.rxrsp.bits.srcID     := dsuparam.idmap.HNID.U
+  io.chi.rxrsp.bits.tgtID     := djparam.idmap.RNID(0).U
+  io.chi.rxrsp.bits.srcID     := djparam.idmap.HNID.U
   io.chi.rxrsp.bits.txnID     := reqTxnIDReg
   io.chi.rxrsp.bits.dbID      := Mux(compVal, io.reqBufId, dbidReg)
   io.chi.rxrsp.bits.pCrdType  := 0.U // This system dont support Transaction Retry

@@ -6,7 +6,7 @@ import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
 
-class SnMaster()(implicit p: Parameters) extends DSUModule {
+class SnMaster()(implicit p: Parameters) extends DJModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     // CHI

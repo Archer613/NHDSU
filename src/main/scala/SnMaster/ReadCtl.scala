@@ -7,7 +7,7 @@ import chisel3.util.{Decoupled, ValidIO, switch, is, OHToUInt, PriorityEncoder}
 import org.chipsalliance.cde.config._
 import xs.utils.ParallelPriorityMux
 
-class ReadCtl()(implicit p: Parameters) extends DSUModule {
+class ReadCtl()(implicit p: Parameters) extends DJModule {
   val io = IO(new Bundle {
     val mpTask    = Flipped(Decoupled(new TaskBundle()))
     val mpResp    = Decoupled(new TaskBundle())

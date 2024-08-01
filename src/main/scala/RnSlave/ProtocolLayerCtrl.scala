@@ -6,7 +6,7 @@ import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
 
-class ProtocolLayerCtrl()(implicit p: Parameters) extends DSUModule {
+class ProtocolLayerCtrl()(implicit p: Parameters) extends DJModule {
   val io = IO(new Bundle {
     val chiLinkCtrl = Flipped(new CHILinkCtrlIO())
     val txState = Output(UInt(LinkStates.width.W))

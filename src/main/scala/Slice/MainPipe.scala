@@ -7,7 +7,7 @@ import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
 
-class MainPipe()(implicit p: Parameters) extends DSUModule {
+class MainPipe()(implicit p: Parameters) extends DJModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     val sliceId     = Input(UInt(bankBits.W))
@@ -97,7 +97,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   val hnState     = WireInit(ChiState.I)
   val otherState  = WireInit(ChiState.I)
   val srcState    = WireInit(ChiState.I)
-  val rnValVec    = Wire(Vec(dsuparam.nrCore, Bool()))
+  val rnValVec    = Wire(Vec(djparam.nrCore, Bool()))
   // s3 task signals
   val taskReq_s3  = WireInit(0.U.asTypeOf(new TaskBundle()))
   val taskResp_s3 = WireInit(0.U.asTypeOf(new RespBundle()))
@@ -177,9 +177,9 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   // Base signals
   sourceID      := Mux(task_s3_g.bits.from.idL0 === IdL0.RN, task_s3_g.bits.from.idL1, task_s3_g.bits.to.idL1)
   sourceHit_s3  := client_s3.hitVec(sourceID)
-  if(dsuparam.nrCore > 1) otherHit_s3 := PopCount(client_s3.hitVec) > 1.U | (client_s3.hitVec.asUInt.orR & !sourceHit_s3)
+  if(djparam.nrCore > 1) otherHit_s3 := PopCount(client_s3.hitVec) > 1.U | (client_s3.hitVec.asUInt.orR & !sourceHit_s3)
   hnState       := Mux(self_s3.hit, self_s3.state, ChiState.I)
-  if(dsuparam.nrCore > 1) otherState := Mux(otherHit_s3, client_s3.metas(PriorityEncoder(client_s3.hitVec)).state, ChiState.I)
+  if(djparam.nrCore > 1) otherState := Mux(otherHit_s3, client_s3.metas(PriorityEncoder(client_s3.hitVec)).state, ChiState.I)
   srcState      := Mux(sourceHit_s3, client_s3.metas(sourceID).state, ChiState.I)
   // gen new coherence with snoop
   val (srcRnNSWithSnp, othRnNSWithSnp, hSNSWithSnp, genNewCohWithSnpError)  = genNewCohWithSnp(task_s3_g.bits.opcode, hnState, task_s3_g.bits.resp, task_s3_g.bits.isSnpHlp)
@@ -323,7 +323,7 @@ class MainPipe()(implicit p: Parameters) extends DSUModule {
   io.cDirWrite.bits.addr            := task_s3_g.bits.addr
   io.cDirWrite.bits.metas.map(_.state).zipWithIndex.foreach {
     case(state, i) =>
-      if(dsuparam.nrCore > 1) state := Mux(task_s3_g.bits.to.idL1 === i.U, srcRnNS, Mux(client_s3.hitVec(i), othRnNS, ChiState.I))
+      if(djparam.nrCore > 1) state := Mux(task_s3_g.bits.to.idL1 === i.U, srcRnNS, Mux(client_s3.hitVec(i), othRnNS, ChiState.I))
       else                    state := srcRnNS
   }
   io.cDirWrite.bits.wayOH := client_s3.wayOH

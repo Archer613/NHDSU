@@ -7,7 +7,7 @@ import org.chipsalliance.cde.config._
 import xs.utils.ParallelPriorityMux
 import Utils.FastArb.fastPriorityArbDec2Val
 
-class RequestArbiter()(implicit p: Parameters) extends DSUModule {
+class RequestArbiter()(implicit p: Parameters) extends DJModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     // SnoopCtl task
@@ -188,14 +188,14 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
   // block table
   assert(Mux(wBTReq_s0.valid, wBTReq_s0.ready, true.B))
   if(mpBlockBySet) {
-    assert(PopCount(blockRnTaskVec) <= dsuparam.nrBank.U | !io.taskRn.valid)
+    assert(PopCount(blockRnTaskVec) <= djparam.nrBank.U | !io.taskRn.valid)
   } else {
     assert(PopCount(blockRnTaskVec) <= 1.U | !io.taskRn.valid)
   }
 
 
   // snoop
-  assert(Mux(mpSnpUseNumReg === dsuparam.nrSnoopCtl.U, Mux(task_s0.fire, task_s0.bits.willSnp, true.B), true.B))
+  assert(Mux(mpSnpUseNumReg === djparam.nrSnoopCtl.U, Mux(task_s0.fire, task_s0.bits.willSnp, true.B), true.B))
 
   // TIMEOUT CHECK
   blockTableReg.zipWithIndex.foreach {

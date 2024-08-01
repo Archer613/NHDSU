@@ -16,7 +16,7 @@ object IdL0 {
     val MASTER     = "b100".U
 }
 
-class IDBundle(implicit p: Parameters) extends DSUBundle {
+class IDBundle(implicit p: Parameters) extends DJBundle {
     val idL0 = UInt(IdL0.width.W) // Module: IDL0 [3.W]
     val idL1 = UInt(max(coreIdBits, bankBits).W) // SubModule: RnSlaves, Slices [max:2.W]
     val idL2 = UInt(max(reqBufIdBits, max(snoopCtlIdBits, replTxnidBits)).W) // SubSubModule: ReqBufs, SnpCtls, blockSets + blockWays [max:7.W]
@@ -28,15 +28,15 @@ class IDBundle(implicit p: Parameters) extends DSUBundle {
     def isMASTER = idL0 === IdL0.MASTER
 }
 
-trait HasFromIDBits extends DSUBundle { this: Bundle => val from = new IDBundle() }
+trait HasFromIDBits extends DJBundle { this: Bundle => val from = new IDBundle() }
 
-trait HasToIDBits extends DSUBundle { this: Bundle => val to = new IDBundle() }
+trait HasToIDBits extends DJBundle { this: Bundle => val to = new IDBundle() }
 
-trait HasIDBits extends DSUBundle with HasFromIDBits with HasToIDBits
+trait HasIDBits extends DJBundle with HasFromIDBits with HasToIDBits
 
-trait HasDBID extends DSUBundle { this: Bundle => val dbid = UInt(dbIdBits.W) }
+trait HasDBID extends DJBundle { this: Bundle => val dbid = UInt(dbIdBits.W) }
 
-class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasDBID {
+class TaskBundle(implicit p: Parameters) extends DJBundle with HasIDBits with HasDBID {
     // constants related to CHI
     def tgtID       = 0.U(chiBundleParams.nodeIdBits.W)
     def srcID       = 0.U(chiBundleParams.nodeIdBits.W)
@@ -53,7 +53,7 @@ class TaskBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with H
     val snpHasData  = Bool()
 }
 
-class RespBundle(implicit p: Parameters) extends DSUBundle with HasToIDBits with HasCHIChannel{
+class RespBundle(implicit p: Parameters) extends DJBundle with HasToIDBits with HasCHIChannel{
     val opcode      = UInt(6.W)
     val resp        = UInt(3.W)
     val addr        = UInt(addressBits.W) // TODO: Del it
@@ -61,23 +61,23 @@ class RespBundle(implicit p: Parameters) extends DSUBundle with HasToIDBits with
     val cleanBt     = Bool()
 }
 
-trait HasSnpTask extends DSUBundle { this: Bundle =>
+trait HasSnpTask extends DJBundle { this: Bundle =>
     val opcode          = UInt(6.W)
     val addr            = UInt(addressBits.W)
     val snpDoNotGoToSD  = Bool()
     val snpRetToSrc     = Bool()
 }
 
-class SnpTaskBundle(implicit p: Parameters) extends DSUBundle with HasSnpTask with HasIDBits
-class MpSnpTaskBundle(implicit p: Parameters) extends DSUBundle with HasSnpTask with HasFromIDBits {
+class SnpTaskBundle(implicit p: Parameters) extends DJBundle with HasSnpTask with HasIDBits
+class MpSnpTaskBundle(implicit p: Parameters) extends DJBundle with HasSnpTask with HasFromIDBits {
     val srcOp       = UInt(6.W)
-    val hitVec      = Vec(dsuparam.nrCore, Bool())
+    val hitVec      = Vec(djparam.nrCore, Bool())
     val isSnpHlp    = Bool()
     val btWay       = UInt(blockWayBits.W) // block table
 
 }
 
-class SnpRespBundle(implicit p: Parameters) extends DSUBundle with HasIDBits with HasDBID {
+class SnpRespBundle(implicit p: Parameters) extends DJBundle with HasIDBits with HasDBID {
     val resp    = UInt(3.W) // snpResp; resp.width = 3
     val hasData = Bool()
 }
@@ -96,7 +96,7 @@ object DBState {
     val READING     = "b101".U // Already partially read
     val READ_DONE   = "b110".U // Has been read all beat
 }
-class DBEntry(implicit p: Parameters) extends DSUBundle with HasToIDBits {
+class DBEntry(implicit p: Parameters) extends DJBundle with HasToIDBits {
     val state       = UInt(DBState.width.W)
     val beatVals    = Vec(nrBeat, Bool())
     val beatRNum    = UInt(log2Ceil(nrBeat).W)
@@ -110,12 +110,12 @@ class DBEntry(implicit p: Parameters) extends DSUBundle with HasToIDBits {
         else { beatRNum }
     }
 }
-trait HasDBRCOp extends DSUBundle { this: Bundle =>
+trait HasDBRCOp extends DJBundle { this: Bundle =>
     val isRead = Bool()
     val isClean = Bool()
 }
 // Base Data Bundle
-trait HasDBData extends DSUBundle { this: Bundle =>
+trait HasDBData extends DJBundle { this: Bundle =>
     val data = UInt(beatBits.W)
     val dataID = UInt(2.W)
     def beatNum: UInt = {
@@ -126,15 +126,15 @@ trait HasDBData extends DSUBundle { this: Bundle =>
     def isLast: Bool = beatNum === (nrBeat - 1).U
 }
 // DataBuffer Read/Clean Req
-class DBRCReq(implicit p: Parameters) extends DSUBundle with HasDBRCOp with HasDBID with HasToIDBits
+class DBRCReq(implicit p: Parameters) extends DJBundle with HasDBRCOp with HasDBID with HasToIDBits
 
 // RN Bundle
-class RnDBWReq(implicit p: Parameters) extends DSUBundle with HasIDBits                                  // RN   ---[wReq] ---> DB
-class RnDBWResp(implicit p: Parameters) extends DSUBundle with HasIDBits with HasDBID                    // DB   ---[wResp] --> RN
-class RnDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData with HasToIDBits              // DB   ---[Data] ---> RN
-class RnDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasToIDBits with HasDBID  // RN   ---[Data] ---> DB
+class RnDBWReq(implicit p: Parameters) extends DJBundle with HasIDBits                                  // RN   ---[wReq] ---> DB
+class RnDBWResp(implicit p: Parameters) extends DJBundle with HasIDBits with HasDBID                    // DB   ---[wResp] --> RN
+class RnDBOutData(implicit p: Parameters) extends DJBundle with HasDBData with HasToIDBits              // DB   ---[Data] ---> RN
+class RnDBInData(implicit p: Parameters) extends DJBundle with HasDBData with HasToIDBits with HasDBID  // RN   ---[Data] ---> DB
 
-class RnDBBundle(implicit p: Parameters) extends DSUBundle {
+class RnDBBundle(implicit p: Parameters) extends DJBundle {
     val wReq        = Decoupled(new RnDBWReq)                      // from[RN][coreID][reqBufID];      to[SLICE][sliceId][dontCare];
     val wResp       = Flipped(Decoupled(new RnDBWResp))            // from[SLICE][sliceId][dontCare];  to[RN][coreID][reqBufID];      hasDBID
     val dataFDB     = Flipped(Decoupled(new RnDBOutData))          // from[None];                      to[RN][coreID][reqBufID];
@@ -142,12 +142,12 @@ class RnDBBundle(implicit p: Parameters) extends DSUBundle {
 }
 
 // MASTER Bundle
-class MsDBWReq(implicit p: Parameters) extends DSUBundle                                        // MS  ---[wReq] ---> DB
-class MsDBWResp(implicit p: Parameters) extends DSUBundle with HasDBID                          // DB  ---[wResp] --> MS
-class MsDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData with HasToIDBits     // DB  ---[Data] ---> MS
-class MsDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasDBID          // MS  ---[Data] ---> DB
+class MsDBWReq(implicit p: Parameters) extends DJBundle                                        // MS  ---[wReq] ---> DB
+class MsDBWResp(implicit p: Parameters) extends DJBundle with HasDBID                          // DB  ---[wResp] --> MS
+class MsDBOutData(implicit p: Parameters) extends DJBundle with HasDBData with HasToIDBits     // DB  ---[Data] ---> MS
+class MsDBInData(implicit p: Parameters) extends DJBundle with HasDBData with HasDBID          // MS  ---[Data] ---> DB
 
-class MsDBBundle(implicit p: Parameters) extends DSUBundle {
+class MsDBBundle(implicit p: Parameters) extends DJBundle {
     val wReq        = Decoupled(new MsDBWReq)                        // from[None];  to[None];
     val wResp       = Flipped(Decoupled(new MsDBWResp))              // from[None];  to[None];                          hasDBID
     val dataFDB     = Flipped(Decoupled(new MsDBOutData))            // from[None];  to[MASTER][dontCare][replTxnid];
@@ -155,12 +155,12 @@ class MsDBBundle(implicit p: Parameters) extends DSUBundle {
 }
 
 // DS Bundle
-class DsDBWReq(implicit p: Parameters) extends DSUBundle                                                // DS  ---[wReq] ---> DB
-class DsDBWResp(implicit p: Parameters) extends DSUBundle with HasDBID                                  // DB  ---[wResp] --> DS
-class DsDBOutData(implicit p: Parameters) extends DSUBundle with HasDBData with HasDBID                 // DB  ---[Data] ---> DS
-class DsDBInData(implicit p: Parameters) extends DSUBundle with HasDBData with HasDBID                  // DS  ---[Data] ---> DB
+class DsDBWReq(implicit p: Parameters) extends DJBundle                                                // DS  ---[wReq] ---> DB
+class DsDBWResp(implicit p: Parameters) extends DJBundle with HasDBID                                  // DB  ---[wResp] --> DS
+class DsDBOutData(implicit p: Parameters) extends DJBundle with HasDBData with HasDBID                 // DB  ---[Data] ---> DS
+class DsDBInData(implicit p: Parameters) extends DJBundle with HasDBData with HasDBID                  // DS  ---[Data] ---> DB
 
-class DsDBBundle(beat: Int = 1)(implicit p: Parameters) extends DSUBundle {
+class DsDBBundle(beat: Int = 1)(implicit p: Parameters) extends DJBundle {
     val wReq        = Decoupled(new DsDBWReq)                        // from[None];  to[None];
     val wResp       = Flipped(Decoupled(new DsDBWResp))              // from[None];  to[None];   hasDBID
     val dataFDB     = Flipped(Decoupled(new DsDBOutData))            // from[None];  to[None];   hasDBID
@@ -191,14 +191,14 @@ class RBFSMState(implicit p: Parameters) extends Bundle {
 
 
 // --------------------- ReqArb Bundle ------------------- //
-class BlockTableEntry(implicit p: Parameters) extends DSUBundle {
+class BlockTableEntry(implicit p: Parameters) extends DJBundle {
     val valid   = Bool()
     val tag     = UInt(blockTagBits.W)
     val bank    = UInt(bankBits.W)
     // TODO: block by way full
 }
 
-class WCBTBundle(implicit p: Parameters) extends DSUBundle with HasToIDBits {
+class WCBTBundle(implicit p: Parameters) extends DJBundle with HasToIDBits {
     val addr    = UInt(addressBits.W)
     val btWay   = UInt(blockWayBits.W) // block table
     val isClean = Bool()
@@ -217,7 +217,7 @@ object RCState { // Read Ctl State
     val SEND_RESP  = "b101".U
 }
 
-class ReadCtlTableEntry(implicit p: Parameters) extends DSUBundle with HasFromIDBits {
+class ReadCtlTableEntry(implicit p: Parameters) extends DJBundle with HasFromIDBits {
     val opcode  = UInt(6.W)
     val state   = UInt(RCState.width.W)
     val txnid   = UInt(8.W)
@@ -243,10 +243,10 @@ object DSState {
     val WRITE_DS    = "b110".U
 }
 
-class DSReqEntry(implicit p: Parameters) extends DSUBundle with HasToIDBits {
+class DSReqEntry(implicit p: Parameters) extends DJBundle with HasToIDBits {
     val set     = UInt(dsSetBits.W)
     val bank    = UInt(dsBankBits.W)
-    val wayOH   = UInt(dsuparam.ways.W)
+    val wayOH   = UInt(djparam.ways.W)
     val state   = UInt(DSState.width.W)
     val ren     = Bool() // read DS
     val wen     = Bool() // write DS
@@ -257,11 +257,11 @@ class DSReqEntry(implicit p: Parameters) extends DSUBundle with HasToIDBits {
 }
 
 // ------------------- Nest Mes -------------------- //
-class NestOutMes(implicit p: Parameters) extends DSUBundle {
+class NestOutMes(implicit p: Parameters) extends DJBundle {
     val nestAddr = UInt((addressBits - offsetBits).W)
 }
 
-class NestInMes(implicit p: Parameters) extends DSUBundle {
+class NestInMes(implicit p: Parameters) extends DJBundle {
     val block = Bool()
 }
 

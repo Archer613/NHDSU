@@ -10,21 +10,21 @@ import chisel3.util.random.LFSR
 import xs.utils.PriorityMuxDefault
 import freechips.rocketchip.util.ReplacementPolicy
 
-class CDirMetaEntry(implicit p: Parameters) extends DSUBundle {
+class CDirMetaEntry(implicit p: Parameters) extends DJBundle {
   val tag          = UInt(cTagBits.W)
   val bank         = UInt(bankBits.W)
-  val metas        = Vec(dsuparam.nrCore, new CHIStateBundle())
+  val metas        = Vec(djparam.nrCore, new CHIStateBundle())
 }
 
-class CDirRead(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasClientAddrBits {
+class CDirRead(useAddr: Boolean = false)(implicit p: Parameters) extends DJBundle with HasClientAddrBits {
   override def useAddrVal: Boolean = useAddr
-  val mes = new DirReadBase(dsuparam.clientWays)
+  val mes = new DirReadBase(djparam.clientWays)
 }
 
-class CDirWrite(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasClientAddrBits {
+class CDirWrite(useAddr: Boolean = false)(implicit p: Parameters) extends DJBundle with HasClientAddrBits {
   override def useAddrVal: Boolean = useAddr
-  val wayOH       = UInt(dsuparam.clientWays.W)
-  val metas       = Vec(dsuparam.nrCore, new CHIStateBundle())
+  val wayOH       = UInt(djparam.clientWays.W)
+  val metas       = Vec(djparam.nrCore, new CHIStateBundle())
   val replMesOpt  = if(!useRepl) None else Some(UInt(cReplWayBits.W))
 
   def toCDirMetaEntry() = {
@@ -36,15 +36,15 @@ class CDirWrite(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBun
   }
 }
 
-class CDirResp(useAddr: Boolean = false)(implicit p: Parameters) extends DSUBundle with HasClientAddrBits {
+class CDirResp(useAddr: Boolean = false)(implicit p: Parameters) extends DJBundle with HasClientAddrBits {
   override def useAddrVal: Boolean = useAddr
-  val wayOH      = UInt(dsuparam.clientWays.W)
-  val metas      = Vec(dsuparam.nrCore, new CHIStateBundle())
-  val hitVec     = Vec(dsuparam.nrCore, Bool())
+  val wayOH      = UInt(djparam.clientWays.W)
+  val metas      = Vec(djparam.nrCore, new CHIStateBundle())
+  val hitVec     = Vec(djparam.nrCore, Bool())
   val replMesOpt = if(!useRepl) None else Some(UInt(cReplWayBits.W))
 }
 
-class ClientDirectory()(implicit p: Parameters) extends DSUModule {
+class ClientDirectory()(implicit p: Parameters) extends DJModule {
 // --------------------- IO declaration ------------------------//
 val io = IO(new Bundle {
   val dirRead   = Flipped(Decoupled(new CDirRead))
@@ -53,21 +53,21 @@ val io = IO(new Bundle {
 })
 
 
-  val ways    = dsuparam.clientWays
-  val sets    = dsuparam.clientSets / dsuparam.nrClientDirBank
+  val ways    = djparam.clientWays
+  val sets    = djparam.clientSets / djparam.nrClientDirBank
   val wayBits = log2Ceil(ways)
   val setBits = log2Ceil(sets)
 
 // --------------------- Modules declaration ------------------------//
-  val repl          = ReplacementPolicy.fromString(dsuparam.replacementPolicy, ways)
+  val repl          = ReplacementPolicy.fromString(djparam.replacementPolicy, ways)
 
-  val metaArray     = Module(new SRAMTemplate(new CDirMetaEntry(), sets, ways, singlePort = true, multicycle = dsuparam.dirMulticycle, shouldReset = true))
+  val metaArray     = Module(new SRAMTemplate(new CDirMetaEntry(), sets, ways, singlePort = true, multicycle = djparam.dirMulticycle, shouldReset = true))
 
   val replArrayOpt  = if(!useRepl) None else Some(Module(new SRAMTemplate(UInt(repl.nBits.W), sets, way = 1, singlePort = true, shouldReset = true)))
 
-  val readPipe      = Module(new Pipe(new CDirRead(), latency = dsuparam.dirMulticycle))
+  val readPipe      = Module(new Pipe(new CDirRead(), latency = djparam.dirMulticycle))
 
-  val replPipeOpt   = if(!useRepl) None else Some(Module(new Pipe(UInt(repl.nBits.W), latency = dsuparam.dirMulticycle-1)))
+  val replPipeOpt   = if(!useRepl) None else Some(Module(new Pipe(UInt(repl.nBits.W), latency = djparam.dirMulticycle-1)))
 
 
 // ----------------------- Reg/Wire declaration --------------------------//
@@ -86,7 +86,7 @@ val io = IO(new Bundle {
   val hitWayVec       = Wire(Vec(ways, Bool()))
   val selInvWayVec    = Wire(Vec(ways, Bool()))
   val replWay         = WireInit(0.U(wayBits.W))
-  val invMetas        = Wire(Vec(dsuparam.nrCore, new CHIStateBundle()))
+  val invMetas        = Wire(Vec(djparam.nrCore, new CHIStateBundle()))
 
 
 // ------------------------------ S1: Read / Write SRAM -----------------------------------//
@@ -225,7 +225,7 @@ val io = IO(new Bundle {
   /*
    * PLRU: update replacer only when read hit or write Dir
    */
-  if (dsuparam.replacementPolicy == "plru") {
+  if (djparam.replacementPolicy == "plru") {
     replArrayOpt.get.io.w.req.valid               := io.dirWrite.fire | (io.dirResp.fire & hit)
     replArrayOpt.get.io.w.req.bits.setIdx         := Mux(io.dirWrite.fire, io.dirWrite.bits.set, dirRead_s3_g.set)
     replArrayOpt.get.io.w.req.bits.data.foreach(_ := Mux(io.dirWrite.fire,

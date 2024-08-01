@@ -12,17 +12,17 @@ import Utils.GenerateVerilog
 import Utils.IDConnector._
 import Utils.FastArb._
 
-abstract class DSUModule(implicit val p: Parameters) extends Module with HasDSUParam
-abstract class DSUBundle(implicit val p: Parameters) extends Bundle with HasDSUParam
+abstract class DJModule(implicit val p: Parameters) extends Module with HasDJParam
+abstract class DJBundle(implicit val p: Parameters) extends Bundle with HasDJParam
 
 
-class DongJiang()(implicit p: Parameters) extends DSUModule {
+class DongJiang()(implicit p: Parameters) extends DJModule {
 // ------------------------------------------ IO declaration ----------------------------------------------//
     val io = IO(new Bundle {
-        val rnChi = Vec(dsuparam.nrCore, CHIBundleUpstream(chiBundleParams))
-        val rnChiLinkCtrl = Vec(dsuparam.nrCore, Flipped(new CHILinkCtrlIO()))
-        val snChi = Vec(dsuparam.nrBank, CHIBundleDownstream(chiBundleParams))
-        val snChiLinkCtrl = Vec(dsuparam.nrBank, new CHILinkCtrlIO())
+        val rnChi = Vec(djparam.nrCore, CHIBundleUpstream(chiBundleParams))
+        val rnChiLinkCtrl = Vec(djparam.nrCore, Flipped(new CHILinkCtrlIO()))
+        val snChi = Vec(djparam.nrBank, CHIBundleDownstream(chiBundleParams))
+        val snChiLinkCtrl = Vec(djparam.nrBank, new CHILinkCtrlIO())
     })
 
 /*
@@ -112,9 +112,9 @@ class DongJiang()(implicit p: Parameters) extends DSUModule {
 
     // ------------------------------------------ Modules declaration And Connection ----------------------------------------------//
     // Modules declaration
-    val rnSlaves = Seq.fill(dsuparam.nrCore) { Module(new RnSlave()) }
-    val slices = Seq.fill(dsuparam.nrBank) { Module(new Slice()) }
-    val dsuMasters = Seq.fill(dsuparam.nrBank) { Module(new SnMaster()) }
+    val rnSlaves = Seq.fill(djparam.nrCore) { Module(new RnSlave()) }
+    val slices = Seq.fill(djparam.nrBank) { Module(new Slice()) }
+    val dsuMasters = Seq.fill(djparam.nrBank) { Module(new SnMaster()) }
     val xbar = Module(new Xbar())
 
     rnSlaves.foreach(m => dontTouch(m.io))
@@ -177,7 +177,7 @@ class DongJiang()(implicit p: Parameters) extends DSUModule {
 
 object DSU extends App {
     val config = new Config((_, _, _) => {
-        case DSUParamKey     => DSUParam()
+        case DJParamKey     => DJParam()
         case DebugOptionsKey => DebugOptions()
     })
 

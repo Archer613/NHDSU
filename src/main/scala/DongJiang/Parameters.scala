@@ -5,7 +5,7 @@ import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
 
-case object DSUParamKey extends Field[DSUParam](DSUParam())
+case object DJParamKey extends Field[DJParam](DJParam())
 
 case class IDMap
 (
@@ -14,7 +14,7 @@ case class IDMap
     SNID: Int = 0
 )
 
-case class DSUParam(
+case class DJParam(
                     // base num
                     nrCore: Int = 1,
                     nrBank: Int = 2,
@@ -56,52 +56,52 @@ case class DSUParam(
     require(replacementPolicy == "random" || replacementPolicy == "plru" || replacementPolicy == "lru")
 }
 
-trait HasDSUParam {
+trait HasDJParam {
     val p: Parameters
-    val dsuparam = p(DSUParamKey)
+    val djparam = p(DJParamKey)
 
     // BASE
     val mpBlockBySet    = true
     val nrMPQBeat       = 4
-    val nrBeat          = dsuparam.blockBytes/dsuparam.beatBytes
-    val addressBits     = dsuparam.addressBits
-    val dataBits        = dsuparam.blockBytes * 8
-    val beatBits        = dsuparam.beatBytes * 8
+    val nrBeat          = djparam.blockBytes/djparam.beatBytes
+    val addressBits     = djparam.addressBits
+    val dataBits        = djparam.blockBytes * 8
+    val beatBits        = djparam.beatBytes * 8
     // ID
-    val coreIdBits      = log2Ceil(dsuparam.nrCore)
-    val reqBufIdBits    = log2Ceil(dsuparam.nrReqBuf)
-    val snoopCtlIdBits  = log2Ceil(dsuparam.nrSnoopCtl)
-    val dbIdBits        = log2Ceil(dsuparam.nrDataBufferEntry)
+    val coreIdBits      = log2Ceil(djparam.nrCore)
+    val reqBufIdBits    = log2Ceil(djparam.nrReqBuf)
+    val snoopCtlIdBits  = log2Ceil(djparam.nrSnoopCtl)
+    val dbIdBits        = log2Ceil(djparam.nrDataBufferEntry)
     // CHI
-    val rnTxlcrdBits    = log2Ceil(dsuparam.nrRnTxLcrdMax) + 1
-    val rnRxlcrdBits    = log2Ceil(dsuparam.nrRnRxLcrdMax) + 1
-    val snTxlcrdBits    = log2Ceil(dsuparam.nrSnTxLcrdMax) + 1
-    val snRxlcrdBits    = log2Ceil(dsuparam.nrSnRxLcrdMax) + 1
+    val rnTxlcrdBits    = log2Ceil(djparam.nrRnTxLcrdMax) + 1
+    val rnRxlcrdBits    = log2Ceil(djparam.nrRnRxLcrdMax) + 1
+    val snTxlcrdBits    = log2Ceil(djparam.nrSnTxLcrdMax) + 1
+    val snRxlcrdBits    = log2Ceil(djparam.nrSnRxLcrdMax) + 1
     // DIR BASE
-    val bankBits        = log2Ceil(dsuparam.nrBank)
-    val offsetBits      = log2Ceil(dsuparam.blockBytes)
+    val bankBits        = log2Ceil(djparam.nrBank)
+    val offsetBits      = log2Ceil(djparam.blockBytes)
     // SELF DIR: [sTag] + [sSet] + [sDirBank] + [bank] + [offset]
     // [sSet] + [sDirBank] = [setBis]
-    val sWayBits        = log2Ceil(dsuparam.ways)
-    val sDirBankBits    = log2Ceil(dsuparam.nrSelfDirBank)
-    val sSetBits        = log2Ceil(dsuparam.sets/dsuparam.nrSelfDirBank)
-    val sTagBits        = dsuparam.addressBits - sSetBits - sDirBankBits - bankBits - offsetBits
+    val sWayBits        = log2Ceil(djparam.ways)
+    val sDirBankBits    = log2Ceil(djparam.nrSelfDirBank)
+    val sSetBits        = log2Ceil(djparam.sets/djparam.nrSelfDirBank)
+    val sTagBits        = djparam.addressBits - sSetBits - sDirBankBits - bankBits - offsetBits
     // CLIENT DIR: [cTag] + [cSet] + [cDirBank] + [bank] + [offset]
     // [cSet] + [cDirBank] = [clientSetsBits]
-    val cWayBits        = log2Ceil(dsuparam.clientWays)
-    val cDirBankBits    = log2Ceil(dsuparam.nrClientDirBank)
-    val cSetBits        = log2Ceil(dsuparam.clientSets / dsuparam.nrClientDirBank)
-    val cTagBits        = dsuparam.addressBits - cSetBits - cDirBankBits - bankBits - offsetBits
+    val cWayBits        = log2Ceil(djparam.clientWays)
+    val cDirBankBits    = log2Ceil(djparam.nrClientDirBank)
+    val cSetBits        = log2Ceil(djparam.clientSets / djparam.nrClientDirBank)
+    val cTagBits        = djparam.addressBits - cSetBits - cDirBankBits - bankBits - offsetBits
     // DS
     val dsWayBits       = sWayBits
-    val dsBankBits      = log2Ceil(dsuparam.nrDSBank)
-    val dsSetBits       = log2Ceil(dsuparam.sets/dsuparam.nrDSBank)
+    val dsBankBits      = log2Ceil(djparam.nrDSBank)
+    val dsSetBits       = log2Ceil(djparam.sets/djparam.nrDSBank)
     // BLOCK TABLE: [blockTag] + [blockSet] + [bank] + [offset]
-    val nrBlockWays     = dsuparam.ways * 2
+    val nrBlockWays     = djparam.ways * 2
     val nrBlockSets     = 16
     val blockWayBits    = log2Ceil(nrBlockWays) // 3
     val blockSetBits    = log2Ceil(nrBlockSets) // 4
-    val blockTagBits    = dsuparam.addressBits - blockSetBits - bankBits - offsetBits
+    val blockTagBits    = djparam.addressBits - blockSetBits - bankBits - offsetBits
     val replTxnidBits   = blockSetBits + blockWayBits
     // ReadCtl
     val nrReadCtlEntry  = 8
@@ -111,10 +111,10 @@ trait HasDSUParam {
     val chiDbidBits     = 8
     require(blockWayBits + blockSetBits <= chiTxnidBits - 1, "HN -> SN WB Txnid = Cat(1'b1, blockSet, blockWay)")
     // replacement
-    val useRepl         = dsuparam.replacementPolicy != "random"
-    val sReplWayBits    = dsuparam.ways - 1;
-    val cReplWayBits    = dsuparam.clientWays - 1
-    require(dsuparam.replacementPolicy == "random" | dsuparam.replacementPolicy == "plru", "It should modify sReplWayBits and cReplWayBits when use replacement except of random or plru")
+    val useRepl         = djparam.replacementPolicy != "random"
+    val sReplWayBits    = djparam.ways - 1;
+    val cReplWayBits    = djparam.clientWays - 1
+    require(djparam.replacementPolicy == "random" | djparam.replacementPolicy == "plru", "It should modify sReplWayBits and cReplWayBits when use replacement except of random or plru")
     // TIMEOUT CHECK CNT VALUE
     val TIMEOUT_RB      = 10000 // ReqBuf
     val TIMEOUT_DB      = 8000  // DataBuffer
@@ -128,9 +128,9 @@ trait HasDSUParam {
 
 
     // requirement
-    require(nrBlockSets <= dsuparam.sets)
-    require(nrReadCtlEntry <= dsuparam.nrDataBufferEntry, "The maximum number of ReadCtl deal req logic is equal to nrDataBufferEntry")
-    require(log2Ceil(dsuparam.nrReqBuf) <= chiTxnidBits-1) // txnID width -1, retain the highest bit
+    require(nrBlockSets <= djparam.sets)
+    require(nrReadCtlEntry <= djparam.nrDataBufferEntry, "The maximum number of ReadCtl deal req logic is equal to nrDataBufferEntry")
+    require(log2Ceil(djparam.nrReqBuf) <= chiTxnidBits-1) // txnID width -1, retain the highest bit
     require(bankBits + dbIdBits <= chiDbidBits)
     require(dbIdBits < chiTxnidBits - 1)
 

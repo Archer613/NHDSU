@@ -6,7 +6,7 @@ import chisel3.util._
 import org.chipsalliance.cde.config._
 import Utils.Encoder.RREncoder
 
-class DataBuffer()(implicit p: Parameters) extends DSUModule {
+class DataBuffer()(implicit p: Parameters) extends DJModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     // RNSLAVE <-> dataBuffer
@@ -29,13 +29,13 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
 
 // ----------------------- Modules declaration ------------------------ //
   // TODO: Consider remove rnWRespQ because rn wResp.ready is false rare occurrence
-  val bankOver1 = dsuparam.nrBank > 1
-  val rnWRespQ = if(bankOver1) { Some(Module(new Queue(gen = new RnDBWResp(), entries = dsuparam.nrBank-1, flow = true, pipe = true))) } else { None }
+  val bankOver1 = djparam.nrBank > 1
+  val rnWRespQ = if(bankOver1) { Some(Module(new Queue(gen = new RnDBWResp(), entries = djparam.nrBank-1, flow = true, pipe = true))) } else { None }
 
 // --------------------- Reg/Wire declaration ------------------------ //
   // base
-  val dataBuffer  = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U.asTypeOf(new DBEntry()) }))
-  val dbFreeVec   = Wire(Vec(3, Vec(dsuparam.nrDataBufferEntry, Bool())))
+  val dataBuffer  = RegInit(VecInit(Seq.fill(djparam.nrDataBufferEntry) { 0.U.asTypeOf(new DBEntry()) }))
+  val dbFreeVec   = Wire(Vec(3, Vec(djparam.nrDataBufferEntry, Bool())))
   val dbFreeNum   = WireInit(0.U((dbIdBits+1).W))
   val dbAllocId   = Wire(Vec(3, UInt(dbIdBits.W)))
   val canAllocVec = Wire(Vec(3, Bool()))
@@ -212,7 +212,7 @@ class DataBuffer()(implicit p: Parameters) extends DSUModule {
   assert(PopCount(msReadingValVec) <= 1.U)
   assert(PopCount(rnReadingValVec) <= 1.U)
 
-  val cntVecReg  = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U(64.W) }))
+  val cntVecReg  = RegInit(VecInit(Seq.fill(djparam.nrDataBufferEntry) { 0.U(64.W) }))
   cntVecReg.zip(dataBuffer.map(_.state)).foreach{ case(cnt, s) => cnt := Mux(s === DBState.FREE, 0.U, cnt + 1.U) }
   cntVecReg.zipWithIndex.foreach{ case(cnt, i) => assert(cnt < TIMEOUT_DB.U, "DATABUF[%d] TIMEOUT", i.U) }
 }

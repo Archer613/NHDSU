@@ -6,7 +6,7 @@ import chisel3._
 import chisel3.util.{Counter, Decoupled, Queue, is, switch}
 import org.chipsalliance.cde.config._
 
-class RnChiTxReq()(implicit p: Parameters) extends DSUModule {
+class RnChiTxReq()(implicit p: Parameters) extends DJModule {
   val io = IO(new Bundle {
     val chi = Flipped(CHIChannelIO(new CHIBundleREQ(chiBundleParams)))
     val txState = Input(UInt(LinkStates.width.W))
@@ -15,7 +15,7 @@ class RnChiTxReq()(implicit p: Parameters) extends DSUModule {
   })
 
 // --------------------- Modules declaration --------------------- //
-  val queue = Module(new Queue(new CHIBundleREQ(chiBundleParams), entries = dsuparam.nrRnTxLcrdMax, pipe = true, flow = false, hasFlush = false))
+  val queue = Module(new Queue(new CHIBundleREQ(chiBundleParams), entries = djparam.nrRnTxLcrdMax, pipe = true, flow = false, hasFlush = false))
 
 // ------------------- Reg/Wire declaration ---------------------- //
   val lcrdSendNumReg = RegInit(0.U(rnTxlcrdBits.W))
@@ -27,7 +27,7 @@ class RnChiTxReq()(implicit p: Parameters) extends DSUModule {
 // --------------------- Logic ----------------------------------- //
   // Count lcrd
   lcrdSendNumReg := lcrdSendNumReg + io.chi.lcrdv.asUInt - io.chi.flitv.asUInt
-  lcrdFreeNum := dsuparam.nrRnTxLcrdMax.U - queue.io.count - lcrdSendNumReg
+  lcrdFreeNum := djparam.nrRnTxLcrdMax.U - queue.io.count - lcrdSendNumReg
 
 
   /*
@@ -82,9 +82,9 @@ class RnChiTxReq()(implicit p: Parameters) extends DSUModule {
     }
   }
 
-  assert(lcrdSendNumReg <= dsuparam.nrRnTxLcrdMax.U, "Lcrd be send cant over than nrRnTxLcrdMax")
-  assert(queue.io.count <= dsuparam.nrRnTxLcrdMax.U, "queue.io.count cant over than nrRnTxLcrdMax")
-  assert(lcrdFreeNum <= dsuparam.nrRnTxLcrdMax.U, "lcrd free num cant over than nrRnTxLcrdMax")
+  assert(lcrdSendNumReg <= djparam.nrRnTxLcrdMax.U, "Lcrd be send cant over than nrRnTxLcrdMax")
+  assert(queue.io.count <= djparam.nrRnTxLcrdMax.U, "queue.io.count cant over than nrRnTxLcrdMax")
+  assert(lcrdFreeNum <= djparam.nrRnTxLcrdMax.U, "lcrd free num cant over than nrRnTxLcrdMax")
   assert(Mux(io.flit.valid, io.flit.bits.opcode === CHIOp.REQ.ReadNotSharedDirty |
                             io.flit.bits.opcode === CHIOp.REQ.ReadUnique |
                             io.flit.bits.opcode === CHIOp.REQ.MakeUnique |

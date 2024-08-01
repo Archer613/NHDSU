@@ -9,11 +9,11 @@ import chisel3.util.{Decoupled, PopCount, RegEnable, ValidIO, log2Ceil, Cat}
 // TODO: Stall writeBack when has some reqBuf Snoop RN(already get dbid) is same addr with it
 // TODO: Stall snoop when has some reqBuf writeBack HN(already get dbid) is same addr with it
 
-class NestCtl()(implicit p: Parameters) extends DSUModule {
+class NestCtl()(implicit p: Parameters) extends DJModule {
   val io = IO(new Bundle {
     // Nest Signals
-    val reqBufOutVec  = Vec(dsuparam.nrReqBuf, Flipped(ValidIO(new NestOutMes())))
-    val reqBufInVec   = Vec(dsuparam.nrReqBuf, ValidIO(new NestInMes()))
+    val reqBufOutVec  = Vec(djparam.nrReqBuf, Flipped(ValidIO(new NestOutMes())))
+    val reqBufInVec   = Vec(djparam.nrReqBuf, ValidIO(new NestInMes()))
   })
 
   // TODO: Delete the following code when the coding is complete
@@ -22,8 +22,8 @@ class NestCtl()(implicit p: Parameters) extends DSUModule {
   dontTouch(io)
 
 // --------------------- Reg and Wire declaration ----------------------- //
-  val nestVecReg    = Seq.fill(dsuparam.nrReqBuf) { Seq.fill(dsuparam.nrReqBuf) { RegInit(false.B) } }
-//  val blockMecVec   = Wire(Vec(dsuparam.nrReqBuf, new NestInMes()))
+  val nestVecReg    = Seq.fill(djparam.nrReqBuf) { Seq.fill(djparam.nrReqBuf) { RegInit(false.B) } }
+//  val blockMecVec   = Wire(Vec(djparam.nrReqBuf, new NestInMes()))
 
 // ----------------------------- Logic ---------------------------------- //
   // address match vec

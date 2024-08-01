@@ -6,7 +6,7 @@ import chisel3._
 import chisel3.util.{Decoupled, PopCount, PriorityEncoder, Fill, is, switch, Cat}
 import org.chipsalliance.cde.config._
 
-class SnChiTxDat()(implicit p: Parameters) extends DSUModule {
+class SnChiTxDat()(implicit p: Parameters) extends DJModule {
   val io = IO(new Bundle {
     val chi       = CHIChannelIO(new CHIBundleDAT(chiBundleParams))
     val rspResp   = Input(new RxRespBundle())
@@ -23,8 +23,8 @@ class SnChiTxDat()(implicit p: Parameters) extends DSUModule {
   val flit            = WireInit(0.U.asTypeOf(new CHIBundleDAT(chiBundleParams)))
   val flitv           = WireInit(false.B)
   val flitCanGo       = WireInit(false.B)
-  val respBufVec      = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U.asTypeOf(new RxRespBundle()) }))
-  val hitVec          = Wire(Vec(dsuparam.nrDataBufferEntry, Bool()))
+  val respBufVec      = RegInit(VecInit(Seq.fill(djparam.nrDataBufferEntry) { 0.U.asTypeOf(new RxRespBundle()) }))
+  val hitVec          = Wire(Vec(djparam.nrDataBufferEntry, Bool()))
   val selId           = Wire(UInt(dbIdBits.W))
 
 // ------------------------- Logic ------------------------------- //
@@ -64,8 +64,8 @@ class SnChiTxDat()(implicit p: Parameters) extends DSUModule {
    * WriteBack* txnID:  1XXX_XXXX, X = wbid
    */
   flit.qos      := DontCare
-  flit.tgtID    := dsuparam.idmap.SNID.U
-  flit.srcID    := dsuparam.idmap.HNID.U
+  flit.tgtID    := djparam.idmap.SNID.U
+  flit.srcID    := djparam.idmap.HNID.U
   flit.txnID    := respBufVec(selId).dbid
   flit.homeNID  := DontCare
   flit.opcode   := CHIOp.DAT.NonCopyBackWrData
@@ -118,11 +118,11 @@ class SnChiTxDat()(implicit p: Parameters) extends DSUModule {
   assert(Mux(flitv, flit.opcode === CHIOp.DAT.NonCopyBackWrData, true.B))
   assert(PopCount(hitVec.asUInt) <= 1.U)
   assert(flit.be.andR, "be[0x%x] should all valid", flit.be)
-  assert(Mux(PopCount(respBufVec.map(_.valid)) === dsuparam.nrDataBufferEntry.U, !io.rspResp.valid, true.B))
+  assert(Mux(PopCount(respBufVec.map(_.valid)) === djparam.nrDataBufferEntry.U, !io.rspResp.valid, true.B))
   assert(Mux(io.rspResp.valid, io.rspResp.txnid(chiTxnidBits - 1), true.B))
 
   // TIMEOUT CHECK
-  val cntVecReg = RegInit(VecInit(Seq.fill(dsuparam.nrDataBufferEntry) { 0.U(64.W) }))
+  val cntVecReg = RegInit(VecInit(Seq.fill(djparam.nrDataBufferEntry) { 0.U(64.W) }))
   cntVecReg.zip(respBufVec.map(_.valid)).foreach { case (cnt, v) => cnt := Mux(!v, 0.U, cnt + 1.U) }
   cntVecReg.zipWithIndex.foreach { case (cnt, i) => assert(cnt < TIMEOUT_TXD.U, "TXDAT[%d] TIMEOUT", i.U) }
 

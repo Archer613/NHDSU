@@ -14,7 +14,7 @@ import xs.utils.perf.{DebugOptions, DebugOptionsKey}
 // --------------------------------- Define trait and bundle ---------------------------------- //
 // -------------------------------------------------------------------------------------------- //
 
-trait HasAddrBits extends DSUBundle {
+trait HasAddrBits extends DJBundle {
   this: Bundle =>
   def useAddrVal: Boolean
   def tagBits: Int
@@ -42,13 +42,13 @@ trait HasAddrBits extends DSUBundle {
   }
 }
 
-trait HasSelfAddrBits extends DSUBundle with HasAddrBits {
+trait HasSelfAddrBits extends DJBundle with HasAddrBits {
   override def tagBits: Int = sTagBits
   override def setBits: Int = sSetBits
   override def dirBankBits: Int = sDirBankBits
 }
 
-trait HasClientAddrBits extends DSUBundle with HasAddrBits {
+trait HasClientAddrBits extends DJBundle with HasAddrBits {
   override def tagBits: Int = cTagBits
   override def setBits: Int = cSetBits
   override def dirBankBits: Int = cDirBankBits
@@ -59,9 +59,9 @@ class DirReadBase(ways: Int) extends Bundle {
   val refill = Bool() // unuse
 }
 
-class DirRead(implicit p: Parameters) extends DSUBundle {
-  val self = new DirReadBase(dsuparam.ways)
-  val client = new DirReadBase(dsuparam.clientWays)
+class DirRead(implicit p: Parameters) extends DJBundle {
+  val self = new DirReadBase(djparam.ways)
+  val client = new DirReadBase(djparam.clientWays)
   val addr = UInt(addressBits.W)
 }
 
@@ -75,7 +75,7 @@ class DirResp(implicit p: Parameters) extends Bundle {
 // ------------------------------------ Directory Logic --------------------------------------- //
 // -------------------------------------------------------------------------------------------- //
 
-class Directory()(implicit p: Parameters) extends DSUModule {
+class Directory()(implicit p: Parameters) extends DJModule {
 // --------------------- IO declaration ------------------------//
 val io = IO(new Bundle {
   val dirRead    = Flipped(Decoupled(new DirRead()))
@@ -96,8 +96,8 @@ val io = IO(new Bundle {
   io.resetFinish <> DontCare
 
   // ------------------------------------------ Modules declaration  ----------------------------------------------//
-  val selfDirs = Seq.fill(dsuparam.nrSelfDirBank) { Module(new SelfDirectory()) }
-  val clientDirs = Seq.fill(dsuparam.nrClientDirBank) { Module(new ClientDirectory()) }
+  val selfDirs = Seq.fill(djparam.nrSelfDirBank) { Module(new SelfDirectory()) }
+  val clientDirs = Seq.fill(djparam.nrClientDirBank) { Module(new ClientDirectory()) }
 
   selfDirs.foreach(_.io <> DontCare)
   clientDirs.foreach(_.io <> DontCare)
@@ -111,14 +111,14 @@ val io = IO(new Bundle {
   val sdReadHasAddr   = WireInit(0.U.asTypeOf(new SDirRead(useAddr = true)))
   val cdReadHasAddr   = WireInit(0.U.asTypeOf(new CDirRead(useAddr = true)))
 
-  val sdReadFreeVec   = Wire(Vec(dsuparam.nrSelfDirBank, Bool()))
-  val cdReadFreeVec   = Wire(Vec(dsuparam.nrClientDirBank, Bool()))
+  val sdReadFreeVec   = Wire(Vec(djparam.nrSelfDirBank, Bool()))
+  val cdReadFreeVec   = Wire(Vec(djparam.nrClientDirBank, Bool()))
 
-  val sdWriteFreeVec  = Wire(Vec(dsuparam.nrSelfDirBank, Bool()))
-  val cdWriteFreeVec  = Wire(Vec(dsuparam.nrClientDirBank, Bool()))
+  val sdWriteFreeVec  = Wire(Vec(djparam.nrSelfDirBank, Bool()))
+  val cdWriteFreeVec  = Wire(Vec(djparam.nrClientDirBank, Bool()))
 
-  val sdRespValVec    = Wire(Vec(dsuparam.nrSelfDirBank, Bool()))
-  val cdRespValVec    = Wire(Vec(dsuparam.nrClientDirBank, Bool()))
+  val sdRespValVec    = Wire(Vec(djparam.nrSelfDirBank, Bool()))
+  val cdRespValVec    = Wire(Vec(djparam.nrClientDirBank, Bool()))
   val sdResp          = WireInit(0.U.asTypeOf(new SDirResp()))
   val cdResp          = WireInit(0.U.asTypeOf(new CDirResp()))
 

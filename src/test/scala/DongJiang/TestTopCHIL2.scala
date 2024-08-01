@@ -153,8 +153,8 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
     val dsu = Module(new DongJiang())
     val connecter = Seq.fill(numCores) { Module(new ConnectChil2()) }
     val io = IO(new Bundle {
-      val snChi = Vec(dsu.dsuparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
-      val snChiLinkCtrl = Vec(dsu.dsuparam.nrBank, new CHILinkCtrlIO())
+      val snChi = Vec(dsu.djparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
+      val snChiLinkCtrl = Vec(dsu.djparam.nrBank, new CHILinkCtrlIO())
     })
     dsu.io.snChi <> io.snChi
     dsu.io.snChiLinkCtrl <> io.snChiLinkCtrl
@@ -195,7 +195,7 @@ object TestTopCHIHelper {
         sam                 = Seq(AddressSet.everything -> 33)
       )
       case DebugOptionsKey => DebugOptions()
-      case DSUParamKey => DSUParam(
+      case DJParamKey => DJParam(
         nrCore = nrCore
       )
     })

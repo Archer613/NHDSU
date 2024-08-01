@@ -6,14 +6,14 @@ import chisel3._
 import chisel3.util.{Cat, Decoupled, is, log2Ceil, switch}
 import org.chipsalliance.cde.config._
 
-class SnChiTxReqBundle(implicit p: Parameters) extends DSUBundle {
+class SnChiTxReqBundle(implicit p: Parameters) extends DJBundle {
   // TODO: RespBundle
   val opcode      = UInt(5.W)
   val addr        = UInt(addressBits.W)
   val txnid       = UInt(8.W)
 }
 
-class SnChiTxReq()(implicit p: Parameters) extends DSUModule {
+class SnChiTxReq()(implicit p: Parameters) extends DJModule {
   val io = IO(new Bundle {
     val chi = CHIChannelIO(new CHIBundleREQ(chiBundleParams))
     val txState = Input(UInt(LinkStates.width.W))
@@ -36,11 +36,11 @@ class SnChiTxReq()(implicit p: Parameters) extends DSUModule {
    * Read* txnID:       0XXX_XXXX, X = dbid
    * WriteBack* txnID:  1XXX_XXXX, X = wbid
    */
-  flit.tgtID      := dsuparam.idmap.SNID.U
-  flit.srcID      := dsuparam.idmap.HNID.U
+  flit.tgtID      := djparam.idmap.SNID.U
+  flit.srcID      := djparam.idmap.HNID.U
   flit.txnID      := io.task.bits.txnid
   flit.opcode     := io.task.bits.opcode
-  flit.size       := log2Ceil(dsuparam.blockBytes).U
+  flit.size       := log2Ceil(djparam.blockBytes).U
   flit.addr       := io.task.bits.addr
   flit.order      := 0.U
   flit.lpID       := 0.U //  Logical Processor Identifier

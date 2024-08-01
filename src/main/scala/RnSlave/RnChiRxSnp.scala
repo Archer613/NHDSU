@@ -6,7 +6,7 @@ import chisel3._
 import chisel3.util.{Decoupled, switch, is}
 import org.chipsalliance.cde.config._
 
-class RnChiRxSnp()(implicit p: Parameters) extends DSUModule {
+class RnChiRxSnp()(implicit p: Parameters) extends DJModule {
   val io = IO(new Bundle {
     val chi = CHIChannelIO(new CHIBundleSNP(chiBundleParams))
     val rxState = Input(UInt(LinkStates.width.W))

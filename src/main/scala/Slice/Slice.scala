@@ -6,7 +6,7 @@ import chisel3.util._
 import org.chipsalliance.cde.config._
 import xs.utils._
 
-class Slice()(implicit p: Parameters) extends DSUModule {
+class Slice()(implicit p: Parameters) extends DJModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
     val valid         = Output(Bool())
