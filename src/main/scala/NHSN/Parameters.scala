@@ -7,8 +7,7 @@ object ValueDefine {
     /*
     Basic
     */
-    def FIFO_DEPTH:Int        = 4
-    def BEATS_WIDTH:Int       = 2
+    // def FIFO_DEPTH:Int        = 4        //The buffer depth of the SN
 
     
   }
