@@ -212,7 +212,7 @@ class LinkState extends Bundle {
 object ChiResp {
     val width = 3
 
-    def I = "b000".U(width.W)
+    def I  = "b000".U(width.W)
     def SC = "b001".U(width.W)
     def UC = "b010".U(width.W)
     def UD = "b010".U(width.W)
@@ -220,7 +220,7 @@ object ChiResp {
 
     def PassDirty = "b100".U(width.W)
 
-    def I_PD = "b100".U(width.W)
+    def I_PD  = "b100".U(width.W)
     def SC_PD = "b101".U(width.W)
     def UC_PD = "b110".U(width.W)
     def UD_PD = "b110".U(width.W)

@@ -7,6 +7,42 @@ import org.chipsalliance.cde.config._
 import scala.collection.immutable.ListMap
 import scala.math.{max, min}
 
+// -------------------------------------------------------------- Use In Decode ------------------------------------------------------------------------ //
+
+class OperationsBundle extends Bundle {
+    val Snoop       = Bool()
+    val ReadDown    = Bool()
+    val ReadDB      = Bool()
+    val ReadDS      = Bool()
+    val WriteDS     = Bool()
+    val WSDir       = Bool()
+    val WCDir       = Bool()
+    val Atomic      = Bool()
+    val WriteBack   = Bool()
+}
+
+
+object TaskType {
+    val width       = 9
+    val Snoop       = "b0_0000_0001".U
+    val ReadDown    = "b0_0000_0010".U
+    val ReadDB      = "b0_0000_0100".U
+    val ReadDS      = "b0_0000_1000".U
+    val WriteDS     = "b0_0001_0000".U
+    val WSDir       = "b0_0010_0000".U
+    val WCDir       = "b0_0100_0000".U
+    val WriteBack   = "b0_1000_0000".U
+    val Commit      = "b1_0000_0000".U
+}
+
+object RespType {
+    val width = 1
+    val TpyeSnoop       = "b0".U
+    val TpyeReadDown    = "b1".U
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------- //
+
 object IdL0 {
     val width      = 3
     val SLICE      = "b000".U
