@@ -10,10 +10,11 @@ import scala.math.{max, min}
 object IdL0 {
     val width      = 3
     val SLICE      = "b000".U
-    val RN         = "b001".U
-    val CMO        = "b010".U
-    val AXI        = "b011".U
-    val MASTER     = "b100".U
+    val RNSLV      = "b001".U
+    val RNMAS      = "b010".U
+    val SNMAS      = "b011".U
+    val CMO        = "b100".U
+    val AXI        = "b101".U
 }
 
 class IDBundle(implicit p: Parameters) extends DJBundle {
@@ -22,10 +23,11 @@ class IDBundle(implicit p: Parameters) extends DJBundle {
     val idL2 = UInt(max(reqBufIdBits, max(snoopCtlIdBits, replTxnidBits)).W) // SubSubModule: ReqBufs, SnpCtls, blockSets + blockWays [max:7.W]
 
     def isSLICE  = idL0 === IdL0.SLICE
-    def isRN     = idL0 === IdL0.RN
+    def isRNSLV  = idL0 === IdL0.RNSLV
+    def isRNMAS  = idL0 === IdL0.RNMAS
+    def isSNMAS  = idL0 === IdL0.SNMAS
     def isCMO    = idL0 === IdL0.CMO
     def isAXI    = idL0 === IdL0.AXI
-    def isMASTER = idL0 === IdL0.MASTER
 }
 
 trait HasFromIDBits extends DJBundle { this: Bundle => val from = new IDBundle() }

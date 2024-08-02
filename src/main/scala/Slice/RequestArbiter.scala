@@ -121,8 +121,8 @@ class RequestArbiter()(implicit p: Parameters) extends DJModule {
    * task ready
    */
   io.taskSnp.ready := canGo_s0 & task_s0.bits.from.isSLICE
-  io.taskMs.ready  := canGo_s0 & !blockBySnp  & task_s0.bits.from.isMASTER
-  io.taskRn.ready  := canGo_s0 & !blockRnTask & !blockBySnp & task_s0.bits.from.isRN
+  io.taskMs.ready  := canGo_s0 & !blockBySnp  & task_s0.bits.from.isSNMAS
+  io.taskRn.ready  := canGo_s0 & !blockRnTask & !blockBySnp & task_s0.bits.from.isRNSLV
 
   /*
    * Write/Clean block table when task_s0.valid and canGo_s0
@@ -181,8 +181,8 @@ class RequestArbiter()(implicit p: Parameters) extends DJModule {
 
 // ------------------------ Assertion --------------------------//
   // io.taskXXX
-  assert(Mux(io.taskRn.valid, io.taskRn.bits.from.idL0 === IdL0.RN, true.B), "taskRn should from RN")
-  assert(Mux(io.taskMs.valid, io.taskMs.bits.from.idL0 === IdL0.MASTER, true.B), "taskMs should from MASTER")
+  assert(Mux(io.taskRn.valid, io.taskRn.bits.from.idL0 === IdL0.RNSLV, true.B), "taskRn should from RN")
+  assert(Mux(io.taskMs.valid, io.taskMs.bits.from.idL0 === IdL0.SNMAS, true.B), "taskMs should from MASTER")
   assert(Mux(io.taskSnp.valid, io.taskSnp.bits.from.idL0 === IdL0.SLICE, true.B), "taskSnp should from SLICE")
 
   // block table

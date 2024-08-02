@@ -162,9 +162,9 @@ class MainPipe()(implicit p: Parameters) extends DJModule {
 
 
    // TODO: Consider add SNPHLP_RESP
-  taskTypeVec(RN_REQ)     := task_s3_g.valid & dirRes_s3.valid & !task_s3_g.bits.isWB & task_s3_g.bits.from.idL0 === IdL0.RN
-  taskTypeVec(RN_WRITE)   := task_s3_g.valid & dirRes_s3.valid & task_s3_g.bits.isWB & task_s3_g.bits.from.idL0 === IdL0.RN
-  taskTypeVec(MS_RESP)    := task_s3_g.valid & dirRes_s3.valid & task_s3_g.bits.from.idL0 === IdL0.MASTER
+  taskTypeVec(RN_REQ)     := task_s3_g.valid & dirRes_s3.valid & !task_s3_g.bits.isWB & task_s3_g.bits.from.idL0 === IdL0.RNSLV
+  taskTypeVec(RN_WRITE)   := task_s3_g.valid & dirRes_s3.valid & task_s3_g.bits.isWB & task_s3_g.bits.from.idL0 === IdL0.RNSLV
+  taskTypeVec(MS_RESP)    := task_s3_g.valid & dirRes_s3.valid & task_s3_g.bits.from.idL0 === IdL0.SNMAS
   taskTypeVec(SNP_RESP)   := task_s3_g.valid & dirRes_s3.valid & task_s3_g.bits.from.idL0 === IdL0.SLICE
 
 
@@ -175,7 +175,7 @@ class MainPipe()(implicit p: Parameters) extends DJModule {
    * generate (rnNS, hnNS) rnResp:(channel, op, resp)
    */
   // Base signals
-  sourceID      := Mux(task_s3_g.bits.from.idL0 === IdL0.RN, task_s3_g.bits.from.idL1, task_s3_g.bits.to.idL1)
+  sourceID      := Mux(task_s3_g.bits.from.idL0 === IdL0.RNSLV, task_s3_g.bits.from.idL1, task_s3_g.bits.to.idL1)
   sourceHit_s3  := client_s3.hitVec(sourceID)
   if(djparam.nrCore > 1) otherHit_s3 := PopCount(client_s3.hitVec) > 1.U | (client_s3.hitVec.asUInt.orR & !sourceHit_s3)
   hnState       := Mux(self_s3.hit, self_s3.state, ChiState.I)
@@ -272,7 +272,7 @@ class MainPipe()(implicit p: Parameters) extends DJModule {
   io.dsReq.bits.wayOH := self_s3.wayOH
   io.dsReq.bits.ren := rDS | rwDS
   io.dsReq.bits.wen := wDS | rwDS
-  io.dsReq.bits.to.idL0 := Mux(needRepl, IdL0.MASTER, task_s3_g.bits.from.idL0)
+  io.dsReq.bits.to.idL0 := Mux(needRepl, IdL0.SNMAS, task_s3_g.bits.from.idL0)
   io.dsReq.bits.to.idL1 := Mux(needRepl, DontCare,    task_s3_g.bits.from.idL1)
   io.dsReq.bits.to.idL2 := Mux(needRepl, replTxnid,   task_s3_g.bits.from.idL2)
   io.dsReq.bits.dbid := task_s3_g.bits.dbid

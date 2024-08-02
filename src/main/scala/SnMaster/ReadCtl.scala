@@ -133,7 +133,7 @@ class ReadCtl()(implicit p: Parameters) extends DJModule {
   io.mpResp.bits.opcode     := fsmSel.opcode
   io.mpResp.bits.addr       := fsmSel.addr
   io.mpResp.bits.dbid       := fsmSel.txnid
-  io.mpResp.bits.from.idL0  := IdL0.MASTER
+  io.mpResp.bits.from.idL0  := IdL0.SNMAS
   io.mpResp.bits.from.idL1  := DontCare
   io.mpResp.bits.from.idL2  := DontCare
   io.mpResp.bits.to         := fsmSel.from

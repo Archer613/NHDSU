@@ -114,12 +114,12 @@ class DataBuffer()(implicit p: Parameters) extends DJModule {
    * send Data to Ms must be RR
    */
   val dsReadValVec  = dataBuffer.map( d => d.state === DBState.READ & d.to.idL0 === IdL0.SLICE )
-  val msReadValVec  = dataBuffer.map( d => d.state === DBState.READ & d.to.idL0 === IdL0.MASTER )
-  val rnReadValVec  = dataBuffer.map( d => d.state === DBState.READ & d.to.idL0 === IdL0.RN )
+  val msReadValVec  = dataBuffer.map( d => d.state === DBState.READ & d.to.idL0 === IdL0.SNMAS )
+  val rnReadValVec  = dataBuffer.map( d => d.state === DBState.READ & d.to.idL0 === IdL0.RNSLV )
 
   val dsReadingValVec   = dataBuffer.map(d => d.state === DBState.READING & d.to.idL0 === IdL0.SLICE)
-  val msReadingValVec   = dataBuffer.map(d => d.state === DBState.READING & d.to.idL0 === IdL0.MASTER)
-  val rnReadingValVec   = dataBuffer.map(d => d.state === DBState.READING & d.to.idL0 === IdL0.RN)
+  val msReadingValVec   = dataBuffer.map(d => d.state === DBState.READING & d.to.idL0 === IdL0.SNMAS)
+  val rnReadingValVec   = dataBuffer.map(d => d.state === DBState.READING & d.to.idL0 === IdL0.RNSLV)
 
   outDsID   := Mux(dsReadingValVec.reduce(_ | _),   PriorityEncoder(dsReadingValVec),   PriorityEncoder(dsReadValVec))
   outMsID   := Mux(msReadingValVec.reduce(_ | _),   PriorityEncoder(msReadingValVec),   RREncoder(msReadValVec))

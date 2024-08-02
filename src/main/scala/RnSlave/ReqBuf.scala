@@ -83,7 +83,7 @@ class ReqBuf()(implicit p: Parameters) extends DJModule {
     // task addr
     task.addr       := txreq.addr
     // task id
-    task.from.idL0  := IdL0.RN
+    task.from.idL0  := IdL0.RNSLV
     task.from.idL1  := io.rnSlvId
     task.from.idL2  := io.reqBufId
     task.to.idL0    := IdL0.SLICE
@@ -191,7 +191,7 @@ class ReqBuf()(implicit p: Parameters) extends DJModule {
   /*
    * wReq output to dataBuffer
    */
-  io.wReq.bits.from.idL0  := IdL0.RN
+  io.wReq.bits.from.idL0  := IdL0.RNSLV
   io.wReq.bits.from.idL1  := io.rnSlvId
   io.wReq.bits.from.idL2  := io.reqBufId
   io.wReq.bits.to.idL0    := IdL0.SLICE
