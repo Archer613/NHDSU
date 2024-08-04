@@ -4,117 +4,150 @@ import DONGJIANG.CHI._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
+import scala.math.{max, min}
 
 case object DJParamKey extends Field[DJParam](DJParam())
 
-case class IDMap
-(
-    RNID: Seq[Int] = Seq(0), // TODO: muticore with diff RNID
-    HNID: Int = 0,
-    SNID: Int = 0
-)
 
-case class DJParam(
-                    // base num
-                    nrCore: Int = 1,
-                    nrBank: Int = 2,
-                    nrReqBuf: Int = 16,
-                    nrSnoopCtl: Int = 16,
-                    nrDataBufferEntry: Int = 16,
-                    // dir & ds
-                    nrSelfDirBank: Int = 2,
-                    nrClientDirBank: Int = 2,
-                    nrDSBank: Int = 2,
-                    ways: Int = 4,
-                    sets: Int = 32,
-                    clientWays: Int = 4,
-                    clientSets: Int = 32,
-                    replacementPolicy: String = "plru",
-                    // data
-                    blockBytes: Int = 64,
-                    beatBytes: Int = 32,
-                    // addr
-                    addressBits: Int = 48,
-                    // sram
-                    // enableSramClockGate: Boolean = true, // it will be always true
-                    dirMulticycle: Int = 1,
-                    dataMulticycle: Int = 2, // TODO: data holdMcp
-                    // chi
-                    // can receive or send chi lcrd num
-                    nrRnTxLcrdMax: Int = 4,
-                    nrRnRxLcrdMax: Int = 4,
-                    nrSnTxLcrdMax: Int = 4,
-                    nrSnRxLcrdMax: Int = 4,
-                    // CHI ID Map
-                    idmap: IDMap = new IDMap()
-                  ) {
-    require(nrCore > 0)
-    require(nrBank == 1 | nrBank == 2 | nrBank == 4)
-    require(clientWays >= 4)
+// RN Node Params, used for generation
+case class RnNodeParam
+(
+    name: String = "RnSalve",
+    nrReqBuf: Int = 16,
+    nodeId: Int = 0, // isSlave => HNID; isMaster => RNID
+    isSlave: Boolean = true,
+    addressId: Int = 0,
+    addressIdBits: Int = 0,
+    peferTgtIdMap: Option[Seq[Int]] = None,
+    // can receive or send chi lcrd num
+    nrRnTxLcrdMax: Int = 4,
+    nrRnRxLcrdMax: Int = 4,
+) {
+    val isMaster = !isSlave
+
     require(nrRnTxLcrdMax <= 15)
     require(nrRnRxLcrdMax <= 15)
-    require(replacementPolicy == "random" || replacementPolicy == "plru" || replacementPolicy == "lru")
+}
+
+
+// SN Node Params, used for generation
+case class SnNodeParam
+(
+    name: String = "SnMaster",
+    nrReqBuf: Int = 16,
+    nodeId: Int = 0, // HNID
+    addressBits: Int = 48,
+    // can receive or send chi lcrd num
+    nrSnTxLcrdMax: Int = 4,
+    nrSnRxLcrdMax: Int = 4,
+) {
+    require(nrSnTxLcrdMax <= 15)
+    require(nrSnRxLcrdMax <= 15)
+}
+
+
+case class DJParam(
+                    // -------------------------- Base Mes ---------------------- //
+                    blockBytes: Int = 64,
+                    beatBytes: Int = 32,
+                    addressBits: Int = 48,
+                    hasLLC: Boolean = true,
+                    // ------------------------- Rn / Sn Base Mes -------------------- //
+                    rnNodeMes: Seq[RnNodeParam] = Seq(RnNodeParam( name = "RnSalve_0", nodeId = 0)),
+                    snNodeMes: Seq[SnNodeParam] = Seq(SnNodeParam( name = "SnMaster_0", nodeId = 0),
+                                                      SnNodeParam( name = "SnMaster_1", nodeId = 1)),
+                    // ------------------------ Slice Base Mes ------------------ //
+                    nrMpQueueBeat: Int = 4,
+                    mpBlockBySet: Boolean = true,
+                    // MSHR
+                    nrMSHRSet: Int = 4,
+                    mrMSHRWay: Int = 8,
+                    // number of bank or buffer
+                    nrBank: Int = 2,
+                    nrSnpCtl: Int = 16,
+                    nrDataBuf: Int = 16,
+                    // ------------------------ Directory * DataStorage Mes ------------------ //
+                    // self dir & ds mes, dont care when hasLLC is false
+                    nrSelfDirBank: Int = 2,
+                    selfWays: Int = 4,
+                    selfSets: Int = 32,
+                    selfDirMulticycle: Int = 1,
+                    dsMulticycle: Int = 1,
+                    selfReplacementPolicy: String = "plru",
+                    // snoop(client) dir mes
+                    nrClientDirBank: Int = 2,
+                    clientDirWays: Int = 4,
+                    clientDirSets: Int = 32,
+                    clientDirMulticycle: Int = 2, // TODO: data holdMcp
+                    clientReplacementPolicy: String = "plru",
+                  ) {
+    require(rnNodeMes.length > 0)
+    require(nrMpQueueBeat > 0)
+    require(nrMSHRSet <= selfSets)
+    require(nrBank == 1 | nrBank == 2 | nrBank == 4)
+    require(snNodeMes.length == nrBank)
+    require(selfReplacementPolicy == "random" || selfReplacementPolicy == "plru")
+    require(clientReplacementPolicy == "random" || clientReplacementPolicy == "plru")
 }
 
 trait HasDJParam {
     val p: Parameters
     val djparam = p(DJParamKey)
 
-    // BASE
-    val mpBlockBySet    = true
-    val nrMPQBeat       = 4
-    val nrBeat          = djparam.blockBytes/djparam.beatBytes
+    // Base Mes Parameters
+    val nrBeat          = djparam.blockBytes / djparam.beatBytes
     val addressBits     = djparam.addressBits
     val dataBits        = djparam.blockBytes * 8
     val beatBits        = djparam.beatBytes * 8
-    // ID
-    val coreIdBits      = log2Ceil(djparam.nrCore)
-    val reqBufIdBits    = log2Ceil(djparam.nrReqBuf)
-    val snoopCtlIdBits  = log2Ceil(djparam.nrSnoopCtl)
-    val dbIdBits        = log2Ceil(djparam.nrDataBufferEntry)
-    // CHI
-    val rnTxlcrdBits    = log2Ceil(djparam.nrRnTxLcrdMax) + 1
-    val rnRxlcrdBits    = log2Ceil(djparam.nrRnRxLcrdMax) + 1
-    val snTxlcrdBits    = log2Ceil(djparam.nrSnTxLcrdMax) + 1
-    val snRxlcrdBits    = log2Ceil(djparam.nrSnRxLcrdMax) + 1
-    // DIR BASE
+
+    // RN Parameters
+    val nrRnNode        = djparam.rnNodeMes.length
+    val rnNodeIdSeq     = djparam.rnNodeMes.map(_.nodeId)
+    val rnNodeIdBits    = log2Ceil(rnNodeIdSeq.max)
+    val rnReqBufIdBits  = log2Ceil(djparam.rnNodeMes.map(_.nrReqBuf).max)
+
+    // SN Parameters
+    val snReqBufIdBits  = log2Ceil(djparam.snNodeMes.map(_.nrReqBuf).max)
+
+    // Slice Id Bits Parameters
+    val snpCtlIdBits    = log2Ceil(djparam.nrSnpCtl)
+    val dbIdBits        = log2Ceil(djparam.nrDataBuf)
+
+    // DIR BASE Parameters
     val bankBits        = log2Ceil(djparam.nrBank)
     val offsetBits      = log2Ceil(djparam.blockBytes)
-    // SELF DIR: [sTag] + [sSet] + [sDirBank] + [bank] + [offset]
+
+    // SELF DIR Parameters: [sTag] + [sSet] + [sDirBank] + [bank] + [offset]
     // [sSet] + [sDirBank] = [setBis]
-    val sWayBits        = log2Ceil(djparam.ways)
+    val sWayBits        = log2Ceil(djparam.selfWays)
     val sDirBankBits    = log2Ceil(djparam.nrSelfDirBank)
-    val sSetBits        = log2Ceil(djparam.sets/djparam.nrSelfDirBank)
+    val sSetBits        = log2Ceil(djparam.selfSets/djparam.nrSelfDirBank)
     val sTagBits        = djparam.addressBits - sSetBits - sDirBankBits - bankBits - offsetBits
-    // CLIENT DIR: [cTag] + [cSet] + [cDirBank] + [bank] + [offset]
+
+    // CLIENT DIR Parameters: [cTag] + [cSet] + [cDirBank] + [bank] + [offset]
     // [cSet] + [cDirBank] = [clientSetsBits]
-    val cWayBits        = log2Ceil(djparam.clientWays)
+    val cWayBits        = log2Ceil(djparam.clientDirWays)
     val cDirBankBits    = log2Ceil(djparam.nrClientDirBank)
-    val cSetBits        = log2Ceil(djparam.clientSets / djparam.nrClientDirBank)
+    val cSetBits        = log2Ceil(djparam.clientDirSets / djparam.nrClientDirBank)
     val cTagBits        = djparam.addressBits - cSetBits - cDirBankBits - bankBits - offsetBits
-    // DS
+
+    // DS Parameters
     val dsWayBits       = sWayBits
-    val dsBankBits      = log2Ceil(djparam.nrDSBank)
-    val dsSetBits       = log2Ceil(djparam.sets/djparam.nrDSBank)
-    // BLOCK TABLE: [blockTag] + [blockSet] + [bank] + [offset]
-    val nrBlockWays     = djparam.ways * 2
-    val nrBlockSets     = 16
-    val blockWayBits    = log2Ceil(nrBlockWays) // 3
-    val blockSetBits    = log2Ceil(nrBlockSets) // 4
-    val blockTagBits    = djparam.addressBits - blockSetBits - bankBits - offsetBits
-    val replTxnidBits   = blockSetBits + blockWayBits
-    // ReadCtl
-    val nrReadCtlEntry  = 8
-    val rcEntryBits     = log2Ceil(nrReadCtlEntry)
-    // CHI TXNID Width
-    val chiTxnidBits    = 8
-    val chiDbidBits     = 8
-    require(blockWayBits + blockSetBits <= chiTxnidBits - 1, "HN -> SN WB Txnid = Cat(1'b1, blockSet, blockWay)")
-    // replacement
-    val useRepl         = djparam.replacementPolicy != "random"
-    val sReplWayBits    = djparam.ways - 1;
-    val cReplWayBits    = djparam.clientWays - 1
-    require(djparam.replacementPolicy == "random" | djparam.replacementPolicy == "plru", "It should modify sReplWayBits and cReplWayBits when use replacement except of random or plru")
+    val dsSetBits       = sSetBits
+
+    // MSHR TABLE Parameters: [mshrTag] + [mshrSet] + [bank] + [offset]
+    val mshrWayBits     = log2Ceil(djparam.mrMSHRWay)
+    val mshrSetBits     = log2Ceil(djparam.nrMSHRSet)
+    val mshrTagBits     = djparam.addressBits - mshrSetBits - bankBits - offsetBits
+
+    // replacement Parameters
+    val sUseRepl        = djparam.selfReplacementPolicy != "random"
+    val sReplWayBits    = djparam.selfWays - 1
+    val cUseRepl        = djparam.clientReplacementPolicy != "random"
+    val cReplWayBits    = djparam.clientDirWays - 1
+    require(djparam.selfReplacementPolicy == "random" | djparam.selfReplacementPolicy == "plru", "It should modify sReplWayBits when use replacement except of random or plru")
+    require(djparam.clientReplacementPolicy == "random" | djparam.clientReplacementPolicy == "plru", "It should modify cReplWayBits when use replacement except of random or plru")
+
     // TIMEOUT CHECK CNT VALUE
     val TIMEOUT_RB      = 10000 // ReqBuf
     val TIMEOUT_DB      = 8000  // DataBuffer
@@ -125,21 +158,17 @@ trait HasDJParam {
     val TIMEOUT_RC      = 6000  // ReadCtl
     val TIMEOUT_TXD     = 1000  // SnChiTxDat
 
-
-
-    // requirement
-    require(nrBlockSets <= djparam.sets)
-    require(nrReadCtlEntry <= djparam.nrDataBufferEntry, "The maximum number of ReadCtl deal req logic is equal to nrDataBufferEntry")
-    require(log2Ceil(djparam.nrReqBuf) <= chiTxnidBits-1) // txnID width -1, retain the highest bit
-    require(bankBits + dbIdBits <= chiDbidBits)
-    require(dbIdBits < chiTxnidBits - 1)
-
+    // chiBundleParams
     val chiBundleParams = CHIBundleParameters(
         nodeIdBits = 7,
         addressBits = addressBits,
         dataBits = beatBits,
         dataCheck = false
     )
+
+    // some requirements
+    require(rnReqBufIdBits <= chiBundleParams.txnidBits & snReqBufIdBits <= chiBundleParams.txnidBits)
+    require(dbIdBits <= chiBundleParams.dbidBits)
 
     def parseAddress(x: UInt, modBankBits: Int = 1, setBits: Int = 1, tagBits: Int = 1): (UInt, UInt, UInt, UInt, UInt) = {
         val offset  = x
@@ -151,14 +180,14 @@ trait HasDJParam {
         (tag(tagBits - 1, 0), set(setBits - 1, 0), modBank(modBankBits - 1, 0), bank(bankBits - 1, 0), offset(offsetBits - 1, 0))
     }
 
-    def parseBTAddress(x: UInt): (UInt, UInt, UInt) = {
-        val tag = WireInit(0.U(blockTagBits.W))
-        val (tag_, set, modBank, bank, offset) = parseAddress(x, modBankBits = 0, setBits = blockSetBits, tagBits = blockTagBits)
-        if (!mpBlockBySet) {
+    def parseMSHRAddress(x: UInt): (UInt, UInt, UInt) = {
+        val tag = WireInit(0.U(mshrTagBits.W))
+        val (tag_, set, modBank, bank, offset) = parseAddress(x, modBankBits = 0, setBits = mshrSetBits, tagBits = mshrTagBits)
+        if (!djparam.mpBlockBySet) {
             tag := tag_ // TODO: When !mpBlockBySet it must support useWayOH Check and RetryQueue
         } else {
-            require(sSetBits + sDirBankBits > blockSetBits)
-            tag := tag_(sSetBits + sDirBankBits - 1 - blockSetBits, 0)
+            require(sSetBits + sDirBankBits > mshrSetBits)
+            tag := tag_(sSetBits + sDirBankBits - 1 - mshrSetBits, 0)
         }
         (tag, set, bank)
     }
@@ -168,9 +197,4 @@ trait HasDJParam {
         else if (nrBeat == 2) { Mux(x === 0.U, 0.U, 2.U) }
         else { 0.U }
     }
-
-    def widthCheck(in: UInt, width: Int) = {
-        assert(in.getWidth == width)
-    }
-
 }

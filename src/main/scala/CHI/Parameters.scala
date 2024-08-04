@@ -7,7 +7,9 @@ case class CHIBundleParameters(
                                 nodeIdBits: Int,
                                 addressBits: Int,
                                 dataBits: Int,
-                                dataCheck: Boolean
+                                dataCheck: Boolean,
+                                txnidBits: Int,
+                                dbidBits: Int,
                                 // TODO: has snoop
                               ) {
     require(nodeIdBits >= 7 && nodeIdBits <= 11)
@@ -21,11 +23,15 @@ object CHIBundleParameters {
                nodeIdBits: Int = 7,
                addressBits: Int = 44,
                dataBits: Int = 256,
-               dataCheck: Boolean = false
+               dataCheck: Boolean = false,
+               txnidBits: Int = 8,
+               dbidBits: Int = 8,
              ): CHIBundleParameters = new CHIBundleParameters(
         nodeIdBits = nodeIdBits,
         addressBits = addressBits,
         dataBits = dataBits,
-        dataCheck = dataCheck
+        dataCheck = dataCheck,
+        txnidBits = txnidBits,
+        dbidBits = dbidBits
     )
 }
