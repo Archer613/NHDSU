@@ -72,7 +72,7 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
  *
  * ****************************************************************************************************************************************************
  *
- * RnMaster <-> Slice Ctrl Signals: (rnMasId = nodeId Max + 1)
+ * RnMaster <-> Slice Ctrl Signals:
  * [reqTSlice]  |  [hasAddr]               |  from: [RNMAS]  [nodeId] [reqBufId]    | to: [SLICE]    [sliceId] [DontCare]
  * [respFSlice] |  [hasAddr]   [hasWay]    |  from: None                            | to: [RNMAS]    [nodeId]  [reqBufId]
  * [reqFSlice]  |  [hasAddr]               |  from: [SLICE]  [sliceId] [SnpCtlId]   | to: [RNMAS]    [nodeId]  [DontCare]
@@ -80,8 +80,8 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
  *
  *
  * RnMaster <-> Slice DB Signals:
- * [dbRCReq]    |  [hasDBID]               |  from: [RNMAS]  [rnMaxId]  [reqBufId   | to: [SLICE]    [sliceId] [DontCare]
- * [wReq]       |  [None]                  |  from: [RNMAS]  [rnMaxId]  [reqBufId]  | to: [SLICE]    [sliceId] [DontCare]
+ * [dbRCReq]    |  [hasDBID]               |  from: [RNMAS]  [nodeId]   [reqBufId]  | to: [SLICE]    [sliceId] [DontCare]
+ * [wReq]       |  [None]                  |  from: [RNMAS]  [nodeId]   [reqBufId]  | to: [SLICE]    [sliceId] [DontCare]
  * [wResp]      |  [hasDBID]               |  from: [SLICE]  [sliceId]  [DontCare]  | to: [RN]       [nodeId]  [reqBufId]
  * [dataFDB]    |  [None]                  |  from: None                            | to: [RN]       [nodeId]  [reqBufId]
  * [dataTDB]    |  [hasDBID]               |  from: None                            | to: [SLICE]    [sliceId] [DontCare]
@@ -127,7 +127,6 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
  * tgtNodeID    <-> Get from Slice req
  * nodeID       <-> RnSlave
  * reqBufId     <-> ReqBuf
- * selfDBID     <-> Get from DataBuffer (Cat(sliceId, dbid))
  * fwdNId       <-> Get from Slice req
  * fwdTxnID     <-> Get from Slice req
  *
@@ -135,13 +134,13 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
  *
  * { Read / Dataless / Atomic / CMO }   TxReq: Store { TgtID_g = TgtID    |  SrcID_g = SrcID     |   TxnID_g = TxnID     |                      }
  * { CompAck                        }   TxRsp: Match {                    |                      |   TxnID  == reqBufId  |                      }
- * { CompData                       }   RxDat: Send  { TgtID   = SrcID_g  |  SrcID   = TgtID_g   |   TxnID   = TxnID_g   |  DBID    = reqBufId }
+ * { CompData                       }   RxDat: Send  { TgtID   = SrcID_g  |  SrcID   = TgtID_g   |   TxnID   = TxnID_g   |  DBID    = reqBufId  }
  * { Comp                           }   RxRsp: Send  { TgtID   = SrcID_g  |  SrcID   = TgtID_g   |   TxnID   = TxnID_g   |                      }
  *
  *
  * { Write                          }   TxReq: Store { TgtID_g = TgtID    |  SrcID_g = SrcID     |   TxnID_g = TxnID     |                      }
- * { WriteData                      }   TxDat: Match {                    |                      |   TxnID  == selfDBID  |                      }
- * { CompDBIDResp                   }   RxRsp: Send  { TgtID   = SrcID_g  |  SrcID   = TgtID_g   |   TxnID   = TxnID_g   |  DBID    = selfDBID }
+ * { WriteData                      }   TxDat: Match {                    |                      |   TxnID  == reqBufId  |                      }
+ * { CompDBIDResp                   }   RxRsp: Send  { TgtID   = SrcID_g  |  SrcID   = TgtID_g   |   TxnID   = TxnID_g   |  DBID    = reqBufId  }
  *
  *
  * { SnoopResp                      }   TxRsp: Match {                    |                      |   TxnID  == reqBufId  |                      }
@@ -160,13 +159,12 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
  * tgtNodeID    <-> Get from Slice req
  * nodeID       <-> RnMaster
  * reqBufId     <-> ReqBuf
- * selfDBID     <-> Get from DataBuffer (Cat(sliceId, dbid))
  *
  *
- * { Read / Dataless / Atomic / CMO }   TxReq: Send  { TgtID = tgtNodeID  |  SrcID   = nodeID    |   TxnID   = selfDBID  |                      }
+ * { Read / Dataless / Atomic / CMO }   TxReq: Send  { TgtID = tgtNodeID  |  SrcID   = nodeID    |   TxnID   = reqBufId  |                      }
  * { CompAck                        }   TxRsp: Send  { TgtID = HomeNID_g  |  SrcID   = nodeID    |   TxnID   = DBID_g    |                      }
- * { CompData                       }   RxDat: M & S {                    |                      |   TxnID  == selfDBID  |  DBID_g  = DBID      |   HomeNID_g   = HomeNID   }
- * { Comp                           }   RxRsp: Match {                    |                      |   TxnID   = selfDBID  |  DBID_g  = DBID      |   HomeNID_g   = SrcID     }
+ * { CompData                       }   RxDat: M & S {                    |                      |   TxnID  == reqBufId  |  DBID_g  = DBID      |   HomeNID_g   = HomeNID   }
+ * { Comp                           }   RxRsp: Match {                    |                      |   TxnID   = reqBufId  |  DBID_g  = DBID      |   HomeNID_g   = SrcID     }
  *
  *
  * { Write                          }   TxReq: Send  { TgtID = tgtNodeID  |  SrcID   = nodeID    |   TxnID   = reqBufId  |                      }
@@ -188,16 +186,14 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
  *
  * *********************************************************** SNMASTRE *************************************************************************
  *
- * readCtlId    <-> ReadCtl
- * selfDBID     <-> Get from DataBuffer (dbid)
- * replTxnID    <-> Get from Slice req  (Cat(mshrSet, mshrWay))
+ * reqBufId     <-> ReqBuf
  *
- * { Read                           }   TxReq: Send  { TgtID = 0          |  SrcID   = 0         |   TxnID   = selfDBID  |                      }
- * { CompData                       }   RxDat: Match {                    |                      |   TxnID  == selfDBID  |                      }
+ * { Read                           }   TxReq: Send  { TgtID = 0          |  SrcID   = 0         |   TxnID   = reqBufId  |                      }
+ * { CompData                       }   RxDat: Match {                    |                      |   TxnID  == reqBufId  |                      }
  *
- * { Write                          }   TxReq: Send  { TgtID = 0          |  SrcID   = 0         |   TxnID   = replTxnID |                      }
+ * { Write                          }   TxReq: Send  { TgtID = 0          |  SrcID   = 0         |   TxnID   = reqBufId  |                      }
  * { WriteData                      }   TxDat: Send  { TgtID = 0          |  SrcID   = 0         |   TxnID   = DBID_g    |                      }
- * { CompDBIDResp                   }   RxRsp: M & G {                    |                      |   TxnID  == replTxnID |  DBID_g = DBID       }
+ * { CompDBIDResp                   }   RxRsp: M & G {                    |                      |   TxnID  == reqBufId  |  DBID_g = DBID       }
  *
  */
 
