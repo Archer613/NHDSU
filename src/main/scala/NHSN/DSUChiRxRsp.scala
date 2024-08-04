@@ -7,13 +7,13 @@ import NHDSU.CHI._
 import NHDSU._
 
 class DSUChiRxRsp (implicit p : Parameters) extends DSUModule {
-    
+// -------------------------- IO declaration -----------------------------//
     val io = IO(new Bundle {
       val chi                  = CHIChannelIO(new CHIBundleRSP(chiBundleParams))
       val rxState              = Input(UInt(LinkStates.width.W))
       val flit                 = Flipped(Decoupled(new CHIBundleRSP(chiBundleParams)))
     })
-
+ // -------------------------- Wire/Reg define -----------------------------//
   val lcrdFreeNumReg           = RegInit(0.U(snTxlcrdBits.W))
   val flitReg                  = RegInit(0.U.asTypeOf(new CHIBundleRSP(chiBundleParams)))
   val flitvReg                 = RegInit(false.B)
@@ -21,7 +21,7 @@ class DSUChiRxRsp (implicit p : Parameters) extends DSUModule {
   val flitv                    = WireInit(false.B)
   val taskReady                = WireInit(false.B)
 
-
+ // -------------------------- Logic -----------------------------//
   flitv                       := io.flit.fire
   flit                        := io.flit.bits
 

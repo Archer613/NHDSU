@@ -7,6 +7,7 @@ import NHDSU.CHI._
 import NHDSU._
 
 class ProtocolLayerCtrl()(implicit p: Parameters) extends DSUModule {
+// -------------------------- IO declaration -----------------------------//
   val io = IO(new Bundle {
     val chiLinkCtrl            = Flipped(new CHILinkCtrlIO())
     val txState                = Output(UInt(LinkStates.width.W))

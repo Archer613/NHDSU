@@ -8,7 +8,7 @@ import NHDSU._
 import NHDSU.CHI.CHIOp.DAT
 
 class DSUChiTxDat (implicit p : Parameters) extends DSUModule {
-
+ // -------------------------- IO declaration -----------------------------//
   val io                     = IO(new Bundle {
     val chi                  = Flipped(CHIChannelIO(new CHIBundleDAT(chiBundleParams)))
     val txState              = Input(UInt(LinkStates.width.W))
