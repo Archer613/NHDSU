@@ -14,6 +14,7 @@ class DSUChiTxDat (implicit p : Parameters) extends DSUModule {
     val txState              = Input(UInt(LinkStates.width.W))
     //Dequeue flit
     val flit                 = Decoupled(new CHIBundleDAT(chiBundleParams))
+    val lcrdReturn           = Output(Bool())
   })
 
 
@@ -70,11 +71,12 @@ class DSUChiTxDat (implicit p : Parameters) extends DSUModule {
    * Connection
    */
   // lcrdv
-  io.chi.lcrdv := lcrdv
+  io.chi.lcrdv              := lcrdv
   // enq
-  queue.io.enq <> enq
+  queue.io.enq              <> enq
   // deq
-  io.flit <> queue.io.deq
+  io.flit                   <> queue.io.deq
+  io.lcrdReturn             := lcrdReturn
 
 
 // --------------------- Assertion ------------------------------- //

@@ -1,6 +1,7 @@
 package NHDSU
 
 import NHDSU.CHI._
+import NHSN._
 import Utils._
 import chisel3._
 import circt.stage.{ChiselStage, FirtoolOption}
@@ -127,13 +128,11 @@ class TestTop_NHL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(impl
 
 // ----------------------------- Connect IO_SN <-> ARM_SN -------------------------- //
     val dsu = Module(new NHDSU())
-    val io = IO(new Bundle {
-      val snChi = Vec(dsu.dsuparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
-      val snChiLinkCtrl = Vec(dsu.dsuparam.nrBank, new CHILinkCtrlIO())
-    })
+    val sn  = Module(new NHSN())
+    
 
-    dsu.io.snChi <> io.snChi
-    dsu.io.snChiLinkCtrl <> io.snChiLinkCtrl
+    dsu.io.snChi <> sn.io.hnChi
+    dsu.io.snChiLinkCtrl <> sn.io.hnLinkCtrl
 
     dsu.io.rnChi.zipWithIndex.foreach { case(chi, i) => chi <> l2_nodes(i).module.io.chi }
     dsu.io.rnChiLinkCtrl.zipWithIndex.foreach { case(ctrl, i) => ctrl <> l2_nodes(i).module.io.chiLinkCtrl }

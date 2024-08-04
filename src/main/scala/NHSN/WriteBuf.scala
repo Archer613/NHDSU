@@ -5,7 +5,8 @@ import chisel3.util._
 import org.chipsalliance.cde.config._
 import NHDSU.CHI._
 import NHDSU._
-import NHDSU.CHI.CHIOp.DAT
+import NHDSU.CHI.CHIOp._
+
 
 class WriteBuf (implicit p : Parameters) extends DSUModule {
  // -------------------------- IO declaration -----------------------------//
@@ -16,32 +17,32 @@ class WriteBuf (implicit p : Parameters) extends DSUModule {
     })
  // -------------------------- Wire/Reg define -----------------------------//
   val fsmReg                       = RegInit(VecInit(Seq.fill(nrReadCtlEntry) { 0.U.asTypeOf(new WriteBufTableEntry()) }))
-  val stateIdleVec                 = Wire(Vec(nrReadCtlEntry,Bool()))
-  val selIdleFsm                   = Wire(UInt(rcEntryBits.W))
+  val stateIdleVec                 = Wire(Vec(nrReadCtlEntry, Bool()))
+  val selIdleFsm                   = WireInit(0.U(rcEntryBits.W))
 
-  val selWaitDatFsm                = Wire(UInt(rcEntryBits.W))
+  val selWaitDatFsm                = WireInit(0.U(rcEntryBits.W))
   val selWaitDatVec                = Wire(Vec(nrReadCtlEntry,Bool()))
   val selWaitDat                   = OHToUInt(selWaitDatVec)
 
-  val writeData                    = Wire(0.U.asTypeOf(io.wrDat.bits))
+  val writeData                    = WireInit(0.U.asTypeOf(io.wrDat.bits))
 
 
 
 // -------------------------- Logic -----------------------------//
 
-  stateIdleVec.zip(fsmReg).foreach{ case(s, f) => s := f.state === WrState.IDLE}
+  stateIdleVec.zip(fsmReg.map(_.state)).foreach{ case(s, f) => s := f === WrState.IDLE}
   selIdleFsm                      := PriorityEncoder(stateIdleVec)
 /* 
  * Select a idle state of fsmReg to save key information
  */
-  when(io.reqFlit.fire){
+  when(io.reqFlit.fire & io.reqFlit.bits.opcode === REQ.WriteNoSnpFull){
     fsmReg(selIdleFsm).state      := WrState.WAITDATA
     fsmReg(selIdleFsm).addr       := io.reqFlit.bits.addr
     fsmReg(selIdleFsm).txnID      := io.reqFlit.bits.txnID
   }
-
+  selWaitDatVec.zip(fsmReg.map(_.txnID)).foreach{ case(s, f) => s := f === io.datFlit.bits.txnID}
   when(io.datFlit.fire){
-    selWaitDatVec.zip(fsmReg).foreach{ case(s, f) => s := f.txnID === io.datFlit.bits.txnID}
+    
     switch(fsmReg(selWaitDat).state){
       is(WrState.WAITDATA){
         fsmReg(selWaitDat).state  := WrState.SENDDAT1
@@ -70,6 +71,7 @@ class WriteBuf (implicit p : Parameters) extends DSUModule {
   io.datFlit.ready             := true.B
   io.wrDat.bits                := Mux(io.datFlit.fire, writeData, 0.U.asTypeOf((writeData)))
   io.wrDat.valid               := io.datFlit.valid
+
 
   
 }

@@ -17,6 +17,16 @@ class WriteData(params: CHIBundleParameters) extends Bundle {
 
 }
 
+class WriteReg(params: CHIBundleParameters) extends  Bundle {
+    val addr           = UInt(params.addressBits.W)
+    val data           = UInt(params.dataBits.W)
+    val beat           = UInt(2.W)
+}
+
+class ReadReg(params: CHIBundleParameters) extends  Bundle {
+    val addr           = UInt(params.addressBits.W)
+}
+
 object WrState { // Read Ctl State
     val width      = 2
     val nrState    = 4

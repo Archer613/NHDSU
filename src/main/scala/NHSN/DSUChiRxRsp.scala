@@ -43,7 +43,7 @@ class DSUChiRxRsp (implicit p : Parameters) extends DSUModule {
     is(LinkStates.DEACTIVATE) {
       when(lcrdFreeNumReg > 0.U){
         flitv                := true.B
-        flitReg              := 0.U
+        flitReg              := 0.U.asTypeOf(io.flit.bits)
         lcrdFreeNumReg       := 0.U
       }
     }

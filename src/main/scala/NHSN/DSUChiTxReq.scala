@@ -19,6 +19,7 @@ class DSUChiTxReq (implicit p : Parameters) extends DSUModule {
     
     //Dequeue flit
     val flit                 = Decoupled(new CHIBundleREQ(chiBundleParams))
+    val lcrdReturn           = Output(Bool())
   })
 
 // --------------------- Modules declaration --------------------- //
@@ -79,11 +80,13 @@ class DSUChiTxReq (implicit p : Parameters) extends DSUModule {
    * Connection
    */
   // lcrdv
-  io.chi.lcrdv := lcrdv
+  io.chi.lcrdv             := lcrdv
   // enq
-  queue.io.enq <> enq
+  queue.io.enq             <> enq
   // deq
-  io.flit <> queue.io.deq
+  io.flit                  <> queue.io.deq
+  
+  io.lcrdReturn            := lcrdReturn
 
 
 // --------------------- Assertion ------------------------------- //
