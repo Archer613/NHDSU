@@ -15,10 +15,10 @@ class CHIBundleREQ(params: CHIBundleParameters) extends Bundle {
     val qos            = UInt(4.W)
     val tgtID          = UInt(params.nodeIdBits.W)
     val srcID          = UInt(params.nodeIdBits.W)
-    val txnID          = UInt(8.W)
+    val txnID          = UInt(params.txnidBits.W)
     val returnNID      = UInt(params.nodeIdBits.W)
     // val stashNID       = returnNID
-    val returnTxnID    = UInt(8.W)
+    val returnTxnID    = UInt(params.txnidBits.W)
     // val stashLPIDValid = returnTxnID(5)
     // val stashLPID      = returnNID(4,0)
     val opcode         = UInt(6.W)
@@ -45,13 +45,13 @@ class CHIBundleRSP(params: CHIBundleParameters) extends Bundle {
     val qos      = UInt(4.W)
     val tgtID    = UInt(params.nodeIdBits.W)
     val srcID    = UInt(params.nodeIdBits.W)
-    val txnID    = UInt(8.W)
+    val txnID    = UInt(params.txnidBits.W)
     val opcode   = UInt(4.W)
     val respErr  = UInt(2.W)
     val resp     = UInt(3.W)
     val fwdState = UInt(3.W)
     // val dataPull = fwdState
-    val dbID     = UInt(8.W)
+    val dbID     = UInt(params.dbidBits.W)
     val pCrdType = UInt(4.W)
     val traceTag = Bool()
 }
@@ -61,9 +61,9 @@ class CHIBundleSNP(params: CHIBundleParameters) extends Bundle {
 
     val qos            = UInt(4.W)
     val srcID          = UInt(params.nodeIdBits.W)
-    val txnID          = UInt(8.W)
+    val txnID          = UInt(params.txnidBits.W)
     val fwdNID         = UInt(params.nodeIdBits.W)
-    val fwdTxnID       = UInt(8.W)
+    val fwdTxnID       = UInt(params.txnidBits.W)
     // val stashLPIDValid = fwdTxnID(5)
     // val stashLPID      = fwdTxnID(4,0)
     // val vmIDExt        = fwdTxnID
@@ -82,7 +82,7 @@ class CHIBundleDAT(params: CHIBundleParameters) extends Bundle {
     val qos        = UInt(4.W)
     val tgtID      = UInt(params.nodeIdBits.W)
     val srcID      = UInt(params.nodeIdBits.W)
-    val txnID      = UInt(8.W)
+    val txnID      = UInt(params.txnidBits.W)
     val homeNID    = UInt(params.nodeIdBits.W)
     val opcode     = UInt(3.W)
     val respErr    = UInt(2.W)
@@ -90,7 +90,7 @@ class CHIBundleDAT(params: CHIBundleParameters) extends Bundle {
     val fwdState   = UInt(3.W)
     // val dataPull   = fwdState
     // val dataSource = fwdState
-    val dbID       = UInt(8.W)
+    val dbID       = UInt(params.dbidBits.W)
     val ccID       = UInt(2.W)
     val dataID     = UInt(2.W)
     val traceTag   = Bool()
