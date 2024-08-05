@@ -6,9 +6,9 @@ import org.chipsalliance.cde.config._
 
 class OutboundFlitCtrl[T <: Bundle](gen: T, lcrdMax: Int = 4, aggregateIO: Boolean = false)(implicit p: Parameters) extends Module {
   val io = IO(new Bundle {
-    val chi = CHIChannelIO(gen, aggregateIO)
+    val chi     = CHIChannelIO(gen, aggregateIO)
     val rxState = Input(UInt(LinkStates.width.W))
-    val flit = Flipped(Decoupled(gen))
+    val flit    = Flipped(Decoupled(gen))
   })
 
   val lcrdMaxBits   = log2Ceil(lcrdMax + 1)

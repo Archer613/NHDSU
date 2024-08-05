@@ -62,7 +62,7 @@ class InboundFlitCtrl[T <: Bundle](gen: T, lcrdMax: Int = 4, aggregateIO: Boolea
   // enq
   queue.io.enq <> enq
   // deq
-  // In CHi , opcode = 0 means LCrdReturn
+  // In CHI, opcode = 0 means LCrdReturn
   when(queue.io.deq.bits.opcode =/= 0.U) {
     io.flit <> queue.io.deq
   }.otherwise {

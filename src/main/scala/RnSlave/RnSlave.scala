@@ -9,167 +9,74 @@ import xs.utils._
 import Utils.FastArb._
 import Utils.IDConnector._
 
-
-class ReqBufSelector(implicit p: Parameters) extends DJModule {
-  val io = IO(new Bundle() {
-    val idle = Input(Vec(djparam.nrReqBuf, Bool()))
-    val idleNum = Output(UInt((reqBufIdBits+1).W))
-    val out0 = UInt(reqBufIdBits.W)
-    val out1 = UInt(reqBufIdBits.W)
-  })
-  io.idleNum := PopCount(io.idle)
-  io.out0 := PriorityEncoder(io.idle)
-  val idle1 = WireInit(io.idle)
-  idle1(io.out0) := false.B
-  io.out1 := PriorityEncoder(idle1)
-}
-
-
-
-class RnSlave()(implicit p: Parameters) extends DJModule {
+class RnSlave(rnSlvId: Int)(implicit p: Parameters) extends DJModule {
 // --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
-    val rnSlvId       = Input(UInt(coreIdBits.W))
     // CHI
-    val chi           = CHIBundleUpstream(chiBundleParams)
+    val chi           = CHIBundleUpstream(chiParams)
     val chiLinkCtrl   = Flipped(new CHILinkCtrlIO())
-    // snpCtrl
-    val snpTask       = Flipped(Decoupled(new SnpTaskBundle()))
-    val snpResp       = Decoupled(new SnpRespBundle())
-    // mainpipe
-    val mpTask        = Decoupled(new TaskBundle())
-    val mpResp        = Flipped(ValidIO(new RespBundle()))
-    val clTask        = Decoupled(new WCBTBundle())
-    // dataBuffer
+    // slice ctrl signals
+    val reqTSlice     = Decoupled(new RnReqOutBundle())
+    val respFSlice    = Flipped(Decoupled(new RnRespInBundle()))
+    val reqFSlice     = Decoupled(new RnReqInBundle())
+    val respTSlice    = Flipped(Decoupled(new RnRespOutBundle()))
+    // slice DataBuffer signals
     val dbSigs        = new RnDBBundle()
   })
 
+  val nodeParam = djparam.rnNodeMes(rnSlvId)
 
 // --------------------- Modules declaration ------------------------//
-  val chiCtrl = Module(new ProtocolLayerCtrl())
-  val txReq = Module(new RnChiTxReq())
-  val txRsp = Module(new RnChiTxRsp())
-  val txDat = Module(new RnChiTxDat())
-  val rxSnp = Module(new RnChiRxSnp())
-  val rxRsp = Module(new RnChiRxRsp())
-  val rxDat = Module(new RnChiRxDat())
+  val chiCtrl = Module(new InboundLinkCtrl())
 
-  val reqBufs = Seq.fill(djparam.nrReqBuf) { Module(new ReqBuf()) }
+  val txReq   = Module(new InboundFlitCtrl(gen = new CHIBundleREQ(chiParams), lcrdMax = nodeParam.nrRnTxLcrdMax, nodeParam.aggregateIO))
+  val txRsp   = Module(new InboundFlitCtrl(gen = new CHIBundleRSP(chiParams), lcrdMax = nodeParam.nrRnTxLcrdMax, nodeParam.aggregateIO))
+  val rxSnp   = Module(new OutboundFlitCtrl(gen = new CHIBundleSNP(chiParams), lcrdMax = nodeParam.nrRnRxLcrdMax, nodeParam.aggregateIO))
+  val rxRsp   = Module(new OutboundFlitCtrl(gen = new CHIBundleRSP(chiParams), lcrdMax = nodeParam.nrRnRxLcrdMax, nodeParam.aggregateIO))
 
-  val nestCtl = Module(new NestCtl())
+  val txDat   = Module(new ChiTxDat(rnSlvId))
+  val rxDat   = Module(new ChiRxDat(rnSlvId))
 
-// --------------------- Wire declaration ------------------------//
-  val snpSelId = Wire(UInt(reqBufIdBits.W))
-  val txReqSelId = Wire(UInt(reqBufIdBits.W))
+  val reqBuf  = Module(new ReqBufWrapper(rnSlvId))
 
-// --------------------- Connection ------------------------//
-  /*
-   * connect chiXXX <-> reqBufs <-> io.xxx(signals from or to slice)
-   */
-  // TODO: Connect chi <-> reqBufs
-  reqBufs.foreach(_.io.chi <> DontCare)
-  /*
-   * connect io.chi <-> chiXXX <-> dataBuffer
-   */
+// ------------------------ Connection ---------------------------//
   chiCtrl.io.chiLinkCtrl <> io.chiLinkCtrl
-  chiCtrl.io.txAllLcrdRetrun := txReq.io.allLcrdRetrun & txRsp.io.allLcrdRetrun & txDat.io.allLcrdRetrun
-  chiCtrl.io.reqBufsVal := reqBufs.map(!_.io.free).reduce(_|_)
+  chiCtrl.io.rxRun := true.B // TODO
+  chiCtrl.io.txAllLcrdRetrun := txReq.io.allLcrdRetrun | txRsp.io.allLcrdRetrun | txDat.io.allLcrdRetrun
 
-  txReq.io.chi <> io.chi.txreq
   txReq.io.txState := chiCtrl.io.txState
+  txReq.io.chi <> io.chi.txreq
+  txReq.io.flit <> reqBuf.io.chi.txreq
 
-  txRsp.io.chi <> io.chi.txrsp
   txRsp.io.txState := chiCtrl.io.txState
-  reqBufs.map(_.io.chi.txrsp).zipWithIndex.foreach {
-    case(txrsp, i) =>
-      txrsp.valid := txRsp.io.flit.valid & txRsp.io.flit.bits.txnID === reqBufs(i).io.txRspId.bits & reqBufs(i).io.txRspId.valid
-      txrsp.bits := txRsp.io.flit.bits
-  }
-  txRsp.io.flit.ready := true.B
+  txRsp.io.chi <> io.chi.txrsp
+  txReq.io.flit <> reqBuf.io.chi.txrsp
 
-  txDat.io.chi <> io.chi.txdat
   txDat.io.txState := chiCtrl.io.txState
+  txDat.io.chi <> io.chi.txdat
+  txDat.io.flit <> reqBuf.io.chi.txdat
   txDat.io.dataTDB <> io.dbSigs.dataTDB
-  reqBufs.map(_.io.chi.txdat).zipWithIndex.foreach {
-    case (txdat, i) =>
-      // The highest bit is reserved for txnid duplicates when distinguishing Snp
-      txdat.valid := txDat.io.flit.valid & txDat.io.flit.bits.txnID(chiTxnidBits-2, 0) === reqBufs(i).io.txDatId.bits(chiTxnidBits-2, 0) & reqBufs(i).io.txDatId.valid //
-      txdat.bits := txDat.io.flit.bits
-  }
-  txDat.io.flit.ready := true.B
+  txDat.io.reqBufDBIDVec <> reqBuf.io.reqBufDBIDVec
 
-  io.chi.rxsnp <> rxSnp.io.chi
   rxSnp.io.rxState := chiCtrl.io.rxState
-  fastArbDec2Dec(reqBufs.map(_.io.chi.rxsnp), rxSnp.io.flit)
+  rxSnp.io.chi <> io.chi.rxsnp
+  rxSnp.io.flit <> reqBuf.io.chi.rxsnp
 
-  io.chi.rxrsp <> rxRsp.io.chi
   rxRsp.io.rxState := chiCtrl.io.rxState
-  fastArbDec2Dec(reqBufs.map(_.io.chi.rxrsp), rxRsp.io.flit)
+  rxRsp.io.chi <> io.chi.rxrsp
+  rxRsp.io.flit <> reqBuf.io.chi.rxrsp
 
-  io.chi.rxdat <> rxDat.io.chi
   rxDat.io.rxState := chiCtrl.io.rxState
+  rxDat.io.chi <> io.chi.txdat
+  rxDat.io.flit <> reqBuf.io.chi.txdat
   rxDat.io.dataFDB <> io.dbSigs.dataFDB
-  fastArbDec2Dec(reqBufs.map(_.io.chi.rxdat), rxDat.io.flit)
+  rxDat.io.reqBufDBIDVec <> reqBuf.io.reqBufDBIDVec
+  rxDat.io.dataFDBVal <> reqBuf.io.dataFDBVal
 
-
-  // snpTask(Priority)  ---> |----------------| ---> reqBuf(N)
-  //                         | ReqBufSelector |
-  // txReq              ---> |----------------| ---> reqBuf(N+X)
-  val reqBufSel = Module(new ReqBufSelector())
-  reqBufSel.io.idle := reqBufs.map(_.io.free)
-  io.snpTask.ready := reqBufSel.io.idleNum > 0.U
-  txReq.io.flit.ready := reqBufSel.io.idleNum > 1.U // The last reqBuf is reserved for snpTask
-  when(io.snpTask.valid){
-    snpSelId := reqBufSel.io.out0
-    txReqSelId := reqBufSel.io.out1
-  }.otherwise{
-    snpSelId := DontCare
-    txReqSelId := reqBufSel.io.out0
-  }
-
-  // ReqBuf input:
-  reqBufs.zipWithIndex.foreach {
-    case (reqbuf, i) =>
-      reqbuf.io.rnSlvId := io.rnSlvId
-      reqbuf.io.reqBufId := i.U
-      // snpTask  ---snpSelId---> reqBuf(N)
-      reqbuf.io.snpTask.valid := io.snpTask.fire & snpSelId === i.U
-      reqbuf.io.snpTask.bits := io.snpTask.bits
-      // txReq    ---txReqSelId---> reqBuf(N+X)
-      reqbuf.io.chi.txreq.valid := txReq.io.flit.fire & txReqSelId === i.U
-      reqbuf.io.chi.txreq.bits := txReq.io.flit.bits
-  }
-  // mpResp --(sel by mpResp.id.l2)--> reqBuf
-  idSelVal2ValVec(io.mpResp, reqBufs.map(_.io.mpResp), level = 2)
-  // dbResp --(sel by mpResp.id.l2)--> reqBuf
-  idSelDec2DecVec(io.dbSigs.wResp, reqBufs.map(_.io.wResp), level = 2)
-
-  // NestCtl:
-  reqBufs.zipWithIndex.foreach {
-    case (reqbuf, i) =>
-      reqbuf.io.nestOutMes <> nestCtl.io.reqBufOutVec(i)
-      reqbuf.io.nestInMes <> nestCtl.io.reqBufInVec(i)
-  }
-
-
-  // ReqBuf output:
-  // clTask ---[fastArb]---> reqArb
-  fastArbDec2Dec(reqBufs.map(_.io.clTask), io.clTask, Some("cleanBTArb"))
-  // mpTask ---[fastArb]---> mainPipe
-  fastArbDec2Dec(reqBufs.map(_.io.mpTask), io.mpTask, Some("mainPipeArb"))
-  // snpResp ---[fastArb]---> snpCtrl
-  fastArbDec2Dec(reqBufs.map(_.io.snpResp), io.snpResp, Some("snpRespArb"))
-  // dbReq ---[fastArb]---> dataBuffer
-  fastArbDec2Dec(reqBufs.map(_.io.wReq), io.dbSigs.wReq, Some("dbWReqArb"))
-  // dataFromDB --(sel by dataFromDB.bits.id.l2)--> dbDataValid
-  reqBufs.zipWithIndex.foreach {
-    case (reqbuf, i) =>
-      reqbuf.io.dbDataValid := io.dbSigs.dataFDB.valid & io.dbSigs.dataFDB.bits.to.idL2 === i.U
-  }
-
-// --------------------- Assertion ------------------------------- //
-  assert(PopCount(reqBufs.map(_.io.chi.txdat.fire)) <= 1.U, "txDat only can be send to one reqBuf")
-  assert(Mux(txRsp.io.flit.valid, PopCount(reqBufs.map(_.io.chi.txrsp.fire)) === 1.U, true.B))
-  assert(Mux(txDat.io.flit.valid, PopCount(reqBufs.map(_.io.chi.txdat.fire)) === 1.U, true.B))
-
+  reqBuf.io.reqTSlice <> io.reqTSlice
+  reqBuf.io.respFSlice <> io.respFSlice
+  reqBuf.io.reqFSlice <> io.reqFSlice
+  reqBuf.io.respTSlice <> io.respTSlice
+  reqBuf.io.wReq <> io.dbSigs.wReq
+  reqBuf.io.wResp <> io.dbSigs.wResp
 }

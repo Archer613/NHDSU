@@ -7,7 +7,7 @@ import org.chipsalliance.cde.config._
 import scala.collection.immutable.ListMap
 import scala.math.{max, min}
 
-// -------------------------------------------------------------- Use In Decode ------------------------------------------------------------------------ //
+// -------------------------------------------------------------- Decode Bundle ------------------------------------------------------------------------ //
 
 class OperationsBundle extends Bundle {
     val Snoop       = Bool()
@@ -41,7 +41,7 @@ object RespType {
     val TpyeReadDown    = "b1".U
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------- //
+// ---------------------------------------------------------------- Xbar Id Bundle ----------------------------------------------------------------------------- //
 
 object IdL0 {
     val width      = 3
@@ -55,8 +55,8 @@ object IdL0 {
 
 class IDBundle(implicit p: Parameters) extends DJBundle {
     val idL0 = UInt(IdL0.width.W) // Module: IDL0 [3.W]
-    val idL1 = UInt(max(coreIdBits, bankBits).W) // SubModule: RnSlaves, Slices [max:2.W]
-    val idL2 = UInt(max(reqBufIdBits, max(snoopCtlIdBits, replTxnidBits)).W) // SubSubModule: ReqBufs, SnpCtls, blockSets + blockWays [max:7.W]
+    val idL1 = UInt(max(rnNodeIdBits, bankBits).W) // SubModule: RnSlave, RnMaster, Slices
+    val idL2 = UInt(max(rnReqBufIdBits, max(snReqBufIdBits, snpCtlIdBits)).W) // SubSubModule: RnReqBufs, SnReqBufs, SnpCtls
 
     def isSLICE  = idL0 === IdL0.SLICE
     def isRNSLV  = idL0 === IdL0.RNSLV
@@ -69,35 +69,94 @@ class IDBundle(implicit p: Parameters) extends DJBundle {
 trait HasFromIDBits extends DJBundle { this: Bundle => val from = new IDBundle() }
 
 trait HasToIDBits extends DJBundle { this: Bundle => val to = new IDBundle() }
+class ToIDBitsBundle(implicit p: Parameters) extends DJBundle with HasToIDBits
 
 trait HasIDBits extends DJBundle with HasFromIDBits with HasToIDBits
 
 trait HasDBID extends DJBundle { this: Bundle => val dbid = UInt(dbIdBits.W) }
 
-class TaskBundle(implicit p: Parameters) extends DJBundle with HasIDBits with HasDBID {
-    // constants related to CHI
-    def tgtID       = 0.U(chiBundleParams.nodeIdBits.W)
-    def srcID       = 0.U(chiBundleParams.nodeIdBits.W)
-    // value in use
+trait HasAddr extends DJBundle { this: Bundle => val addr = UInt(addressBits.W) }
+
+trait HasMSHRSet extends DJBundle { this: Bundle => val mshrSet = UInt(mshrSetBits.W) }
+
+trait HasMSHRWay extends DJBundle { this: Bundle => val mshrWay = UInt(mshrWayBits.W) }
+
+// ---------------------------------------------------------------- Rn Req To Slice Bundle ----------------------------------------------------------------------------- //
+trait HasRnReqOutBase extends DJBundle with HasAddr with HasIDBits { this: Bundle =>
+    // CHI Mes
     val opcode      = UInt(6.W)
-    val addr        = UInt(addressBits.W)
-    val resp        = UInt(3.W) // snpResp or wbReq; resp.width = 3
-    val isWB        = Bool() // write back
-    val isSnpHlp    = Bool() // req is from snoop helper
-    val writeBt     = Bool() // write block table in ReqArb
-    val readDir     = Bool()
-    val btWay       = UInt(blockWayBits.W) // block table
+    // other
+    val readSDir    = Bool()
+    val readCDir    = Bool()
     val willSnp     = Bool()
-    val snpHasData  = Bool()
 }
 
-class RespBundle(implicit p: Parameters) extends DJBundle with HasToIDBits with HasCHIChannel{
-    val opcode      = UInt(6.W)
-    val resp        = UInt(3.W)
-    val addr        = UInt(addressBits.W) // TODO: Del it
-    val btWay       = UInt(blockWayBits.W) // block table
-    val cleanBt     = Bool()
+trait HasRnSlvReqOutBundle extends DJBundle with HasDBID
+
+trait HasRnMasReqOutBundle extends DJBundle {
+    // CHI Id
+    val SrcIDOpt = if (djparam.useDCT) Some(UInt(chiParams.nodeIdBits.W)) else None
+    val TxnIDOpt = if (djparam.useDCT) Some(UInt(chiParams.nodeIdBits.W)) else None
+    // Snp Mes
+    val doNotGoToSD = Bool()
+    val retToSrc    = Bool()
 }
+
+class RnReqOutBundle(implicit p: Parameters) extends DJBundle with HasRnReqOutBase with HasRnSlvReqOutBundle with HasRnMasReqOutBundle
+
+// ---------------------------------------------------------------- Rn Resp From SLice Bundle ----------------------------------------------------------------------------- //
+
+trait HasRnRespInBase extends DJBundle with HasToIDBits with HasMSHRWay with HasDBID with HasCHIChannel { this: Bundle =>
+    // CHI Id
+    val SrcIDOpt = if (djparam.useDCT) Some(UInt(chiParams.nodeIdBits.W)) else None
+    val TxnIDOpt = if (djparam.useDCT) Some(UInt(chiParams.nodeIdBits.W)) else None
+    // CHI Mes
+    val opcode      = UInt(6.W)
+    val resp        = UInt(ChiResp.width.W)
+}
+
+trait HasRnSlvRespInBundle extends DJBundle
+
+trait HasRnMasRespInBundle extends DJBundle
+
+class RnRespInBundle(implicit p: Parameters) extends DJBundle with HasRnRespInBase with HasRnSlvRespInBundle with HasRnMasRespInBundle
+
+// ---------------------------------------------------------------- Rn Req From Slice Bundle ----------------------------------------------------------------------------- //
+trait HasRnReqInBase extends DJBundle with HasAddr with HasIDBits { this: Bundle =>
+    // CHI Mes
+    val opcode      = UInt(6.W)
+}
+
+trait HasRnSlvReqInBundle extends DJBundle { this: Bundle =>
+    // CHI Id
+    val SrcIDOpt = if (djparam.useDCT) Some(UInt(chiParams.nodeIdBits.W)) else None
+    val TxnIDOpt = if (djparam.useDCT) Some(UInt(chiParams.nodeIdBits.W)) else None
+    // Snp Mes
+    val doNotGoToSD = Bool()
+    val retToSrc    = Bool()
+}
+
+trait HasRnMasReqInBundle extends DJBundle with HasMSHRWay { this: Bundle =>
+    val TgtID = UInt(chiParams.nodeIdBits.W)
+}
+
+class RnReqInBundle(implicit p: Parameters) extends DJBundle with HasRnReqInBase with HasRnSlvReqInBundle with HasRnMasReqInBundle
+
+
+// ---------------------------------------------------------------- Rn Resp To SLice Bundle ----------------------------------------------------------------------------- //
+trait HasRnRespOutBase extends DJBundle with HasToIDBits with HasDBID { this: Bundle =>
+    // CHI Mes
+    val resp        = UInt(ChiResp.width.W)
+}
+
+trait HasRnSlvRespOutBundle extends DJBundle
+
+trait HasRnMasRespOutBundle extends DJBundle with HasMSHRSet with HasMSHRWay
+
+class RnRespOutBundle(implicit p: Parameters) extends DJBundle with HasRnRespOutBase with HasRnSlvRespOutBundle with HasRnMasRespOutBundle
+
+
+// ---------------------------------------------------------------- Other ----------------------------------------------------------------------------- //
 
 trait HasSnpTask extends DJBundle { this: Bundle =>
     val opcode          = UInt(6.W)
@@ -148,6 +207,8 @@ class DBEntry(implicit p: Parameters) extends DJBundle with HasToIDBits {
         else { beatRNum }
     }
 }
+
+// ---------------------------------------------------------------- DataBuffer Base Bundle ----------------------------------------------------------------------------- //
 trait HasDBRCOp extends DJBundle { this: Bundle =>
     val isRead = Bool()
     val isClean = Bool()
@@ -163,21 +224,26 @@ trait HasDBData extends DJBundle { this: Bundle =>
     }
     def isLast: Bool = beatNum === (nrBeat - 1).U
 }
-// DataBuffer Read/Clean Req
-class DBRCReq(implicit p: Parameters) extends DJBundle with HasDBRCOp with HasDBID with HasToIDBits
 
-// RN Bundle
-class RnDBWReq(implicit p: Parameters) extends DJBundle with HasIDBits                                  // RN   ---[wReq] ---> DB
-class RnDBWResp(implicit p: Parameters) extends DJBundle with HasIDBits with HasDBID                    // DB   ---[wResp] --> RN
-class RnDBOutData(implicit p: Parameters) extends DJBundle with HasDBData with HasToIDBits              // DB   ---[Data] ---> RN
-class RnDBInData(implicit p: Parameters) extends DJBundle with HasDBData with HasToIDBits with HasDBID  // RN   ---[Data] ---> DB
+// DataBuffer Read/Clean Req
+trait HasDBRCReq extends DJBundle with HasDBRCOp with HasDBID
+
+// ---------------------------------------------------------------- RN DataBuffer Base Bundle ----------------------------------------------------------------------------- //
+class RnDBRCReq(implicit p: Parameters) extends DJBundle with HasDBRCReq with HasIDBits
+
+class RnDBWReq(implicit p: Parameters) extends DJBundle with HasIDBits
+class RnDBWResp(implicit p: Parameters) extends DJBundle with HasIDBits with HasDBID
+class RnDBOutData(implicit p: Parameters) extends DJBundle with HasDBData with HasToIDBits
+class RnDBInData(implicit p: Parameters) extends DJBundle with HasDBData with HasToIDBits with HasDBID
 
 class RnDBBundle(implicit p: Parameters) extends DJBundle {
-    val wReq        = Decoupled(new RnDBWReq)                      // from[RN][coreID][reqBufID];      to[SLICE][sliceId][dontCare];
-    val wResp       = Flipped(Decoupled(new RnDBWResp))            // from[SLICE][sliceId][dontCare];  to[RN][coreID][reqBufID];      hasDBID
-    val dataFDB     = Flipped(Decoupled(new RnDBOutData))          // from[None];                      to[RN][coreID][reqBufID];
-    val dataTDB     = Decoupled(new RnDBInData)                    // from[None];                      to[SLICE][sliceId][dontCare];   hasDBID
+    val wReq        = Decoupled(new RnDBWReq)
+    val wResp       = Flipped(Decoupled(new RnDBWResp))
+    val dataFDB     = Flipped(Decoupled(new RnDBOutData))
+    val dataTDB     = Decoupled(new RnDBInData)
 }
+
+// ---------------------------------------------------------------- Other ----------------------------------------------------------------------------- //
 
 // MASTER Bundle
 class MsDBWReq(implicit p: Parameters) extends DJBundle                                        // MS  ---[wReq] ---> DB

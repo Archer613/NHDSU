@@ -4,40 +4,34 @@ import DONGJIANG._
 import DONGJIANG.CHI._
 import chisel3._
 import org.chipsalliance.cde.config._
-import chisel3.util.{Decoupled, PopCount, RegEnable, ValidIO, log2Ceil, Cat}
+import chisel3.util.{Cat, Decoupled, PopCount, RegEnable, Valid, ValidIO, log2Ceil}
 
-class ReqBuf()(implicit p: Parameters) extends DJModule {
+class ReqBuf(rnSlvId: Int)(implicit p: Parameters) extends DJModule {
+  val nodeParam = djparam.rnNodeMes(rnSlvId)
+
+// --------------------- IO declaration ------------------------//
   val io = IO(new Bundle {
-    val free        = Output(Bool())
-    val rnSlvId     = Input(UInt(coreIdBits.W))
-    val reqBufId    = Input(UInt(reqBufIdBits.W))
+    val reqBufId      = Input(UInt(rnReqBufIdBits.W))
+    val free          = Output(Bool())
     // CHI
-    val chi         = Flipped(CHIBundleDecoupled(chiBundleParams))
-    val txDatId     = ValidIO(UInt(chiTxnidBits.W))
-    val txRspId     = ValidIO(UInt(chiTxnidBits.W))
-    // mainpipe
-    val mpTask      = Decoupled(new TaskBundle())
-    val clTask      = Decoupled(new WCBTBundle())
-    val mpResp      = Flipped(ValidIO(new RespBundle()))
-    // snpCtrl
-    val snpTask     = Flipped(Decoupled(new SnpTaskBundle()))
-    val snpResp     = Decoupled(new SnpRespBundle())
-    // dataBuffer
-    val wReq        = Decoupled(new RnDBWReq())
-    val wResp       = Flipped(Decoupled(new RnDBWResp()))
-    val dbDataValid = Input(Bool())
-    // Nest Signals
-    val nestOutMes  = ValidIO(new NestOutMes())
-    val nestInMes   = Flipped(ValidIO(new NestInMes()))
+    val chi           = Flipped(CHIBundleDecoupled(chiParams))
+    // slice ctrl signals
+    val reqTSlice     = Decoupled(new RnReqOutBundle())
+    val respFSlice    = Flipped(Decoupled(new RnRespInBundle()))
+    val reqFSlice     = Decoupled(new RnReqInBundle())
+    val respTSlice    = Flipped(Decoupled(new RnRespOutBundle()))
+    // For txDat and rxDat sinasl
+    val reqBufDBID    = Valid(new Bundle {
+      val bankId      = UInt(bankBits.W)
+      val dbid        = UInt(dbIdBits.W)
+    })
+    // slice DataBuffer signals
+    val wReq          = Decoupled(new RnDBWReq())
+    val wResp         = Flipped(Decoupled(new RnDBWResp()))
+    val dataFDBVal    = Input(Bool())
+    val dataTDBVal    = Input(Bool())
   })
 
-  // TODO: Delete the following code when the coding is complete
-  io.chi := DontCare
-  io.snpTask := DontCare
-  io.snpResp := DontCare
-  io.nestOutMes <> DontCare
-  io.nestInMes <> DontCare
-  dontTouch(io)
 
 // --------------------- Reg and Wire declaration ------------------------//
   val freeReg         = RegInit(true.B)
