@@ -61,7 +61,7 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
  * [reqTSlice]  |  [hasAddr]               |  from: [RNSLV]  [nodeId]  [reqBufId]   | to: [SLICE]    [sliceId] [DontCare]
  * [respFSlice] |  [hasAddr]   [hasWay]    |  from: None                            | to: [RNSLV]    [nodeId]  [reqBufId]
  * [reqFSlice]  |  [hasAddr]               |  from: [SLICE]  [sliceId] [SnpCtlId]   | to: [RNSLV]    [nodeId'] [DontCare]             // nodeId' reMap in Xbar
- * [respTSlice] |  [hasSet]    [hasWay]    |  from: None                            | to: [SLICE]    [sliceId] [SnpCtlId / DontCare]
+ * [respTSlice] |  [HasDBID]               |  from: None                            | to: [SLICE]    [sliceId] [SnpCtlId / DontCare]
  *
  *
  * RnSlave <-> Slice DB Signals:
@@ -75,11 +75,12 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
  * RnMaster <-> Slice Ctrl Signals:
  * [reqTSlice]  |  [hasAddr]               |  from: [RNMAS]  [nodeId] [reqBufId]    | to: [SLICE]    [sliceId] [DontCare]
  * [respFSlice] |  [hasAddr]   [hasWay]    |  from: None                            | to: [RNMAS]    [nodeId]  [reqBufId]
- * [reqFSlice]  |  [hasAddr]               |  from: [SLICE]  [sliceId] [SnpCtlId]   | to: [RNMAS]    [nodeId]  [DontCare]
+ * [reqFSlice]  |  [hasAddr]   [hasWay]    |  from: [SLICE]  [sliceId] [SnpCtlId]   | to: [RNMAS]    [nodeId]  [DontCare]
  * [updTSlice]  |  [hasSet]    [hasWay]    |  from: None                            | to: [SLICE]    [sliceId] [DontCare]
+ *              |  [HasDBID]               |
  *
  *
- * RnMaster <-> Slice DB Signals:
+ * RnMaster <-> Slice DB Signals:(Same as RnSlave expect dbRCReq)
  * [dbRCReq]    |  [hasDBID]               |  from: [RNMAS]  [nodeId]   [reqBufId]  | to: [SLICE]    [sliceId] [DontCare]
  * [wReq]       |  [None]                  |  from: [RNMAS]  [nodeId]   [reqBufId]  | to: [SLICE]    [sliceId] [DontCare]
  * [wResp]      |  [hasDBID]               |  from: [SLICE]  [sliceId]  [DontCare]  | to: [RN]       [nodeId]  [reqBufId]

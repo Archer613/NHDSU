@@ -14,11 +14,11 @@ case class RnNodeParam
 (
     name: String = "RnSalve",
     nrReqBuf: Int = 16,
-    nodeId: Int = 0, // isSlave => HNID; isMaster => RNID
     isSlave: Boolean = true,
     addressId: Int = 0,
     addressIdBits: Int = 0,
     peferTgtIdMap: Option[Seq[Int]] = None,
+    aggregateIO: Boolean = false,
     // can receive or send chi lcrd num
     nrRnTxLcrdMax: Int = 4,
     nrRnRxLcrdMax: Int = 4,
@@ -37,9 +37,11 @@ case class SnNodeParam
     nrReqBuf: Int = 16,
     nodeId: Int = 0, // HNID
     addressBits: Int = 48,
+    aggregateIO: Boolean = false,
     // can receive or send chi lcrd num
     nrSnTxLcrdMax: Int = 4,
     nrSnRxLcrdMax: Int = 4,
+
 ) {
     require(nrSnTxLcrdMax <= 15)
     require(nrSnRxLcrdMax <= 15)
@@ -52,10 +54,12 @@ case class DJParam(
                     beatBytes: Int = 32,
                     addressBits: Int = 48,
                     hasLLC: Boolean = true,
+                    useInNoc: Boolean = false,
+                    useDCT: Boolean = false, // Dont open it when useInNoc is false
                     // ------------------------- Rn / Sn Base Mes -------------------- //
-                    rnNodeMes: Seq[RnNodeParam] = Seq(RnNodeParam( name = "RnSalve_0", nodeId = 0)),
-                    snNodeMes: Seq[SnNodeParam] = Seq(SnNodeParam( name = "SnMaster_0", nodeId = 0),
-                                                      SnNodeParam( name = "SnMaster_1", nodeId = 1)),
+                    rnNodeMes: Seq[RnNodeParam] = Seq(RnNodeParam( name = "RnSalve_0", nodeId = 0 )),
+                    snNodeMes: Seq[SnNodeParam] = Seq(SnNodeParam( name = "SnMaster_0", nodeId = 0 ),
+                                                      SnNodeParam( name = "SnMaster_1", nodeId = 1 )),
                     // ------------------------ Slice Base Mes ------------------ //
                     nrMpQueueBeat: Int = 4,
                     mpBlockBySet: Boolean = true,
@@ -104,7 +108,8 @@ trait HasDJParam {
     val nrRnNode        = djparam.rnNodeMes.length
     val rnNodeIdSeq     = djparam.rnNodeMes.map(_.nodeId)
     val rnNodeIdBits    = log2Ceil(rnNodeIdSeq.max)
-    val rnReqBufIdBits  = log2Ceil(djparam.rnNodeMes.map(_.nrReqBuf).max)
+    val nrRnReqBufMax   = djparam.rnNodeMes.map(_.nrReqBuf).max
+    val rnReqBufIdBits  = log2Ceil(nrRnReqBufMax)
 
     // SN Parameters
     val snReqBufIdBits  = log2Ceil(djparam.snNodeMes.map(_.nrReqBuf).max)
@@ -159,7 +164,7 @@ trait HasDJParam {
     val TIMEOUT_TXD     = 1000  // SnChiTxDat
 
     // chiBundleParams
-    val chiBundleParams = CHIBundleParameters(
+    val chiParams = CHIBundleParameters(
         nodeIdBits = 7,
         addressBits = addressBits,
         dataBits = beatBits,
@@ -167,8 +172,8 @@ trait HasDJParam {
     )
 
     // some requirements
-    require(rnReqBufIdBits <= chiBundleParams.txnidBits & snReqBufIdBits <= chiBundleParams.txnidBits)
-    require(dbIdBits <= chiBundleParams.dbidBits)
+    require(rnReqBufIdBits <= chiParams.txnidBits & snReqBufIdBits <= chiParams.txnidBits)
+    require(dbIdBits <= chiParams.dbidBits)
 
     def parseAddress(x: UInt, modBankBits: Int = 1, setBits: Int = 1, tagBits: Int = 1): (UInt, UInt, UInt, UInt, UInt) = {
         val offset  = x
