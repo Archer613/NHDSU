@@ -2,8 +2,6 @@ package DONGJIANG
 
 import DONGJIANG.CHI._
 import DONGJIANG.RNSLAVE._
-import DONGJIANG.SLICE._
-import DONGJIANG.SNMASTER._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
@@ -19,11 +17,16 @@ abstract class DJBundle(implicit val p: Parameters) extends Bundle with HasDJPar
 class DongJiang()(implicit p: Parameters) extends DJModule {
 // ------------------------------------------ IO declaration ----------------------------------------------//
     val io = IO(new Bundle {
-        val rnChi = Vec(djparam.nrCore, CHIBundleUpstream(chiBundleParams))
-        val rnChiLinkCtrl = Vec(djparam.nrCore, Flipped(new CHILinkCtrlIO()))
-        val snChi = Vec(djparam.nrBank, CHIBundleDownstream(chiBundleParams))
+        val rnChi = Vec(nrRnNode, CHIBundleUpstream(chiParams))
+        val rnChiLinkCtrl = Vec(nrRnNode, Flipped(new CHILinkCtrlIO()))
+        val snChi = Vec(djparam.nrBank, CHIBundleDownstream(chiParams))
         val snChiLinkCtrl = Vec(djparam.nrBank, new CHILinkCtrlIO())
     })
+
+    io.rnChi <> DontCare
+    io.rnChiLinkCtrl <> DontCare
+    io.snChi <> DontCare
+    io.snChiLinkCtrl <> DontCare
 
 /*
  * System Architecture: (3 RNSLAVE, 1 RNMASTER and 2 bank)
@@ -198,68 +201,5 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
  *
  */
 
-
-
-    // ------------------------------------------ Modules declaration And Connection ----------------------------------------------//
-    // Modules declaration
-    val rnSlaves = Seq.fill(djparam.nrCore) { Module(new RnSlave()) }
-    val slices = Seq.fill(djparam.nrBank) { Module(new Slice()) }
-    val snMasters = Seq.fill(djparam.nrBank) { Module(new SnMaster()) }
-    val xbar = Module(new Xbar())
-
-    rnSlaves.foreach(m => dontTouch(m.io))
-    slices.foreach(m => dontTouch(m.io))
-    snMasters.foreach(m => dontTouch(m.io))
-    dontTouch(xbar.io)
-
-    /*
-    * Set rnSlaves.io.rnSlvId value
-    */
-    rnSlaves.map(_.io.rnSlvId).zipWithIndex.foreach { case(id, i) => id := i.U }
-
-    /*
-    * connect RN <--[CHI signals]--> rnSlaves
-    * connect snMasters <--[CHI signals]--> SN
-    */
-    io.rnChi.zip(rnSlaves.map(_.io.chi)).foreach { case (r, c) => r <> c }
-    io.rnChiLinkCtrl.zip(rnSlaves.map(_.io.chiLinkCtrl)).foreach { case (r, c) => r <> c }
-
-    io.snChi.zip(snMasters.map(_.io.chi)).foreach { case (s, d) => s <> d }
-    io.snChiLinkCtrl.zip(snMasters.map(_.io.chiLinkCtrl)).foreach { case (s, d) => s <> d }
-
-    /*
-    * connect rnSlaves <-----> xbar <------> slices
-    */
-    xbar.io.bankVal := slices.map(_.io.valid)
-
-    xbar.io.snpTask.in <> slices.map(_.io.snpTask)
-    xbar.io.snpTask.out <> rnSlaves.map(_.io.snpTask)
-
-    xbar.io.snpResp.in <> rnSlaves.map(_.io.snpResp)
-    xbar.io.snpResp.out <> slices.map(_.io.snpResp)
-
-    xbar.io.mpTask.in <> rnSlaves.map(_.io.mpTask)
-    xbar.io.mpTask.out <> slices.map(_.io.rnTask)
-
-    xbar.io.clTask.in <> rnSlaves.map(_.io.clTask)
-    xbar.io.clTask.out <> slices.map(_.io.rnClTask)
-
-    xbar.io.mpResp.in <> slices.map(_.io.rnResp)
-    xbar.io.mpResp.out <> rnSlaves.map(_.io.mpResp)
-
-    xbar.io.dbSigs.in <> rnSlaves.map(_.io.dbSigs)
-    xbar.io.dbSigs.out <> slices.map(_.io.dbSigs2Rn)
-
-    /*
-    * connect slices <--[ctrl/db signals]--> snMasters
-    */
-    slices.zipWithIndex.foreach{ case(s, i) => s.io.sliceId := i.U}
-    slices.zip(snMasters).foreach {
-        case (s, m) =>
-            s.io.msTask <> m.io.mpTask
-            s.io.msResp <> m.io.mpResp
-            s.io.dbSigs2Ms <> m.io.dbSigs
-            s.io.msClTask <> m.io.clTask
-    }
 
 }

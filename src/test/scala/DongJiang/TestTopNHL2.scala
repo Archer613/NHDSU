@@ -130,7 +130,7 @@ class TestTop_NHL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(impl
 // ----------------------------- Connect IO_SN <-> ARM_SN -------------------------- //
     val dongjiang = Module(new DongJiang())
     val io = IO(new Bundle {
-      val snChi = Vec(dongjiang.djparam.nrBank, CHIBundleDownstream(dongjiang.chiBundleParams))
+      val snChi = Vec(dongjiang.djparam.nrBank, CHIBundleDownstream(dongjiang.chiParams))
       val snChiLinkCtrl = Vec(dongjiang.djparam.nrBank, new CHILinkCtrlIO())
     })
 
@@ -148,7 +148,15 @@ object TestTopNHHelper {
   def gen(nrCore: Int = 1, fTop: Parameters => TestTop_NHL2)(args: Array[String]) = {
     val FPGAPlatform    = false
     val enableChiselDB  = false
-    
+
+    def createRnNode(name: String) = {
+      val rnNode = new RnNodeParam(
+        name = name,
+      )
+      rnNode
+    }
+    val rnNodeSeq = (0 until nrCore).map(i => createRnNode(s"RnSlave$i"))
+
     val config = new Config((_, _, _) => {
       case L2ParamKey => L2Param(
         ways = 4,
@@ -156,7 +164,7 @@ object TestTopNHHelper {
       )
       case DebugOptionsKey => DebugOptions()
       case DJParamKey => DJParam(
-        nrCore = nrCore
+        rnNodeMes = rnNodeSeq
       )
     })
 

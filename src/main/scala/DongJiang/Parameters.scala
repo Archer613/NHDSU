@@ -35,7 +35,6 @@ case class SnNodeParam
 (
     name: String = "SnMaster",
     nrReqBuf: Int = 16,
-    nodeId: Int = 0, // HNID
     addressBits: Int = 48,
     aggregateIO: Boolean = false,
     // can receive or send chi lcrd num
@@ -57,9 +56,9 @@ case class DJParam(
                     useInNoc: Boolean = false,
                     useDCT: Boolean = false, // Dont open it when useInNoc is false
                     // ------------------------- Rn / Sn Base Mes -------------------- //
-                    rnNodeMes: Seq[RnNodeParam] = Seq(RnNodeParam( name = "RnSalve_0", nodeId = 0 )),
-                    snNodeMes: Seq[SnNodeParam] = Seq(SnNodeParam( name = "SnMaster_0", nodeId = 0 ),
-                                                      SnNodeParam( name = "SnMaster_1", nodeId = 1 )),
+                    rnNodeMes: Seq[RnNodeParam] = Seq(RnNodeParam( name = "RnSalve_0")),
+                    snNodeMes: Seq[SnNodeParam] = Seq(SnNodeParam( name = "SnMaster_0"),
+                                                      SnNodeParam( name = "SnMaster_1")),
                     // ------------------------ Slice Base Mes ------------------ //
                     nrMpQueueBeat: Int = 4,
                     mpBlockBySet: Boolean = true,
@@ -106,8 +105,7 @@ trait HasDJParam {
 
     // RN Parameters
     val nrRnNode        = djparam.rnNodeMes.length
-    val rnNodeIdSeq     = djparam.rnNodeMes.map(_.nodeId)
-    val rnNodeIdBits    = log2Ceil(rnNodeIdSeq.max)
+    val rnNodeIdBits    = log2Ceil(nrRnNode)
     val nrRnReqBufMax   = djparam.rnNodeMes.map(_.nrReqBuf).max
     val rnReqBufIdBits  = log2Ceil(nrRnReqBufMax)
 
@@ -163,7 +161,7 @@ trait HasDJParam {
     val TIMEOUT_RC      = 6000  // ReadCtl
     val TIMEOUT_TXD     = 1000  // SnChiTxDat
 
-    // chiBundleParams
+    // chiParams
     val chiParams = CHIBundleParameters(
         nodeIdBits = 7,
         addressBits = addressBits,

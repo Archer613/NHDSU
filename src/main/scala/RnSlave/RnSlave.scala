@@ -70,7 +70,6 @@ class RnSlave(rnSlvId: Int)(implicit p: Parameters) extends DJModule {
   rxDat.io.chi <> io.chi.txdat
   rxDat.io.flit <> reqBuf.io.chi.txdat
   rxDat.io.dataFDB <> io.dbSigs.dataFDB
-  rxDat.io.reqBufDBIDVec <> reqBuf.io.reqBufDBIDVec
   rxDat.io.dataFDBVal <> reqBuf.io.dataFDBVal
 
   reqBuf.io.reqTSlice <> io.reqTSlice
