@@ -7,10 +7,16 @@ import org.chipsalliance.cde.config._
 import freechips.rocketchip.tilelink._
 import scala.collection.immutable.ListMap
 
+trait HasChiOpcode { this: Bundle =>
+    def opcodeBits: Int = 6
+    val opcode = UInt(opcodeBits.W)
+}
 
 // CHIBundle adapt to CHI-B
-class CHIBundleREQ(params: CHIBundleParameters) extends Bundle {
+class CHIBundleREQ(params: CHIBundleParameters) extends Bundle with HasChiOpcode {
     val channelName = "'REQ' channel"
+
+    override def opcodeBits: Int = 6
 
     val qos            = UInt(4.W)
     val tgtID          = UInt(params.nodeIdBits.W)
@@ -21,7 +27,6 @@ class CHIBundleREQ(params: CHIBundleParameters) extends Bundle {
     val returnTxnID    = UInt(params.txnidBits.W)
     // val stashLPIDValid = returnTxnID(5)
     // val stashLPID      = returnNID(4,0)
-    val opcode         = UInt(6.W)
     val size           = UInt(3.W)
     val addr           = UInt(params.addressBits.W)
     val ns             = Bool()
@@ -39,14 +44,15 @@ class CHIBundleREQ(params: CHIBundleParameters) extends Bundle {
     val rsvdc          = UInt(4.W)
 }
 
-class CHIBundleRSP(params: CHIBundleParameters) extends Bundle {
+class CHIBundleRSP(params: CHIBundleParameters) extends Bundle with HasChiOpcode {
     val channelName = "'RSP' channel"
+
+    override def opcodeBits: Int = 4
 
     val qos      = UInt(4.W)
     val tgtID    = UInt(params.nodeIdBits.W)
     val srcID    = UInt(params.nodeIdBits.W)
     val txnID    = UInt(params.txnidBits.W)
-    val opcode   = UInt(4.W)
     val respErr  = UInt(2.W)
     val resp     = UInt(3.W)
     val fwdState = UInt(3.W)
@@ -56,8 +62,10 @@ class CHIBundleRSP(params: CHIBundleParameters) extends Bundle {
     val traceTag = Bool()
 }
 
-class CHIBundleSNP(params: CHIBundleParameters) extends Bundle {
+class CHIBundleSNP(params: CHIBundleParameters) extends Bundle with HasChiOpcode {
     val channelName = "'SNP' channel"
+
+    override def opcodeBits: Int = 5
 
     val qos            = UInt(4.W)
     val srcID          = UInt(params.nodeIdBits.W)
@@ -67,7 +75,6 @@ class CHIBundleSNP(params: CHIBundleParameters) extends Bundle {
     // val stashLPIDValid = fwdTxnID(5)
     // val stashLPID      = fwdTxnID(4,0)
     // val vmIDExt        = fwdTxnID
-    val opcode         = UInt(5.W)
     val addr           = UInt((params.addressBits - 3).W)
     val ns             = Bool()
     val doNotGoToSD    = Bool()
@@ -76,15 +83,16 @@ class CHIBundleSNP(params: CHIBundleParameters) extends Bundle {
     val traceTag       = Bool()
 }
 
-class CHIBundleDAT(params: CHIBundleParameters) extends Bundle {
+class CHIBundleDAT(params: CHIBundleParameters) extends Bundle with HasChiOpcode {
     val channelName = "'DAT' channel"
+
+    override def opcodeBits: Int = 3
 
     val qos        = UInt(4.W)
     val tgtID      = UInt(params.nodeIdBits.W)
     val srcID      = UInt(params.nodeIdBits.W)
     val txnID      = UInt(params.txnidBits.W)
     val homeNID    = UInt(params.nodeIdBits.W)
-    val opcode     = UInt(3.W)
     val respErr    = UInt(2.W)
     val resp       = UInt(3.W)
     val fwdState   = UInt(3.W)

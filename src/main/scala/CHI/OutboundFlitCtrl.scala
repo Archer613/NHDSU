@@ -4,7 +4,7 @@ import chisel3._
 import chisel3.util.{Decoupled, is, log2Ceil, switch}
 import org.chipsalliance.cde.config._
 
-class OutboundFlitCtrl[T <: Bundle](gen: T, lcrdMax: Int = 4, aggregateIO: Boolean = false)(implicit p: Parameters) extends Module {
+class OutboundFlitCtrl[T <: Bundle with HasChiOpcode](gen: T, lcrdMax: Int = 4, aggregateIO: Boolean = false)(implicit p: Parameters) extends Module {
   val io = IO(new Bundle {
     val chi     = CHIChannelIO(gen, aggregateIO)
     val rxState = Input(UInt(LinkStates.width.W))
