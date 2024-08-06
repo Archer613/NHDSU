@@ -18,6 +18,7 @@ class DsuChiTxDat()(implicit p: Parameters) extends DSUModule {
 
 // ------------------- Reg/Wire declaration ---------------------- //
   val lcrdFreeNumReg  = RegInit(0.U(snTxlcrdBits.W))
+  dontTouch(lcrdFreeNumReg)
   val flitReg         = RegInit(0.U.asTypeOf(new CHIBundleDAT(chiBundleParams)))
   val flitvReg        = RegInit(false.B)
   val flit            = WireInit(0.U.asTypeOf(new CHIBundleDAT(chiBundleParams)))

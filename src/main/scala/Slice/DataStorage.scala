@@ -174,7 +174,7 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
     case (array, bank) =>
       array.zipWithIndex.foreach {
         case (array, beat) =>
-          when(dsOutEntry.bank === bank.U & array.io.r.req.ready) {
+          when(dsOutEntry.bank === bank.U & dsOutEntry.sBeatNum === beat.U & array.io.r.req.ready) {
             toDB.bits.data := array.io.r.resp.data(OHToUInt(dsOutEntry.wayOH))
             toDB.bits.dataID := toDataID(beat.U)
           }

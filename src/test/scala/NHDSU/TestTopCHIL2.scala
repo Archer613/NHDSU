@@ -17,6 +17,7 @@ import coupledL2.tl2chi._
 import utility.{ChiselDB, FileRegisters, TLLogger, PerfCounterOptionsKey, PerfCounterOptions}
 import coupledL2._
 import xs.utils.perf.{DebugOptions, DebugOptionsKey}
+import NHSN._
 
 class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(implicit p: Parameters) extends LazyModule
   with HasCHIMsgParameters {
@@ -151,13 +152,11 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
 
 // ----------------------------- Connect IO_SN <-> ARM_SN -------------------------- //
     val dsu = Module(new NHDSU())
+    val sn  = Module(new NHSN())
     val connecter = Seq.fill(numCores) { Module(new ConnectChil2()) }
-    val io = IO(new Bundle {
-      val snChi = Vec(dsu.dsuparam.nrBank, CHIBundleDownstream(dsu.chiBundleParams))
-      val snChiLinkCtrl = Vec(dsu.dsuparam.nrBank, new CHILinkCtrlIO())
-    })
-    dsu.io.snChi <> io.snChi
-    dsu.io.snChiLinkCtrl <> io.snChiLinkCtrl
+    
+    dsu.io.snChi <> sn.io.hnChi
+    dsu.io.snChiLinkCtrl <> sn.io.hnLinkCtrl
 
     dontTouch(dsu.io)
     dontTouch(l2_nodes(0).module.io_chi)
