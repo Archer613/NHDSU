@@ -2,6 +2,7 @@ package DONGJIANG
 
 import DONGJIANG.CHI._
 import DONGJIANG.RNSLAVE._
+import DONGJIANG.RNMASTER._
 import chisel3._
 import chisel3.util._
 import org.chipsalliance.cde.config._
@@ -15,19 +16,6 @@ abstract class DJBundle(implicit val p: Parameters) extends Bundle with HasDJPar
 
 
 class DongJiang()(implicit p: Parameters) extends DJModule {
-// ------------------------------------------ IO declaration ----------------------------------------------//
-    val io = IO(new Bundle {
-        val rnChi = Vec(nrRnNode, CHIBundleUpstream(chiParams))
-        val rnChiLinkCtrl = Vec(nrRnNode, Flipped(new CHILinkCtrlIO()))
-        val snChi = Vec(djparam.nrBank, CHIBundleDownstream(chiParams))
-        val snChiLinkCtrl = Vec(djparam.nrBank, new CHILinkCtrlIO())
-    })
-
-    io.rnChi <> DontCare
-    io.rnChiLinkCtrl <> DontCare
-    io.snChi <> DontCare
-    io.snChiLinkCtrl <> DontCare
-
 /*
  * System Architecture: (3 RNSLAVE, 1 RNMASTER and 2 bank)
  *
@@ -200,6 +188,40 @@ class DongJiang()(implicit p: Parameters) extends DJModule {
  * { CompDBIDResp                   }   RxRsp: M & G {                    |                      |   TxnID  == reqBufId  |  DBID_g = DBID       }
  *
  */
+
+
+// ------------------------------------------ IO declaration ----------------------------------------------//
+    val io = IO(new Bundle {
+        val rnSlvChi            = Vec(nrRnSlv, CHIBundleUpstream(chiParams))
+        val rnSlvChiLinkCtrl    = Vec(nrRnSlv, Flipped(new CHILinkCtrlIO()))
+        val rnMasChi            = Vec(nrRnMas, CHIBundleDownstream(chiParams))
+        val rnMasChiLinkCtrl    = Vec(nrRnMas, new CHILinkCtrlIO())
+        val snMasChi            = Vec(djparam.nrBank, CHIBundleDownstream(chiParams))
+        val snMasChiLinkCtrl    = Vec(djparam.nrBank, new CHILinkCtrlIO())
+    })
+
+    io <> DontCare
+
+// ------------------------------------------ Modules declaration ----------------------------------------------//
+    def createRnSlv(id: Int) = { val rnSlv = Module(new RnSlave(id)); rnSlv }
+    def createRnMas(id: Int) = { val rnMas = Module(new RnMaster(id)); rnMas }
+    val rnSlaves    = (0 until nrRnSlv).map(i => createRnSlv(i))
+    val rnMasters   = (nrRnSlv until nrRnNode).map(i => createRnMas(i))
+    val rnNodes     = rnSlaves ++ rnMasters
+
+    rnNodes.foreach(_.io <> DontCare)
+
+
+// ---------------------------------------------- Connection ---------------------------------------------------//
+    /*
+     * Connect IO CHI
+     */
+    rnSlaves.map(_.chiIO.chnls).zip(io.rnSlvChi).foreach { case(a, b) => a <> b}
+    rnSlaves.map(_.chiIO.linkCtrl).zip(io.rnSlvChiLinkCtrl).foreach{ case(a, b) => a <> b}
+
+    rnMasters.map(_.chiIO.chnls).zip(io.rnMasChi).foreach { case (a, b) => a <> b }
+    rnMasters.map(_.chiIO.linkCtrl).zip(io.rnMasChiLinkCtrl).foreach { case (a, b) => a <> b }
+
 
 
 }

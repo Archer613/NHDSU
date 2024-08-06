@@ -33,8 +33,8 @@ class ReqBufWrapper(rnSlvId: Int)(implicit p: Parameters) extends DJModule {
     // slice ctrl signals
     val reqTSlice     = Decoupled(new RnReqOutBundle())
     val respFSlice    = Flipped(Decoupled(new RnRespInBundle()))
-    val reqFSlice     = Decoupled(new RnReqInBundle())
-    val respTSlice    = Flipped(Decoupled(new RnRespOutBundle()))
+    val reqFSlice     = Flipped(Decoupled(new RnReqInBundle()))
+    val respTSlice    = Decoupled(new RnRespOutBundle())
     // For txDat and rxDat sinasl
     val reqBufDBIDVec = Vec(nodeParam.nrReqBuf, Valid(new Bundle {
       val bankId      = UInt(bankBits.W)
@@ -47,8 +47,9 @@ class ReqBufWrapper(rnSlvId: Int)(implicit p: Parameters) extends DJModule {
   })
 
 // --------------------- Modules declaration ------------------------//
-  val reqBufs         = Seq.fill(nodeParam.nrReqBuf) { Module(new ReqBuf(rnSlvId)) }
-  val reqSel          = Module(new ReqBufSelector(nodeParam.nrReqBuf))
+  def createReqBuf(id: Int) = { val reqBuf = Module(new ReqBuf(rnSlvId, id)); reqBuf }
+  val reqBufs               = (0 until nodeParam.nrReqBuf).map(i => createReqBuf(i))
+  val reqSel                = Module(new ReqBufSelector(nodeParam.nrReqBuf))
 //  val nestCtl         = Module(new NestCtl()) // TODO: Nest Ctrl
 
 // --------------------- Wire declaration ------------------------//
@@ -121,8 +122,8 @@ class ReqBufWrapper(rnSlvId: Int)(implicit p: Parameters) extends DJModule {
   fastArbDec2Dec(reqBufs.map(_.io.respTSlice), io.respTSlice)
   reqBufs.zipWithIndex.foreach {
     case (reqBuf, i) =>
-      reqBuf.io.reqFSlice := io.reqFSlice.valid & reqSelId0 === i.U & canReceive0
-      reqBuf.io.reqFSlice := io.reqFSlice.bits
+      reqBuf.io.reqFSlice.valid := io.reqFSlice.valid & reqSelId0 === i.U & canReceive0
+      reqBuf.io.reqFSlice.bits  := io.reqFSlice.bits
   }
   io.reqFSlice.ready := canReceive0
 

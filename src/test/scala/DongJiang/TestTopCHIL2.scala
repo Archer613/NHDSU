@@ -156,17 +156,20 @@ class TestTop_CHIL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(imp
       val snChi = Vec(dongjiang.djparam.nrBank, CHIBundleDownstream(dongjiang.chiParams))
       val snChiLinkCtrl = Vec(dongjiang.djparam.nrBank, new CHILinkCtrlIO())
     })
-    dongjiang.io.snChi <> io.snChi
-    dongjiang.io.snChiLinkCtrl <> io.snChiLinkCtrl
+    dongjiang.io.snMasChi <> io.snChi
+    dongjiang.io.snMasChiLinkCtrl <> io.snChiLinkCtrl
 
     dontTouch(dongjiang.io)
     dontTouch(l2_nodes(0).module.io_chi)
 
+    dongjiang.io.rnMasChi <> DontCare
+    dongjiang.io.rnMasChiLinkCtrl <> DontCare
+
     connecter.zipWithIndex.foreach {
       case(c, i) =>
         c.io.l2Chi <> l2_nodes(i).module.io_chi
-        c.io.djChiLinkCtrl <> dongjiang.io.rnChiLinkCtrl(i)
-        c.io.djChi <> dongjiang.io.rnChi(i)
+        c.io.djChi <> dongjiang.io.rnSlvChi(i)
+        c.io.djChiLinkCtrl <> dongjiang.io.rnSlvChiLinkCtrl(i)
     }
   }
 
@@ -206,6 +209,7 @@ object TestTopCHIHelper {
       case DebugOptionsKey => DebugOptions()
       case DJParamKey => DJParam(
         rnNodeMes = rnNodeSeq
+
       )
     })
 

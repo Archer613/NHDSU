@@ -17,10 +17,10 @@ class ChiTxDat(rnSlvId: Int)(implicit p: Parameters) extends DJModule {
     val allLcrdRetrun = Output(Bool()) // Deactive Done
     val flit          = Decoupled(new CHIBundleDAT(chiParams))
     val dataTDB       = Decoupled(new RnDBInData)
-    val reqBufDBIDVec = Vec(nodeParam.nrReqBuf, Valid(new Bundle {
+    val reqBufDBIDVec = Vec(nodeParam.nrReqBuf, Flipped(Valid(new Bundle {
       val bankId      = UInt(bankBits.W)
       val dbid        = UInt(dbIdBits.W)
-    }))
+    })))
   })
 
 // --------------------- Modules declaration --------------------- //
@@ -44,8 +44,8 @@ class ChiTxDat(rnSlvId: Int)(implicit p: Parameters) extends DJModule {
   /*
    * Connect io.flit
    */
-  io.flit.valid     := io.flit.fire
-  io.flit.bits      := io.flit.bits
+  io.flit.valid     := flit.fire
+  io.flit.bits      := flit.bits
   io.flit.bits.data := DontCare
 
   /*

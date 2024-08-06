@@ -134,11 +134,14 @@ class TestTop_NHL2(numCores: Int = 1, numULAgents: Int = 0, banks: Int = 1)(impl
       val snChiLinkCtrl = Vec(dongjiang.djparam.nrBank, new CHILinkCtrlIO())
     })
 
-    dongjiang.io.snChi <> io.snChi
-    dongjiang.io.snChiLinkCtrl <> io.snChiLinkCtrl
+    dongjiang.io.snMasChi <> io.snChi
+    dongjiang.io.snMasChiLinkCtrl <> io.snChiLinkCtrl
 
-    dongjiang.io.rnChi.zipWithIndex.foreach { case(chi, i) => chi <> l2_nodes(i).module.io.chi }
-    dongjiang.io.rnChiLinkCtrl.zipWithIndex.foreach { case(ctrl, i) => ctrl <> l2_nodes(i).module.io.chiLinkCtrl }
+    dongjiang.io.rnMasChi <> DontCare
+    dongjiang.io.rnMasChiLinkCtrl <> DontCare
+
+    dongjiang.io.rnSlvChi.zipWithIndex.foreach { case(chi, i) => chi <> l2_nodes(i).module.io.chi }
+    dongjiang.io.rnSlvChiLinkCtrl.zipWithIndex.foreach { case(ctrl, i) => ctrl <> l2_nodes(i).module.io.chiLinkCtrl }
   }
 
 }

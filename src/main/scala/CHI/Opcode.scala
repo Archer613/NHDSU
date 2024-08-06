@@ -62,6 +62,8 @@ object CHIOp {
     def AtomicSwap            = 0x38.U(width.W)
     def AtomicCompare         = 0x39.U(width.W)
     def PrefetchTgt           = 0x3A.U(width.W)
+
+    def isWrite(x: UInt) = WriteEvictFull <= x & x <= WriteUniquePtlStash
   }
 
   object RSP {

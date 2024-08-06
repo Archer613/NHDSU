@@ -16,7 +16,7 @@ class ChiRxDat(rnSlvId: Int)(implicit p: Parameters) extends DJModule {
     val rxState       = Input(UInt(LinkStates.width.W))
     val flit          = Flipped(Decoupled(new CHIBundleDAT(chiParams)))
     val dataFDB       = Flipped(Decoupled(new RnDBOutData))
-    val dataFDBVal    = Flipped(Valid(UInt(rnReqBufIdBits.W)))
+    val dataFDBVal    = Valid(UInt(rnReqBufIdBits.W))
   })
 
 // --------------------- Modules declaration --------------------- //
