@@ -15,6 +15,9 @@ class WriteBuf (implicit p : Parameters) extends DSUModule {
       val datFlit                  = Flipped(Decoupled(new CHIBundleDAT(chiBundleParams)))
       val wrDat                    = Decoupled(new WriteData(chiBundleParams))
       val fsmFull                  = Output(Bool())
+      val dataRegEnq               = Input(Bool())
+      val rspQueueFull             = Input(Bool())
+      val datQueueFull             = Input(Bool())
     })
  // -------------------------- Wire/Reg define -----------------------------//
   val fsmReg                       = RegInit(VecInit(Seq.fill(nrReadCtlEntry) { 0.U.asTypeOf(new WriteBufTableEntry()) }))
@@ -41,10 +44,12 @@ class WriteBuf (implicit p : Parameters) extends DSUModule {
   when(io.reqFlit.fire & io.reqFlit.bits.opcode === REQ.WriteNoSnpFull){
     fsmReg(selIdleFsm).state      := WrState.WAITDATA
     fsmReg(selIdleFsm).addr       := io.reqFlit.bits.addr
-    fsmReg(selIdleFsm).txnID      := io.reqFlit.bits.txnID(dbIdBits - 1 ,0)
+    fsmReg(selIdleFsm).txnID      := io.reqFlit.bits.txnID
   }
   selWaitDatVec.zip(fsmReg).foreach{ case(s, f)  => s := f.txnID === io.datFlit.bits.txnID & f.state === WrState.WAITDATA}
   selSendDatVec.zip(fsmReg).foreach { case(s, f) => s := f.txnID === io.datFlit.bits.txnID & f.state === WrState.SENDDAT1}
+
+  
   when(io.datFlit.fire){
     
     switch(fsmReg(selWaitDat).state){
@@ -73,7 +78,7 @@ class WriteBuf (implicit p : Parameters) extends DSUModule {
  * Output
  */
 
-  io.reqFlit.ready             := stateIdleVec.reduce(_ | _)
+  io.reqFlit.ready             := stateIdleVec.reduce(_ | _) & !io.dataRegEnq & !io.rspQueueFull & !io.datQueueFull
   io.datFlit.ready             := true.B
   io.wrDat.bits                := Mux(io.datFlit.fire, writeData, 0.U.asTypeOf((writeData)))
   io.wrDat.valid               := io.datFlit.valid

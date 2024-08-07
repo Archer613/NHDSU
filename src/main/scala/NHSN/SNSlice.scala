@@ -43,12 +43,16 @@ class SNSlice (implicit p : Parameters) extends DSUModule {
 
   writeBuffer.io.reqFlit         <> snChiTxReq.io.flit
   writeBuffer.io.datFlit         <> snChiTxDat.io.flit
+  writeBuffer.io.dataRegEnq      := datGen.io.regEnq
+  writeBuffer.io.datQueueFull    := datGen.io.datQueueFull
+  writeBuffer.io.rspQueueFull    := rspGen.io.rspQueueFull
 
   writeDat.io.writeDataIn        <> writeBuffer.io.wrDat
 
   rspGen.io.reqFlitIn            <> snChiTxReq.io.flit
   rspGen.io.fsmFull              := writeBuffer.io.fsmFull
   rspGen.io.datQueueFull         := datGen.io.datQueueFull
+  rspGen.io.dataRegEnq           := datGen.io.regEnq
 
   datGen.io.readReqFlit          <> snChiTxReq.io.flit
   datGen.io.rspReg               := io.readResp

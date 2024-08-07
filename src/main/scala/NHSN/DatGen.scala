@@ -18,6 +18,7 @@ class DatGen (implicit p : Parameters) extends DSUModule {
       val fsmFull          = Input(Bool())
       val datQueueFull     = Output(Bool())
       val rspQueueFull     = Input(Bool())
+      val regEnq           = Output(Bool())
     })
  // --------------------------- Module define ------------------------------//
   val queue                = Module(new Queue(new CHIBundleDAT(chiBundleParams), entries = dsuparam.nrSnTxLcrdMax, pipe = true, flow = false, hasFlush = false))
@@ -80,4 +81,5 @@ class DatGen (implicit p : Parameters) extends DSUModule {
   io.readReqFlit.ready    := !enqValidReg & !queueFull & !io.fsmFull & !io.rspQueueFull
   io.datQueueFull         := queueFull
   io.bufNoEmpty           := !queueEmpty
+  io.regEnq               := enqValidReg
 }
