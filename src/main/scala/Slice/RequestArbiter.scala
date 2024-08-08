@@ -93,7 +93,8 @@ class RequestArbiter()(implicit p: Parameters) extends DSUModule {
    * TODO: Add retry queue to
    */
   val(btRTag, btRSet, btRBank) = parseBTAddress(io.taskCpu.bits.addr); dontTouch(btRTag); dontTouch(btRSet); dontTouch(btRBank)
-  blockCpuTaskVec := blockTableReg(btRSet).map { case b => b.valid & b.tag === btRTag & b.bank === btRBank }
+  // blockCpuTaskVec := blockTableReg(btRSet).map { case b => b.valid & b.tag === btRTag & b.bank === btRBank }
+  blockCpuTaskVec := blockTableReg(btRSet).map { case b => b.valid & b.tag === btRTag }
   invWayVec := blockTableReg(btRSet).map { case b => !b.valid }
   blockWayNext := PriorityEncoder(invWayVec)
   blockCpuTask := blockCpuTaskVec.asUInt.orR | !invWayVec.asUInt.orR
