@@ -165,7 +165,7 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
    * TODO: get data by RegNext(nrMuticycle)(req.fire)
    * Output Data to DataBuffer
    */
-  rReadyVec.zipWithIndex.foreach{ case(ready, i) => ready := dataArray(i).map(_.io.r.req.ready) }
+  rReadyVec.zipWithIndex.foreach{ case(ready, i) => ready := dataArray(i).map(_.io.w.req.ready) }
   val toDB = io.dbSigs2DB.dataTDB
   val outId = outIdQ.io.deq.bits
   val dsOutEntry = dsReqEntries(outId)
@@ -174,7 +174,7 @@ class DataStorage()(implicit p: Parameters) extends DSUModule {
     case (array, bank) =>
       array.zipWithIndex.foreach {
         case (array, beat) =>
-          when(dsOutEntry.bank === bank.U & dsOutEntry.sBeatNum === beat.U & array.io.r.req.ready) {
+          when(dsOutEntry.bank === bank.U & dsOutEntry.sBeatNum === beat.U & array.io.w.req.ready) {
             toDB.bits.data := array.io.r.resp.data(OHToUInt(dsOutEntry.wayOH))
             toDB.bits.dataID := toDataID(beat.U)
           }

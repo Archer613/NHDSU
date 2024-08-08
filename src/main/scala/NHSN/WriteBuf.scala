@@ -50,7 +50,7 @@ class WriteBuf (implicit p : Parameters) extends DSUModule {
   selSendDatVec.zip(fsmReg).foreach { case(s, f) => s := f.txnID === io.datFlit.bits.txnID & f.state === WrState.SENDDAT1}
 
   
-  when(io.datFlit.fire){
+  when(io.datFlit.fire & io.datFlit.bits.dataID === 0.U){
     
     switch(fsmReg(selWaitDat).state){
       is(WrState.WAITDATA){
@@ -61,6 +61,8 @@ class WriteBuf (implicit p : Parameters) extends DSUModule {
         writeData.txnID           := fsmReg(selWaitDat).txnID
       }
     }
+  }
+  when(io.datFlit.fire & io.datFlit.bits.dataID === 2.U){
     switch(fsmReg(selSendDat).state){
       is(WrState.SENDDAT1){
         fsmReg(selSendDat).state  := WrState.IDLE
